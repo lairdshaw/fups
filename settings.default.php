@@ -45,6 +45,13 @@ define('FUPS_CONTACT_URL'      , '/contact'                         );
 // run from the commandline.
 define('FUPS_CMDLINE_PHP_PATH' , 'php'                              );
 
+// The URL from where the source code of this FUPS installation can be
+// downloaded. Note that under the terms under which this code is licensed,
+// the Affero General Public License, you are required to display this somewhere
+// for your users, and if you have modified the code, you need to link to that
+// modified code.
+define('FUPS_SRC_URL'          , 'https://github.com/lairdshaw/fups');
+
 // The maximum number of PHP processes to detect before letting the user know
 // with an error that their FUPS process cannot run. This is useful when your
 // web host limits you to a certain number of processes and you want to avoid
@@ -167,9 +174,17 @@ function fups_output_page_start($page, $title, $description, $head_extra = '') {
 //
 // This function should assume that the <body> tag is open, and thus should
 // include a closing </body> and a closing </html> tag.
+//
+// N.B. By the terms under which this code is licensed, the Affero General
+// Public License, you are required to supply a link to the source code, so you
+// need to output FUPS_SRC_URL somewhere visible to users of your FUPS
+// installation.
 function fups_output_page_end($page, $script = '') {
 	if ($script) echo $script;
 ?>
+
+<p style="font-size: small;">FUPS source code available <a href="<?php echo FUPS_SRC_URL; ?>">here</a>.</p>
+
 </body>
 </html>
 <?php
