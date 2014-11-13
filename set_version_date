@@ -1,0 +1,8 @@
+#! /usr/bin/env php
+<?php
+while ($line = fgets(STDIN)) {
+	$line_new = preg_replace("/(define\\('FUPS_VERSION'\\s*,\\s*')([^']*)('\\s*\\);)/", '\\1'.gmdate('r').'\\3', $line);
+	if ($line_new !== null) $line = $line_new;
+	echo $line;
+}
+?>
