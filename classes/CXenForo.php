@@ -180,13 +180,13 @@ class XenForoFUPS extends FUPSBase {
 			$url .= '&before='.$before;
 		}
 		$this->set_url($url);
-		$opts = array(
-			CURLOPT_FOLLOWLOCATION => false,
-			CURLOPT_HEADER         => true ,
-		);
-		if (!curl_setopt_array($this->ch, $opts)) {
-			$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
-		}
+		// $opts = array(
+		// 	CURLOPT_FOLLOWLOCATION => false,
+		// 	CURLOPT_HEADER         => true ,
+		// );
+		// if (!curl_setopt_array($this->ch, $opts)) {
+		// 	$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+		// }
 
 		$response = curl_exec($this->ch);
 		if ($response === false) {
@@ -207,13 +207,13 @@ class XenForoFUPS extends FUPSBase {
 				$this->write_err('Failed to detect a "Location:" header.', __FILE__, __METHOD__, __LINE__);
 			}
 		}
-		$opts = array(
-			CURLOPT_FOLLOWLOCATION => true ,
-			CURLOPT_HEADER         => false,
-		);
-		if (!curl_setopt_array($this->ch, $opts)) {
-			$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
-		}
+		// $opts = array(
+		// 	CURLOPT_FOLLOWLOCATION => true ,
+		// 	CURLOPT_HEADER         => false,
+		// );
+		// if (!curl_setopt_array($this->ch, $opts)) {
+		// 	$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+		// }
 
 		return $search_id;
 	}

@@ -251,9 +251,29 @@ abstract class FUPSBase {
 				if ($this->dbg) $this->write_err("Retrying after $delay seconds.");
 				sleep($delay);
 			}
-			$html = curl_exec($this->ch);
+
+			// We emulate CURLOPT_FOLLOWLOCATION by grabbing headers and matching a "Location:"
+			// header because some hosts (Hostgator!) currently have a version of cURL older
+			// than that in which this bug was fixed: <http://sourceforge.net/p/curl/bugs/1159/>.
+			// This bug is activated when following XenForo post URLs when CURLOPT_FOLLOWLOCATION
+			// is set.
+			$response = curl_exec($this->ch);
+			$header_size = curl_getinfo($this->ch, CURLINFO_HEADER_SIZE);
+			$headers = substr($response, 0, $header_size);
+			$html = substr($response, $header_size);
 			$response_code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
 			if ($response_code != 200) {
+				$location = false;
+				if (preg_match('/^Location: (.*)$/im', $headers, $matches)) {
+					$url = trim($matches[1]);
+					// Strip from any # onwards - this appears to be buggy either in
+					// certain older versions of cURL or receiving webservers.
+					$tmp = explode('#', $url, 2);
+					$url = $tmp[0];
+					$this->set_url($url);
+					$i--;
+					continue;
+				}
 				$err = 'Received response other than 200 from server ('.$response_code.') for url: '.$this->last_url;
 				if ($this->dbg) $this->write_err($err, __FILE__, __METHOD__, __LINE__);
 			} else	{
@@ -619,10 +639,10 @@ abstract class FUPSBase {
 			$this->exit_err('Failed to initialise cURL.', __FILE__, __METHOD__, __LINE__);
 		}
 		$opts = array(
-			CURLOPT_USERAGENT      =>       FUPS_USER_AGENT,
-			CURLOPT_FOLLOWLOCATION =>             true,
+			CURLOPT_USERAGENT      =>  FUPS_USER_AGENT,
+			CURLOPT_FOLLOWLOCATION =>            false, // We emulate this due to a bug - see do_send().
 			CURLOPT_RETURNTRANSFER =>             true,
-			CURLOPT_HEADER         =>            false,
+			CURLOPT_HEADER         =>             true,
 			CURLOPT_TIMEOUT        =>               20,
 			CURLOPT_COOKIEJAR      => $cookie_filename,
 			CURLOPT_COOKIEFILE     => $cookie_filename,
