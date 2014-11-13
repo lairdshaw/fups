@@ -1,0 +1,1005 @@
+<?php
+
+/* 
+ * FUPS: Forum user-post scraper. An extensible PHP framework for scraping and
+ * outputting the posts of a specified user from a specified forum/board
+ * running supported forum software. Can be run as either a web app or a
+ * commandline script.
+ *
+ * Copyright (C) 2013-2014 Laird Shaw.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+/* File       : classes/CFUPSBase.php.
+ * Description: The base class for forum scraping. Cannot be instantiated
+ *              due to abstract methods - only descendant classes for specific
+ *              forums can be instantiated.
+ */
+
+require_once __DIR__.'/../common.php';
+require_once __DIR__.'/../phpBB-days-and-months-intl.php';
+
+abstract class FUPSBase {
+	# The maximum time in seconds before the script chains a new instance of itself and then exits,
+	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
+	public    $FUPS_CHAIN_DURATION    =    null;
+	protected $required_settings = array();
+	protected $optional_settings = array();
+	/* Different skins sometimes output html different enough that
+	 * a different regex is required for each skin to match the values that
+	 * this script searches for: the array below collects all of these
+	 * regexes in one place for easier maintenance, making it especially
+	 * easier to support new skins (this array is only set "for real"
+	 * in the descendant classes).
+	 *
+	 * It is not necessary for a skin to contain an entry for each regex
+	 * type so long as some other skin's entry for that regex matches.
+	 */
+	protected $regexps = array(
+		/* 'skin_template' => array(
+			'board_title'              => a regex to extract the board's title from at least one forum page
+			                              (this regex is tried for each page until it succeeds)
+			'login_success'            => a regex to match the html of a successful-login page
+			'login_required'           => a regex to match an error message that login is required to view
+			                              member details
+			'user_name'                => a regex to extract the user's name from the user's profile page
+			'thread_author'            => a regex to extract the thread's author from the thread view page
+			'search_results_not_found' => a regex to detect when a search results page returns no results
+			'search_results_page_data' => a regex to be matched on the user's posts search page using
+			                              preg_match_all with flags set to PREG_SET_ORDER so that each entry of
+			                              $matches ends up with the following matches in the order specified in
+			                              search_results_page_data_order.
+			                              N.B. Must not match any results matched by any other skin's
+			                              search_results_page_data regex - the results of all are combined!
+			'search_results_page_data_order' => an array specifying the order in which the following matches occur
+			                                    in the matches returned by the previous regex.
+				= array(
+					'title'   => the match index of the title of post,
+					'ts'      => the match index of the timestamp of post,
+					'forum'   => the match index of the title of forum,
+					'topic'   => the match index of the thread topic,
+					'forumid' => the match index of the forum id,
+					'topicid' => the match index of the topic id,
+					'postid'  => the match index of the post id,
+				)
+			'post_contents'            => a regex to match post id (first match) and post contents (second match)
+			                              on a thread page; it is called with match_all so it will return all
+			                              post ids and contents on the page
+		),
+		*/
+	);
+	protected $settings          = array();
+	protected $progress_level    =       0;
+	protected $org_start_time    =    null;
+	protected $start_time        =    null;
+	protected $web_initiated     =    null;
+	protected $token             =   false;
+	protected $settings_filename =   false;
+	protected $output_filename   =   false;
+	protected $errs_filename     =   false;
+	protected $ch                =    null;
+	protected $last_url          =    null;
+	protected $search_id         =    null;
+	protected $posts_not_found   = array();
+	protected $posts_data        = array();
+	protected $total_posts       =       0;
+	protected $current_topic_id  =    null;
+	protected $num_posts_retrieved =     0;
+	protected $num_thread_infos_retrieved = 0;
+	protected $search_page_num   =       0;
+	protected $dbg               =   false;
+	protected $progress_levels   = array(
+		0 => 'user_post_search',
+		1 => 'user_post_scrape',
+		2 => 'topic_post_sort',
+		3 => 'posts_retrieval',
+		4 => 'extract_per_thread_info',
+		5 => 'handle_missing_posts',
+		6 => 'write_output',
+	);
+
+	public function __construct($web_initiated, $params, $do_not_init = false) {
+		if (!$do_not_init) {
+			$this->org_start_time = time();
+			$this->start_time = $this->org_start_time;
+			$this->web_initiated = $web_initiated;
+			if ($this->web_initiated) {
+				if (!isset($params['token'])) {
+					$this->exit_err('Fatal error: $web_initiated was true but $params did not contain a "token" key.', __FILE__, __METHOD__, __LINE__);
+				}
+				$this->token = $params['token'];
+				$this->settings_filename = make_settings_filename($this->token);
+				$this->output_filename   = make_output_filename  ($this->token);
+				$this->errs_filename     = make_errs_filename    ($this->token);
+			} else {
+				if (!isset($params['settings_filename'])) {
+					$this->exit_err('Fatal error: $web_initiated was false but $params did not contain a "settings_filename" key.', __FILE__, __METHOD__, __LINE__);
+				}
+				$this->settings_filename = $params['settings_filename'];
+				if (!isset($params['output_filename'])) {
+					$this->exit_err('Fatal error: $web_initiated was false but $params did not contain a "output_filename" key.', __FILE__, __METHOD__, __LINE__);
+				}
+				$this->output_filename = $params['output_filename'];
+			}
+
+			if (FUPS_CHAIN_DURATION == -1) {
+				$max_execution_time = ini_get('max_execution_time');
+				if (is_numeric($max_execution_time) && $max_execution_time > 0) {
+					$this->FUPS_CHAIN_DURATION = $max_execution_time * 3/4;
+				} else	$this->FUPS_CHAIN_DURATION = FUPS_FALLBACK_FUPS_CHAIN_DURATION;
+			} else $this->FUPS_CHAIN_DURATION = FUPS_CHAIN_DURATION;
+
+			$this->write_status('Reading settings.');
+			$default_settings = $this->get_default_settings();
+			$raw_settings = $this->read_settings_raw_s($this->settings_filename);
+			foreach ($raw_settings as $setting => $value) {
+				if (in_array($setting, $this->required_settings) || in_array($setting, $this->optional_settings)) {
+					$this->settings[$setting] = $value;
+				}
+			}
+			$missing = array_diff($this->required_settings, array_keys($this->settings));
+			if ($missing) {
+				$this->exit_err("The following settings were missing: ".implode(', ', $missing).'.', __FILE__, __METHOD__, __LINE__);
+			}
+			foreach ($default_settings as $setting => $default) {
+				if (empty($this->settings[$setting])) $this->settings[$setting] = $default;
+			}
+			date_default_timezone_set($this->settings['php_timezone']); // This timezone only matters when converting the earliest time setting.
+			if (!empty($this->settings['start_from_date'])) {
+				$this->settings['earliest'] = $this->strtotime_intl($this->settings['start_from_date']);
+				if ($this->settings['earliest'] === false) write_err("Error: failed to convert 'start_from_date' ({$this->settings['start_from_date']}) into a UNIX timestamp.");
+			}
+
+			$this->dbg = $this->settings['debug'] == 'true' ? true : false;
+
+			if ($this->dbg) {
+				$this->write_err('SETTINGS:');
+				$this->write_err(var_export($this->settings, true));
+			}
+			$this->write_status('Finished reading settings.');
+		}
+	}
+
+	protected function __wakeup() {
+		$this->start_time = time();
+		date_default_timezone_set($this->settings['php_timezone']);
+		$this->write_status('Woke up in chained process.');
+	}
+
+	protected function check_do_chain() {
+		if (time() - $this->start_time > $this->FUPS_CHAIN_DURATION) {
+			$serialize_filename = make_serialize_filename($this->web_initiated ? $this->token : $this->settings_filename);
+			if (!file_put_contents($serialize_filename, serialize($this))) {
+				$this->exit_err('file_put_contents returned false.', __FILE__, __METHOD__, __LINE__);
+			}
+
+			$args = array(
+				'chained' => true,
+			);
+			if ($this->web_initiated) {
+				$args['token'] = $this->token;
+			} else {
+				$args['settings_filename'] = $this->settings_filename;
+				$args['output_filename'] = $this->output_filename;
+			}
+			$cmd = make_php_exec_cmd($args);
+			if ($this->dbg) write_err('Chaining process: about to run command: '.$cmd);
+			exec($cmd, $output, $res);
+			if ($res) {
+				$this->exit_err('Apologies, the server encountered a technical error: it was unable to initiate a chained background process to continue the task of scraping, sorting and finally presenting your posts. The command used was:'."\n\n".$cmd."\n\n".'Any output was:'."\n".implode("\n", $output)."\n\n".'You might like to try again.', __FILE__, __METHOD__, __LINE__);
+			}
+			exit;
+		}
+	}
+
+	protected function check_do_login() {}
+
+	protected function check_get_board_title($html) {
+		if (empty($this->settings['board_title'])) {
+			# Try to discover the board's title
+			if (!$this->skins_preg_match('board_title', $html, $matches)) {
+				if ($this->dbg) $this->write_err("Warning: couldn't find the site title. The url of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			}
+			$this->settings['board_title'] = $matches[1];
+			if ($this->dbg) $this->write_err("Site title: {$this->settings['board_title']}");
+		}
+	}
+
+	protected function check_get_username() {
+		# Discover user's name if extract_user was not present in settings file (NB might need to be logged in to do this).
+		if (empty($this->settings['extract_user'])) {
+			$this->write_status('Attempting to determine username.');
+			$this->set_url($this->get_user_page_url());
+			$html = $this->do_send();
+			if (!$this->skins_preg_match('user_name', $html, $matches)) {
+				$login_req = $this->skins_preg_match('login_required', $html, $matches);
+				$err_msg = "Fatal error: couldn't find the member name corresponding to specified user ID \"{$this->settings['extract_user_id']}\". ";
+				if ($login_req) $err_msg .= 'The board requires that you be logged in to view member names. You can specify a login username and password in the settings on the previous page. This error could be due to a wrong username/password combination. Alternatively, you can simply supply a value for "Extract User Username".';
+				else $err_msg .= 'The url of the searched page is <'.$this->last_url.'>.';
+				$this->exit_err($err_msg, __FILE__, __METHOD__, __LINE__, $html);
+			}
+			$this->settings['extract_user'] = $matches[1];
+		}
+	}
+
+	function do_send($quit_on_error = true) {
+		static $retry_delays = array(0, 5, 5);
+		static $first_so_no_wait = true;
+
+		$html = false;
+
+		if ($first_so_no_wait) $first_so_no_wait = false;
+		else $this->wait_courteously();
+
+		$err = false;
+		for ($i = 0; $i < count($retry_delays); $i++) {
+			$delay = $retry_delays[$i];
+			if ($err) {
+				if ($this->dbg) $this->write_err("Retrying after $delay seconds.");
+				sleep($delay);
+			}
+			$html = curl_exec($this->ch);
+			$response_code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
+			if ($response_code != 200) {
+				$err = 'Received response other than 200 from server ('.$response_code.') for url: '.$this->last_url;
+				if ($this->dbg) $this->write_err($err, __FILE__, __METHOD__, __LINE__);
+			} else	{
+				$err = false;
+				break;
+			}
+			# If quit_on_error is false then we are expecting the
+			# possibility of a 404 or other error, which is why we don't
+			# want to keep on retrying if we get one.
+			if ($err && !$quit_on_error) return false;
+		}
+		if ($err) {
+			if ($quit_on_error) $this->exit_err('Too many errors with http request; abandoning page and quitting.'."\n".'Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
+		} else {
+			$this->check_get_board_title($html);
+		}
+
+		return $html;
+	}
+
+	# Non-static variant of the static variant below
+	protected function exit_err($msg, $file, $method, $line, $html = false, $send_mail = true) {
+		$token = $this->web_initiated ? $this->token : false;
+		$dbg   = $this->dbg;
+		$this->write_err($msg, $file, $method, $line);
+		self::exit_err_common_s($msg, $file, $method, $line, $html, $send_mail, $token, $dbg);
+	}
+
+	static public function exit_err_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
+		$ferr = fopen('php://stderr', 'a');
+		self::write_err_s($ferr, $msg, $file, $method, $line);
+		self::exit_err_common_s($msg, $file, $method, $line, $html, $send_mail, $token, $dbg);
+	}
+
+	static public function exit_err_common_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
+		global $argv;
+
+		if ($token) {
+			self::write_status_s('A fatal error occurred. EXITING', $token);
+		}
+
+		if ($html && $token) {
+			$filename = make_errs_admin_filename($token);
+			if ($dbg) {
+				$ferr = fopen('php://stderr', 'a');
+				if ($ferr !== false) {
+					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'."\n");
+					fclose($ferr);
+				}
+			}
+			$ferr_adm = fopen($filename, 'a');
+			if ($ferr_adm !== false) {
+				fwrite($ferr_adm, $msg."\n".'The relevant page\'s HTML is: '.$html."\n\n");
+				fclose($ferr_adm);
+			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'."\n");
+		}
+
+		if ($send_mail) {
+			$body  = 'A fatal error occurred in the FUPS process with commandline arguments:'."\n".var_export($argv, true)."\n\n";
+			$body .= 'The error message is:'."\n$msg\n\n".($html ? 'The relevant page\'s HTML is: '.$html : '');
+			$subject = 'Fatal error with FUPS process';
+			if ($token) $subject .= ' '.$token;
+			mail(FUPS_EMAIL_RECIPIENT, $subject, $body, 'From: '.FUPS_EMAIL_SENDER);
+		}
+
+		exit(1);
+	}
+
+	# Assumes search results are ordered from most recent post to oldest post.
+	protected function find_author_posts_via_search_page() {
+		$num_posts_found = 0;
+
+		if ($this->dbg) $this->write_err('Reached search page with post_search_counter set to '.$this->post_search_counter.'.');
+
+		if (!curl_setopt($this->ch, CURLOPT_POST, false)) {
+			$this->exit_err('Failed to set cURL option CURLOPT_POST to false.',__FILE__, __METHOD__, __LINE__);
+		}
+
+		$this->set_url($this->get_search_url());
+		$html = $this->do_send();
+
+		if ($this->skins_preg_match('search_results_not_found', $html, $matches)) {
+			$this->progress_level++;
+			return 0;
+		}
+
+		if (!$this->skins_preg_match_all('search_results_page_data', $html, $matches, 'search_results_page_data_order', $combine = true)) {
+			$this->exit_err('Fatal error: couldn\'t find any search result matches on one of the search results pages.  The url of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+		}
+
+		$found_earliest = false;
+		foreach ($matches as $match) {
+			$forum   = $match[$match['match_indexes']['forum'  ]];
+			$forumid = $match[$match['match_indexes']['forumid']];
+			$topic   = $match[$match['match_indexes']['topic'  ]];
+			$topicid = isset($match['match_indexes']['topicid']) ? $match[$match['match_indexes']['topicid']] : null;
+			$postid  = $match[$match['match_indexes']['postid' ]];
+			$posttitle = isset($match['match_indexes']['title']) && isset($match[$match['match_indexes']['title']]) ? $match[$match['match_indexes']['title']] : '';
+			$ts_raw  = $match[$match['match_indexes']['ts'     ]];
+
+			$this->find_author_posts_via_search_page__ts_raw_hook($ts_raw);
+
+			$ts = $this->strtotime_intl($ts_raw);
+			if ($ts === false) {
+				$this->write_err("Error: strtotime_intl failed for '$ts_raw'.");
+			} else	{
+				if (!empty($this->settings['earliest']) && $ts < $this->settings['earliest']) {
+					$found_earliest = true;
+					if ($this->dbg) $this->write_err("Found post earlier than earliest allowed; not searching further: ".$ts_raw." < {$this->settings['start_from_date']}.");
+					break;
+				}
+			}
+
+			$this->find_author_posts_via_search_page__match_hook($match, $forum, $forumid, $topic, $topicid, $postid, $posttitle, $ts_raw, $ts);
+
+			$this->posts_data[$topicid]['forum'  ] = $forum;
+			$this->posts_data[$topicid]['topic'  ] = $topic;
+			$this->posts_data[$topicid]['forumid'] = $forumid;
+			$this->posts_data[$topicid]['posts'][$postid] = array(
+				'posttitle' => $posttitle,
+				'ts'        => $ts_raw,
+				'timestamp' => $ts,
+				'content'   => null,
+			);
+			if ($this->dbg) {
+				$this->write_err("Added post: $posttitle ($topic; $ts; $forum; forumid: $forumid; topicid: $topicid; postid: $postid)");
+			}
+			
+			$num_posts_found++;
+		}
+
+		$do_inc_progress_level = $found_earliest;
+
+		$this->find_author_posts_via_search_page__end_hook($do_inc_progress_level, $html, $found_earliest, $matches);
+
+		if ($do_inc_progress_level) $this->progress_level++;
+		
+		return $num_posts_found;
+	}
+
+	protected function find_author_posts_via_search_page__end_hook(&$do_inc_progress_level, $html, $found_earliest, $matches) {
+		$this->post_search_counter += count($matches);
+	}
+
+	protected function find_author_posts_via_search_page__match_hook($match, &$forum, &$forumid, &$topic, &$topicid, &$postid, &$posttitle, &$ts_raw, &$ts) {}
+
+	# Override this function to e.g. remove extraneous text from the matched timestamp string
+	# prior to attempting to parse it into a UNIX timestamp.
+	protected function find_author_posts_via_search_page__ts_raw_hook(&$ts_raw) {}
+
+	protected function find_post($postid) {
+		foreach ($this->posts_data as $topicid => $t) {
+			foreach ($t['posts'] as $pid => $p) {
+				if ($pid == $postid) return array($p, $t, $topicid);
+			}
+		}
+
+		return false; # Earlier return possible
+	}
+
+	protected function get_default_settings() {
+		return array(
+			'delay' => 5,
+			'debug' => false
+		);
+	}
+
+	protected function get_extra_head_lines() {
+		return '';
+	}
+
+	static function get_forum_software_homepage() {
+		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	}
+
+	abstract protected function get_post_url($forumid, $topicid, $postid, $with_hash = false);
+
+	protected function get_post_contents($forumid, $topicid, $postid) {
+		$ret = false;
+		$found = false;
+
+		if (!curl_setopt($this->ch, CURLOPT_POST, false)) {
+			$this->exit_err('Failed to set cURL option CURLOPT_POST to false.',__FILE__, __METHOD__, __LINE__);
+		}
+
+		$url = $this->get_post_url($forumid, $topicid, $postid);
+		$this->set_url($url);
+		$html = $this->do_send();
+
+		$err = false;
+		$count = 0;
+		if (!$this->skins_preg_match_all('post_contents', $html, $matches)) {
+			$err = true;
+			$this->write_err('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The url of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+		} else {
+			list($found, $count) = $this->get_post_contents_from_matches($matches, $postid, $topicid);
+			if ($found) {
+				if ($this->dbg) $this->write_err('Retrieved post contents of post ID "'.$postid.'"');
+				$ret = true;
+				$count--;
+			} else if ($this->dbg) $this->write_err('FAILED to retrieve post contents of post ID "'.$postid.'". The url of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+
+			if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts.');
+		}
+
+		$this->get_post_contents__end_hook($forumid, $topicid, $postid, $html, $found, $err, $count, $ret);
+
+		if (!$found) $this->posts_not_found[$postid] = true;
+		$this->num_posts_retrieved += $count + ($found ? 1 : 0);
+
+		return $ret;
+	}
+
+	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {}
+
+	protected function get_post_contents_from_matches($matches, $postid, $topicid) {
+		$found = false;
+		$count = 0;
+		$posts =& $this->posts_data[$topicid]['posts'];
+		foreach ($matches as $match) {
+			if (isset($posts[$match[1]])) {
+				$posts[$match[1]]['content'] = $match[2];
+				if ($postid == $match[1]) $found = true;
+				$count++;
+			}
+		}
+
+		return array($found, $count);
+	}
+
+	static function get_msg_how_to_detect_forum() {
+		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	}
+
+	abstract protected function get_search_url();
+
+	static function get_qanda() {
+		return array(
+			'q_lang' => array(
+				'q' => 'Does the script work with forums using a language other than English?',
+				'a' => 'Yes, or at least, it\'s intended to: if you experience problems, please <a href="'.FUPS_CONTACT_URL.'">contact me</a>.',
+			),
+			'q_how_long' => array(
+				'q' => 'How long will the process take?',
+				'a' => 'It depends on how many posts are to be retrieved, and how many pages they are spread across. You can expect to wait roughly one hour to extract and output 1,000 posts.',
+			),
+			'q_why_slow' => array(
+				'q' => 'Why is this script so slow?',
+				'a' => 'So as to avoid hammering other people\'s web servers, the script pauses for five seconds between each page retrieval.',
+			),
+			'q_relationship' => array(
+				'q' => 'Does this script have any relationship with <a href="https://github.com/ProgVal/PHPBB-Extract">the PHPBB-Extract script on GitHub</a>?',
+				'a' => 'No, they are separate projects.',
+			),
+		);
+	}
+
+	public function get_settings_array() {
+		$default_settings = array(
+			'base_url' => array(
+				'label'       => 'Base forum URL'                        ,
+				'default'     => ''                                      ,
+				'description' => 'Set this to the base URL of the forum.',
+				'style'       => 'min-width: 300px;'                     ,
+			),
+			'extract_user_id' => array(
+				'label'       => 'Extract User ID'                       ,
+				'default'     => ''                                      ,
+				'description' => 'Set this to the user ID of the user whose posts are to be extracted.',
+			)
+		);
+
+		if ($this->supports_feature('login')) {
+			$default_settings = array_merge($default_settings, array(
+				'login_user'  => array(
+					'label' => 'Login User Username',
+					'default' => '',
+					'description' => 'Set this to the username of the user whom you wish to log in as, or leave it blank if you do not wish FUPS to log in.',
+				),
+				'login_password' => array(
+					'label' => 'Login User Password',
+					'default' => '',
+					'description' => 'Set this to the password associated with the Login User Username (or leave it blank if you do not require login).',
+					'type' => 'password',
+				),
+			));
+		}
+
+		$default_settings = array_merge($default_settings, array(
+			'start_from_date'  => array(
+				'label' => 'Start From Date+Time',
+				'default' => '',
+				'description' => 'Set this to the datetime of the earliest post to be extracted i.e. only posts of this datetime and later will be extracted. If you do not set this (i.e. if you leave it blank) then all posts will be extracted. This value is parsed with PHP\'s <a href="http://www.php.net/strtotime">strtotime()</a> function, so check that link for details on what it should look like. An example of something that will work is: 2013-04-30 15:30.',
+			),
+			'php_timezone' => array(
+				'label' => 'PHP Timezone',
+				'default' => 'Australia/Hobart',
+				'description' => 'Set this to the timezone in which the user\'s posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the Start From Date+Time setting above (so it is safe to leave it set to the default if you are not supplying a value for the Start From Date+Time setting). Valid values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>.',
+			),
+		));
+
+		return $default_settings;
+	}
+	
+	abstract protected function get_topic_url($forumid, $topicid);
+
+	abstract protected function get_user_page_url();
+
+	static public function get_valid_forum_types() {
+		static $ignored_files = array('.', '..', 'CFUPSBase.php');
+		$ret = array();
+		$class_files = scandir(__DIR__);
+		if ($class_files) foreach ($class_files as $class_file) {
+			if (!in_array($class_file, $ignored_files)) {
+				$class = substr($class_file, 1, -4); # Omit initial "C" and trailing ".php"
+				$ret[strtolower($class)] = $class;
+			}
+		}
+
+		return $ret;
+	}
+
+	protected function hook_after__user_post_search() {} // Run after progress level 0
+	protected function hook_after__user_post_scrape() {} // Run after progress level 1
+	protected function hook_after__topic_post_sort() {} // Run after progress level 2
+	protected function hook_after__posts_retrieval() {} // Run after progress level 3
+	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
+	protected function hook_after__handle_missing_posts() {} // Run after progress level 5
+	protected function hook_after__write_output() {} // Run after progress level 6
+
+	protected function init_post_search_counter() {
+		$this->post_search_counter = 0;
+	}
+
+	protected function init_search_user_posts() {}
+
+	static public function read_forum_type_from_settings_file_s($settings_filename) {
+		$settings_raw = self::read_settings_raw_s($settings_filename);
+		return isset($settings_raw['forum_type']) ? $settings_raw['forum_type'] : false;
+	}
+
+	static public function read_settings_raw_s($settings_filename) {
+		$ret = array();
+		$contents = file_get_contents($settings_filename);
+		$contents_a = explode("\n", $contents);
+		$settings = array();
+		foreach ($contents_a as $line) {
+			$a = explode('=', $line, 2);
+			if (count($a) < 2 || trim($a[1]) == '') continue;
+			$setting = $a[0];
+			$value = $a[1];
+			$ret[$setting] = $value;
+		}
+
+		return $ret;
+	}
+
+	public function run() {
+		$cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
+
+		$this->ch = curl_init();
+		if ($this->ch === false) {
+			$this->exit_err('Failed to initialise cURL.', __FILE__, __METHOD__, __LINE__);
+		}
+		$opts = array(
+			CURLOPT_USERAGENT      =>       FUPS_USER_AGENT,
+			CURLOPT_FOLLOWLOCATION =>             true,
+			CURLOPT_RETURNTRANSFER =>             true,
+			CURLOPT_HEADER         =>            false,
+			CURLOPT_TIMEOUT        =>               20,
+			CURLOPT_COOKIEJAR      => $cookie_filename,
+			CURLOPT_COOKIEFILE     => $cookie_filename,
+		);
+		if (!curl_setopt_array($this->ch, $opts)) {
+			$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+		}
+
+		# Login if necessary
+		if ($this->supports_feature('login')) {
+			$this->check_do_login();
+		}
+
+		# Find all of the user's posts through the search feature
+		if ($this->progress_level == 0) {
+			$this->check_get_username();
+			$this->search_page_num = 1;
+			$this->init_post_search_counter();
+			$this->init_search_user_posts();
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__user_post_search();
+		}
+		if ($this->progress_level == 1) {
+			do {
+				$this->write_status('Scraping search page for posts starting from page #'.$this->search_page_num.'.');
+				$this->total_posts += $this->find_author_posts_via_search_page();
+				$this->search_page_num++;
+				$this->check_do_chain();
+			} while ($this->progress_level == 1);
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level-1];
+			$this->$hook_method(); // hook_after__user_post_scrape();
+		}
+
+		# Sort topics and posts
+		if ($this->progress_level == 2) {
+			$this->write_status('Sorting posts and topics prior to scraping posts\' content.');
+			# Sort topics in ascending alphabetical order
+			uasort($this->posts_data, 'cmp_topics_topic');
+
+			# Sort posts within each topic into ascending timestamp order
+			foreach ($this->posts_data as $topicid => $dummy) {
+				$posts =& $this->posts_data[$topicid]['posts'];
+				uasort($posts, 'cmp_posts_date');
+			}
+			if ($this->dbg) {
+				$this->write_err('SORTED POSTS::');
+				foreach ($this->posts_data as $topicid => $topic) {
+					$this->write_err("\tTopic: {$topic['topic']}\tTopic ID: $topicid");
+					foreach ($topic['posts'] as $postid => $p) {
+						$newts = strftime('%c', $p['timestamp']);
+						$this->write_err("\t\tTime: $newts ({$p['ts']}); Post ID: $postid");
+					}
+				}
+			}
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__topic_post_sort();
+		}
+
+		# Retrieve the contents of all of the user's posts
+		if ($this->progress_level == 3) {
+			# If the current topic ID is already set, then we are continuing after having chained.
+			$go = is_null($this->current_topic_id);
+			foreach ($this->posts_data as $topicid => $dummy) {
+				if (!$go && $this->current_topic_id == $topicid) $go = true;
+				if ($go) {
+					$this->current_topic_id = $topicid;
+					$t =& $this->posts_data[$topicid];
+					$posts =& $t['posts'];
+					$done = false;
+					while (!$done) {
+						$done = true;
+						foreach ($posts as $postid => $dummy2) {
+							$this->write_status('Retrieved '.$this->num_posts_retrieved.' of '.$this->total_posts.' posts.');
+							$p =& $posts[$postid];
+							if ($p['content'] == null && !isset($this->posts_not_found[$postid])) {
+								$this->get_post_contents($t['forumid'], $topicid, $postid);
+								$done = false;
+							}
+							$this->check_do_chain();
+						}
+					}
+				}
+			}
+
+			$this->current_topic_id = null; # Reset this for progress level 4
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__posts_retrieval();
+		}
+
+		# Extract per-thread information: thread author and forum
+		if ($this->progress_level == 4) {
+			# If the current topic ID is already set, then we are continuing after having chained.
+			$go = is_null($this->current_topic_id);
+			$total_threads = count($this->posts_data);
+			foreach ($this->posts_data as $topicid => $dummy) {
+				if (!$go) {
+					if ($this->current_topic_id == $topicid) $go = true;
+				} else {
+					$this->write_status('Retrieved author and topic name for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
+					$topic =& $this->posts_data[$topicid];
+					$url = $this->get_topic_url($topic['forumid'], $topicid);
+					$this->set_url($url);
+					$html = $this->do_send();
+					if (!$this->skins_preg_match('thread_author', $html, $matches)) {
+						$this->write_err("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The url of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+						$topic['startedby'] = '???';
+					} else {
+						$topic['startedby'] = $matches[1];
+						if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
+						$this->num_thread_infos_retrieved++;
+					}
+					$this->current_topic_id = $topicid;
+					$this->check_do_chain();
+				}
+			}
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__extract_per_thread_info();
+		}
+
+		# Warn about missing posts
+		if ($this->progress_level == 5) {
+			if ($this->posts_not_found) {
+				$this->write_err("\n\n\nThe contents of the following posts were not found::\n\n\n");
+				foreach ($this->posts_not_found as $postid => $dummy) {
+					$a = $this->find_post($postid);
+					if ($a == false) $this->write_err("\tError: failed to find post with ID '$postid' in internal data.");
+					else {
+						list($p, $t, $topicid) = $a;
+						$this->write_err("\t{$p['posttitle']} ({$t['topic']}; {$p['timestamp']}; {$t['forum']}; forumid: {$t['forumid']}; topicid: $topicid; postid: $postid; ".$this->settings['base_url'].'/viewtopic.php?f='.$t['forumid'].'&t='.$topicid.'&p='.$postid.")");
+					}
+				}
+			}
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__handle_missing_posts();
+		}
+
+		# Write output
+		if ($this->progress_level == 6) {
+			$this->write_status('Writing output.');
+
+			# Write the HTML output
+			$this->write_output();
+
+			# Signal that we are done
+			$this->write_status('DONE');
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__write_output();
+		}
+	}
+
+	protected function set_url($url) {
+		if (!curl_setopt($this->ch, CURLOPT_URL, $url)) {
+			$this->exit_err('Failed to set cURL URL: <'.$url.'>.', __FILE__, __METHOD__, __LINE__);
+		} else	$this->last_url = $url;
+	}
+
+	protected function skins_preg_match_base($regexp_id, $text, &$matches, $all = false, $match_indexes_id = false, $combine = false) {
+		$ret = false;
+		$matches = array();
+		foreach ($this->regexps as $skin => $skin_regexps) {
+			if (!empty($skin_regexps[$regexp_id])) {
+				$regexp = $skin_regexps[$regexp_id];
+				if (
+					($all && preg_match_all($regexp, $text, $matches_tmp, PREG_SET_ORDER))
+					||
+					(!$all && preg_match($regexp, $text, $matches_tmp))
+				) {
+					$ret = true;
+					if ($match_indexes_id !== false) {
+						foreach ($matches_tmp as &$match) {
+							$match['match_indexes'] = $skin_regexps[$match_indexes_id];
+						}
+					}
+					if (!$combine) {
+						$matches = $matches_tmp;
+						break;
+					} else {
+						$matches = array_merge($matches, $matches_tmp);
+					}
+				}
+			}
+		}
+
+		return $ret;
+	}
+
+	protected function skins_preg_match($regexp_id, $text, &$matches) {
+		return $this->skins_preg_match_base($regexp_id, $text, $matches, false);
+	}
+
+	protected function skins_preg_match_all($regexp_id, $text, &$matches, $match_indexes_id = false, $combine = false) {
+		return $this->skins_preg_match_base($regexp_id, $text, $matches, true, $match_indexes_id, $combine);
+	}
+
+	protected function strtotime_intl($time_str) {
+		static $days_of_week_full_intl;
+		static $days_of_week_abbr_intl;
+		static $months_full_intl;
+		static $months_abbr_intl;
+
+		if ($this->dbg) $this->write_err('Running strtotime() on "'.$time_str.'"');
+		$ret = strtotime($time_str);
+		if ($ret === false) {
+			// This is necessary for translated phpBB forums
+			if ($this->dbg) $this->write_err('strtotime() failed on "'.$time_str.'". Trying again after replacing international tokens.');
+			if (empty($days_of_week_full_intl)) {
+				get_day_and_month_name_intl_regexes($days_of_week_full_intl_regexes, $days_of_week_abbr_intl_regexes, $months_full_intl_regexes, $months_abbr_intl_regexes);
+			}
+			foreach ($days_of_week_abbr_intl_regexes as $day_en => $days_intl_regex) {
+				$time_str = preg_replace($days_intl_regex, $day_en, $time_str);
+			}
+			foreach ($days_of_week_full_intl_regexes as $day_en => $days_intl_regex) {
+				$time_str = preg_replace($days_intl_regex, $day_en, $time_str);
+			}
+			foreach ($months_abbr_intl_regexes as $month_en => $months_intl_regex) {
+				$time_str = preg_replace($months_intl_regex, $month_en, $time_str);
+			}
+			foreach ($months_full_intl_regexes as $month_en => $months_intl_regex) {
+				$time_str = preg_replace($months_intl_regex, $month_en, $time_str);
+			}
+			$ret = strtotime($time_str);
+		}
+		
+		return $ret;
+	}
+
+	public function supports_feature($feature) {
+		static $default_features = array(
+			'login' => false
+		);
+
+		return isset($default_features[$feature]) ? $default_features[$feature] : false;
+	}
+
+	protected function wait_courteously() {
+		if ($this->web_initiated) {
+			$cancellation_filename = make_cancellation_filename($this->token);
+			if (file_exists($cancellation_filename)) {
+				$this->write_status('Found a cancellation file. CANCELLED');
+				if ($this->dbg) $this->write_err('Found a cancellation file; exiting.', __FILE__, __METHOD__, __LINE__);
+				exit;
+			}
+		}
+		if ($this->dbg) $this->write_err("Waiting courteously for {$this->settings['delay']} seconds.");
+		sleep($this->settings['delay']);
+	}
+
+	public function write_err($msg, $file = null, $method = null, $line = null) {
+		static $ferr = null;
+		if (!$ferr) {
+			if ($this->errs_filename === false) {
+				$ferr = fopen('php://stderr'      , 'w');
+			} else	$ferr = fopen($this->errs_filename, 'a');
+		}
+		self::write_err_s($ferr, $msg, $file, $method, $line);
+	}
+
+	static public function write_err_s($ferr, $msg, $file = null, $method = null, $line = null) {
+		if (!is_null($file) && !is_null($method) && !is_null($line)) {
+			$msg = "In method $method in line $line of file '$file': $msg";
+		}
+		if ($ferr) {
+			fwrite($ferr, $msg."\n");
+		} else	echo $msg;
+	}
+
+	protected function write_output() {
+		$heading = "Postings of {$this->settings['extract_user']} to <a href=\"{$this->settings['base_url']}\">{$this->settings['board_title']}</a>";
+		if (!empty($this->settings['start_from_date'])) $heading .= ' starting from '.$this->settings['start_from_date'];
+
+		if (!ob_start(null, 0, PHP_OUTPUT_HANDLER_CLEANABLE|PHP_OUTPUT_HANDLER_FLUSHABLE|PHP_OUTPUT_HANDLER_REMOVABLE)) {
+			$this->exit_err('Fatal error: unable to start output buffering.', __FILE__, __METHOD__, __LINE__);
+		}
+?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title><?php echo $heading; ?></title>
+<?php echo $this->get_extra_head_lines(); ?>
+</head>
+
+<body style="font-family: Trebuchet MS; font-size: 8pt;">
+<div style="padding: 0 50px 0 50px; width: 500px;">
+	<div style="font-family: Arial Narrow; font-size: 10pt;">
+		<h3><?php echo $heading; ?></h3>
+		<table>
+		<tr>
+			<th style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">Topic</th>
+			<th style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">Started By</th>
+			<th style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">Forum</th>
+			<th style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">#Posts</th>
+		</tr>
+<?php
+		foreach ($this->posts_data as $topicid => $t) {
+			echo '		<tr>'."\n";
+			echo '			<td style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">'.$t['topic'].'</td>'."\n";
+			echo '			<td style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">'.$t['startedby'].'</td>'."\n";
+			echo '			<td style="text-align: left; font-family: Arial Narrow; font-size: 10pt;">'.$t['forum'].'</td>'."\n";
+			echo '			<td style="text-align: right; font-family: Arial Narrow; font-size: 10pt;">'.count($t['posts']).'</td>'."\n";
+			echo '		</tr>'."\n";
+		}
+?>
+		<tr>
+			<td colspan="3" style="font-family: Arial Narrow; font-size: 10pt;">Total posts:</td>
+			<td style="text-align: right; font-family: Arial Narrow; font-size: 10pt;"><?php echo $this->total_posts; ?></td>
+		</tr>
+		<tr>
+			<td colspan="3" style="font-family: Arial Narrow; font-size: 10pt;">Total topics:</td>
+			<td style="text-align: right; font-family: Arial Narrow; font-size: 10pt;"><?php echo count($this->posts_data); ?></td>
+		</tr>
+		</table>
+	</div>
+
+	<br />
+	<br />
+<?php
+		foreach ($this->posts_data as $topicid => $t) {
+			foreach ($t['posts'] as $postid => $p) {
+				echo '	<div style="border-bottom: solid gray 2px;">'."\n";
+				echo '		<span>'.$p['ts'].'</span>'."\n";
+				echo '		<a href="'.htmlspecialchars($this->get_post_url($t['forumid'], $topicid, $postid, true)).'">'.$t['topic'].'</a>'."\n";
+				echo '	</div>'."\n";
+				echo '	<div style="border-bottom: solid gray 2px;">'."\n";
+				echo '		<span>'.$p['posttitle'].'<span>'."\n";
+				echo '	</div>'."\n";
+				echo '	<div>'.$p['content']."\n";
+				echo '	</div>'."\n\n";
+
+				echo '	<br />'."\n\n";
+			}
+		}
+?>
+</div>
+</body>
+</html>
+<?php
+		file_put_contents($this->output_filename, ob_get_clean());
+	}
+
+	protected function write_status($msg) {
+		if ($this->web_initiated) {
+			self::write_status_s($msg, $this->token, $this->org_start_time);
+		}
+
+	}
+
+	static protected function write_status_s($msg, $token = false, $org_start_time = null) {
+		if ($token) {
+			if (is_null($org_start_time)) $org_start_time = time();
+			$duration = time() - $org_start_time;
+			$hrs = floor($duration / 3600);
+			$remainder = $duration - $hrs * 3600;
+			$mins = floor($remainder / 60);
+			$secs = $remainder - $mins * 60;
+			$filename = make_status_filename($token);
+			$contents = ($hrs ? $hrs.'h' : '').($mins ? $mins.'m' : '').$secs.'s '.$msg;
+			file_put_contents($filename, $contents);
+		}
+	}
+}
+
+function cmp_posts_date($p1, $p2) {
+	if ($p1['timestamp'] == $p2['timestamp']) return 0;
+	return $p1['timestamp'] < $p2['timestamp'] ? -1 : 1;
+}
+
+function cmp_topics_topic($t1, $t2) {
+	return strcmp($t1['topic'], $t2['topic']);
+}
+
+?>
