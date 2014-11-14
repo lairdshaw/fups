@@ -124,7 +124,7 @@ if ($errmsg) {
 	}
 
 	if (!$errmsg) {
-		$script = <<<EOT
+?>
 	<script type="text/javascript">
 		//<![CDATA[
 		var xhr;
@@ -153,10 +153,10 @@ if ($errmsg) {
 		}
 		//]]>
 	</script>
-EOT;
+<?php
 	}
 }
 
-fups_output_page_end($page, $script);
+fups_output_page_end($page);
 
 ?>

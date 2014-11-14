@@ -169,8 +169,7 @@ function fups_output_page_start($page, $title, $description, $head_extra = '') {
 }
 
 // The final HTML to end every FUPS page with. Feel free to customise this to
-// match the rest of your site, but make sure that $script, if non-empty, is
-// echoed somewhere before the closing </body> tag.
+// match the rest of your site.
 //
 // This function should assume that the <body> tag is open, and thus should
 // include a closing </body> and a closing </html> tag.
@@ -178,9 +177,8 @@ function fups_output_page_start($page, $title, $description, $head_extra = '') {
 // N.B. By the terms under which this code is licensed, the Affero General
 // Public License, you are required to supply a link to the source code, so you
 // need to output FUPS_SRC_URL somewhere visible to users of your FUPS
-// installation.
-function fups_output_page_end($page, $script = '') {
-	if ($script) echo $script;
+// installation if you delete it here.
+function fups_output_page_end($page) {
 ?>
 
 <p style="font-size: small;">FUPS source code available <a href="<?php echo FUPS_SRC_URL; ?>">here</a>.</p>
