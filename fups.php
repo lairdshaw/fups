@@ -56,7 +56,8 @@ if (!isset($argv[1])) {
 	$web_initiated = null;
 	$settings_filename = false;
 	$output_filename = false;
-	static $errmsg_mixed_cmdline_args = 'Fatal error: web-initiated (-t) and commandline (-i and -o) arguments specified simultaneously.';
+	$quiet = false;
+	static $errmsg_mixed_cmdline_args = 'Fatal error: web-initiated (-t) and commandline (-i, -o and -q) arguments specified simultaneously.';
 	$i = 1;
 	while ($i < $argc) {
 		switch ($argv[$i]) {
@@ -79,6 +80,14 @@ if (!isset($argv[1])) {
 				FUPSBase::exit_err_s('Fatal error: no output file specified after "-o" in commandline arguments.', __FILE__, __METHOD__, __LINE__);
 			} else	$output_filename = $argv[$i + 1];
 			$i += 2;
+			break;
+		case '-q':
+			if ($web_initiated === true) {
+				FUPSBase::exit_err_s($errmsg_mixed_cmdline_args, __FILE__, __METHOD__, __LINE__);
+			}
+			$web_initiated = false;
+			$quiet = true;
+			$i++;
 			break;
 		case '-t':
 			if ($web_initiated === false) {
@@ -127,7 +136,8 @@ if ($chained) {
 	} else {
 		$params = array(
 			'settings_filename' => $settings_filename,
-			'output_filename'   => $output_filename
+			'output_filename'   => $output_filename,
+			'quiet'             => $quiet
 		);
 	}
 	$class = $forum_type_caps.'FUPS';

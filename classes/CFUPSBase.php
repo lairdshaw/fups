@@ -35,7 +35,7 @@ require_once __DIR__.'/../phpBB-days-and-months-intl.php';
 abstract class FUPSBase {
 	# The maximum time in seconds before the script chains a new instance of itself and then exits,
 	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
-	public    $FUPS_CHAIN_DURATION    =    null;
+	public    $FUPS_CHAIN_DURATION =  null;
 	protected $required_settings = array();
 	protected $optional_settings = array();
 	/* Different skins sometimes output html different enough that
@@ -101,6 +101,7 @@ abstract class FUPSBase {
 	protected $num_thread_infos_retrieved = 0;
 	protected $search_page_num   =       0;
 	protected $dbg               =   false;
+	protected $quiet             =   false;
 	protected $progress_levels   = array(
 		0 => 'user_post_search',
 		1 => 'user_post_scrape',
@@ -133,6 +134,7 @@ abstract class FUPSBase {
 					$this->exit_err('Fatal error: $web_initiated was false but $params did not contain a "output_filename" key.', __FILE__, __METHOD__, __LINE__);
 				}
 				$this->output_filename = $params['output_filename'];
+				$this->quiet           = $params['quiet'          ];
 			}
 
 			if (FUPS_CHAIN_DURATION == -1) {
@@ -163,7 +165,7 @@ abstract class FUPSBase {
 				if ($this->settings['earliest'] === false) write_err("Error: failed to convert 'start_from_date' ({$this->settings['start_from_date']}) into a UNIX timestamp.");
 			}
 
-			$this->dbg = $this->settings['debug'] == 'true' ? true : false;
+			$this->dbg = in_array($this->settings['debug'], array('true', '1')) ? true : false;
 
 			if ($this->dbg) {
 				$this->write_err('SETTINGS:');
@@ -717,10 +719,10 @@ abstract class FUPSBase {
 					while (!$done) {
 						$done = true;
 						foreach ($posts as $postid => $dummy2) {
-							$this->write_status('Retrieved '.$this->num_posts_retrieved.' of '.$this->total_posts.' posts.');
 							$p =& $posts[$postid];
 							if ($p['content'] == null && !isset($this->posts_not_found[$postid])) {
 								$this->get_post_contents($t['forumid'], $topicid, $postid);
+								$this->write_status('Retrieved '.$this->num_posts_retrieved.' of '.$this->total_posts.' posts.');
 								$done = false;
 							}
 							$this->check_do_chain();
@@ -745,7 +747,6 @@ abstract class FUPSBase {
 				if (!$go) {
 					if ($this->current_topic_id == $topicid) $go = true;
 				} else {
-					$this->write_status('Retrieved author and topic name for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
 					$topic =& $this->posts_data[$topicid];
 					$url = $this->get_topic_url($topic['forumid'], $topicid);
 					$this->set_url($url);
@@ -757,6 +758,7 @@ abstract class FUPSBase {
 						$topic['startedby'] = $matches[1];
 						if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
 						$this->num_thread_infos_retrieved++;
+						$this->write_status('Retrieved author and topic name for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
 					}
 					$this->current_topic_id = $topicid;
 					$this->check_do_chain();
@@ -992,23 +994,29 @@ abstract class FUPSBase {
 	}
 
 	protected function write_status($msg) {
-		if ($this->web_initiated) {
+		if ($this->web_initiated || !$this->quiet) {
 			self::write_status_s($msg, $this->token, $this->org_start_time);
 		}
 
 	}
 
 	static protected function write_status_s($msg, $token = false, $org_start_time = null) {
+		if (is_null($org_start_time)) $org_start_time = time();
+		$duration = time() - $org_start_time;
+		$hrs = floor($duration / 3600);
+		$remainder = $duration - $hrs * 3600;
+		$mins = floor($remainder / 60);
+		$secs = $remainder - $mins * 60;
+		$contents = ($hrs ? $hrs.'h' : '').($mins ? $mins.'m' : '').$secs.'s '.$msg;
 		if ($token) {
-			if (is_null($org_start_time)) $org_start_time = time();
-			$duration = time() - $org_start_time;
-			$hrs = floor($duration / 3600);
-			$remainder = $duration - $hrs * 3600;
-			$mins = floor($remainder / 60);
-			$secs = $remainder - $mins * 60;
 			$filename = make_status_filename($token);
-			$contents = ($hrs ? $hrs.'h' : '').($mins ? $mins.'m' : '').$secs.'s '.$msg;
 			file_put_contents($filename, $contents);
+		} else { // For commandline invocation without -q
+			static $ferr = null;
+			if (!$ferr) {
+				$ferr = fopen('php://stderr', 'w');
+			}
+			self::write_err_s($ferr, $contents);
 		}
 	}
 }
