@@ -19,13 +19,13 @@ Installing and using
 
 Download this repository to your filesystem, optionally under your web root if you wish to run FUPS as a web app.
 
-Copy settings.default.php to settings.php and edit that file as appropriate. The most minimal case is to edit only the FUPS_DATADIR define, and to then ensure that the specified directory exists and is writeable by the user under whom FUPS will run. If running FUPS as a web app, this will be the same user that your web server runs as.
+Copy `settings.default.php` to `settings.php` and edit that file as appropriate. The most minimal case is to edit only the FUPS_DATADIR define, and to then ensure that the specified directory exists and is writeable by the user under whom FUPS will run. If running FUPS as a web app, this will be the same user that your web server runs as.
 
 If running FUPS as a web app, also make sure that the "output" sub-directory is writeable by your web server.
 
 ### Using as a web app ###
 
-Simply navigate to index.php. The rest should be self-explanatory. (FUPS assumes that your web server is set up so that "index.php" is processed when the directory itself is accessed).
+Simply navigate to `index.php`. The rest should be self-explanatory. (FUPS assumes that your web server is set up so that `index.php` is processed when the directory itself is accessed).
 
 ### Using from the commandline ###
 
@@ -98,28 +98,29 @@ The code
 
 Super-quick start: the guts of the FUPS code (i.e. scraping and outputting the scraped posts) is in the `classes` subdirectory, especially in `classes/CFUPSBase.php`.
 
-The "true" entry-point script into all of that though is `fups.php`, which is invoked either directly via commmandline PHP, or by the web app as a background commandline PHP process. It is described below.
+The "true" entry-point script into all of that though is `fups.php`, which is invoked either directly via commandline PHP, or by the web app as a background PHP process. What it does is described below.
 
 #### Web app flow ####
 
 1.  The user browses to `index.php` and clicks on the forum type.
-2.  That click invokes `enter-options.php`, which shows options for the selected forum type, which the user then enters and submits. (This page also tests whether the user's browser is AJAX-capable by attempting to read the contents of `ajax-test.txt` via an AJAX call, and, if successful, it passes this information to the next step).
+2.  That click invokes `enter-options.php`, which shows options for the selected forum type, which the user then enters and submits. (This page also tests whether the user's browser is AJAX-capable by attempting to read the contents of `ajax-test.txt` via an AJAX call, and, if successful, it passes this information to the next step. Pedantic note: strictly speaking, FUPS doesn't use AJAX, but only because of the 'X' in 'AJAX' - the data FUPS transfers in this way is not entirely XML).
 3.  This submission invokes `run.php`, which processes the user's options, and then (except for user input error, in which case `run.php` displays an error message and does nothing further):
   1. Generates a unique token.
   2. Creates the following files in the `FUPS_DATADIR` directory, named based on the token: a settings file containing the settings entered by the user, an error file and a status file.
-  3. Forks off fups.php to run in the background, invoking it via commandline PHP, and supplying it with the unique token via a `-t` parameter.
-  4. Returns to the browser a status page, updating the contents of the status div via AJAX (through a call to ajax-get-status.php) if the browser was determined to be AJAX-capable in step #2, or otherwise via a full-page HTML meta refresh every 30 seconds. When the status file indicates to either `ajax-get-status.php` - or to `run.php` on full page refresh - that the `fups.php` process has completed, then the page updates to display a link to the scraped output (or it displays an error message if the `fups.php` process terminated due to error).
+  3. Forks off `fups.php` to run in the background, invoking it via commandline PHP, and supplying it with the unique token via a `-t` parameter.
+  4. Returns to the browser a status page, updating the contents of the status div via AJAX (through a call to `ajax-get-status.php`) if the browser was determined to be AJAX-capable in step #2, or otherwise via a full-page HTML meta refresh every 30 seconds. When the status file indicates to either `ajax-get-status.php` - or to `run.php` on full page refresh - that the `fups.php` process has completed, then the page updates to display a link to the scraped output (or it displays an error message if the `fups.php` process terminated due to error).
 
 #### Manual commandline invocation flow ####
 
 The user invokes `fups.php` as described in the section above, "Using from the commandline".
 
-#### What the fups.php process does ####
+#### What the `fups.php` process does ####
 
 1. Parses its commandline parameters (which differ between web app and manual commandline invocations).
 2. Determines the name of the settings file based either on the `-t` (token) parameter (web app invocation) or the `-i` (input file) parameter (commandline invocation), and extracts from that file the value of the `forum_type` option.
-3. Checks that this is a supported forum type, and, if so, instantiates an object of the corresponding class in the `classes` subdirectory, passing on to that object's constructor the parameters with which it was supplied (token or input+output file). During construction, the object reads, validates and stores the values of the settings file.
-4. Calls the `run()` method of that object. This method performs the scraping, regularly outputting status messages to either the status file (in the case of web invocation - `ajax-get-status.php` monitors this file for changes, which it transmits to the browser) or to standard error (for manual commandline invocation). Finally, `run()` calls `write_output()`, which writes to an appropriately named file either in the `output` sub-directory (web app invocation) or as stipulated via the `-o` parameter to `fups.php`.
+3. Checks that this is a supported forum type, and, if so, instantiates an object of the corresponding class from the corresponding file in the `classes` subdirectory, passing on to that object's constructor the parameters with which it was supplied (token or input+output file and any "quiet" parameter), as well as whether it is running via a web app request or via a manual commandline invocation. During construction, the object reads the values from the settings file, validates them and stores them in a(n array) property of itself.
+4. Calls the `run()` method of that object. This method performs the scraping, regularly outputting status messages to either the status file or to standard error. The status file is used in the case of web invocation. In that case, `ajax-get-status.php`, on the receiving end of an indefinite AJAX request from the user's browser initiated by internal Javascript in the page rendered by `run.php`, monitors the status file for changes, which it returns to the browser when it detects them. Alternatively, if AJAX capability was not detected, then `run.php` itself checks the status file each time it (`run.php`) refreshes via the 30 second HTML meta refresh. Output of status messages to standard error is used in the case of manual commandline invocation.
+5. Unless a fatal error occurs, in the end, `run()` calls `write_output()`, which writes to an appropriately named file either in the `output` sub-directory (web app invocation) or as stipulated via the `-o` parameter to `fups.php`, and the PHP process running `fups.php` exits.
 
 At regular points in the `run()` method, the object checks whether enough time has elapsed that it must "chain" itself - that is to say, exit after serialising its current state (again, to a unique file in the FUPS_DATADIR directory) and then reinvoking `fups.php` with the same parameters with which it was originally invoked, plus an additional parameter, `-c`, to indicate that it is being chained and thus that `fups.php` must unserialise it from its serialisation file rather than creating it anew. "Chaining" works around the problem of web hosts fixing the maximum execution time of PHP scripts, because the scraping process can often exceed this limit.
 
@@ -131,9 +132,9 @@ A lot more could be said about how the `FUPSBase` class and its descendants do t
 
 The steps to add support for a new type of forum software are:
 
-1. Create a new file in the "classes" subdirectory, and name that file C[forum_software_name].php, where [forum_software_name] is the correctly-capitalised identifier for the forum software - e.g. "phpBB", "XenForo" or "vBulletin". FUPS will auto-detect this file, and, based on its filename, add the forum software as both a selection on the main  web app page, and as a valid *forum_type* option in manually generated options files (note that when specifying the *forum_type* option, [forum_software_name] should be converted to lowercase).
+1. Create a new file in the "classes" subdirectory, and name that file C[forum_software_name].php, where [forum_software_name] is the correctly-capitalised identifier for the forum software - e.g. "phpBB", "XenForo" or "vBulletin". FUPS will auto-detect this file, and, based on its filename, add the forum software as both a selection on the main  web app page, and as a valid *forum_type* option for manually generated options files (note that when specifying the *forum_type* option, [forum_software_name] should be converted to lowercase).
 
-2. In that file, declare a class named [forum_software_name]FUPS which extends the FUPSBase class (in classes/CFUPSBase.php).
+2. In that file, declare a class named [forum_software_name]FUPS which extends the FUPSBase class (in `classes/CFUPSBase.php`). This name (including correct capitalisation) is important because `fups.php` auto-instantiates it.
 
 3. Implement in your new class all abstract methods of FUPSBase. At time of writing, these are: `get_post_url()`, `get_search_url()`, `get_topic_url()` and `get_user_page_url()`. Also implement the static methods `get_qanda()`, `get_forum_software_homepage()` and `get_msg_how_to_detect_forum()`. If your class is to support logging in, then also override `check_do_login()` and `supports_feature()`. Also, set the `$required_settings`, `$optional_settings`, and `$regexps` properties appropriately. Your biggest task will probably be working out appropriate regexes.
 
