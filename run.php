@@ -101,7 +101,10 @@ if (!isset($_GET['token'])) {
 	}
 }
 if (!$err) {
-	$ts = filemtime($status_filename);
+	$ts = @filemtime($status_filename);
+	if ($ts === false) {
+		$err = 'The status file for your FUPS process with token "'.$token.'" does not exist - possibly because you have already deleted it.';
+	}
 	$status = @file_get_contents($status_filename);
 	$errs   = @file_get_contents($errs_filename  );
 }
