@@ -3,18 +3,19 @@ FUPS: Forum user-post scraper
 
 FUPS is an extensible PHP framework for scraping and outputting the posts of a specified user from a specified forum/board running supported forum software. Currently supported forum software is phpBB (well supported) and XenForo (minimally supported, possibly works on a single site only). FUPS can be run as either a web app or as a commandline script.
 
-A working installation
-----------------------
+Installation-free use
+---------------------
 
-FUPS can be used as a web app here: [http://creativeandcritical.net/fups/](http://creativeandcritical.net/fups/).
+FUPS can be used pre-installed as a web app here: [http://creativeandcritical.net/fups/](http://creativeandcritical.net/fups/).
 
-Dependencies
-------------
+Installing and using
+--------------------
+
+### Dependencies ###
 
 [PHP](http://php.net/) with the [Client URL Library (cURL)](http://php.net/manual/en/book.curl.php) installed. If running FUPS as a web app, then an additional dependency is a web server with PHP (with cURL) support. Tested on Apache but should work on other servers with minimal adjustment - the only Apache-specific file is output/.htaccess.
 
-Setting it up
--------------
+### Installing and configuring ###
 
 Download this repository to your filesystem, optionally under your web root if you wish to run FUPS as a web app.
 
@@ -22,51 +23,50 @@ Copy settings.default.php to settings.php and edit that file as appropriate. The
 
 If running FUPS as a web app, also make sure that the "output" sub-directory is writeable by your web server.
 
-Using as a web app
-------------------
+### Using as a web app ###
 
 Simply navigate to index.php. The rest should be self-explanatory. (FUPS assumes that your web server is set up so that "index.php" is processed when the directory itself is accessed).
 
-Using from the commandline
---------------------------
+### Using from the commandline ###
 
 Create an options file. Change to the root FUPS directory and type:
 
     php fups.php -i path/to/your/optionsfile.txt -o path/to/your/outputfile.html
 
+Optionally, a `-q` parameter can be added to suppress status update messages.
+
 Depending on which forum software the forum you wish to scrape from runs, different options are available for your options file. Here are sample options files for both currently supported forum types - adjust these options as required. The meaning of each option is described further below.
 
-Sample phpBB options file
--------------------------
+### Sample options files ###
+
+#### phpBB ####
 
     forum_type=phpbb
-    base_url=http://example.com/phpBB/
+    base_url=http://example.com/phpBB
     extract_user_id=1234
-    extract_user=username_of_above_user
-    login_user=my_login_forum_username
-    login_password=password_for_the_above_username
+    extract_user=John Smith
+    login_user=Mary Jones
+    login_password=abc123
     start_from_date=2014-10-17 19:46
     php_timezone=Australia/Hobart
     debug=0
 
-Sample XenForo options file
----------------------------
+#### XenForo ####
 
     forum_type=xenforo
-    base_url=http://example.com/forum/
+    base_url=http://example.com/forum
     extract_user_id=example-username.12345
     start_from_date=2014-10-17 19:46
     php_timezone=Australia/Hobart
-    debug=0
+    debug=1
 
-The options
------------
+### The options ###
 
-First note that logging in to XenForo forums is not yet supported, hence the lack of *login_user* and *login_password* settings for those forums.
+First note that logging in to XenForo forums is not yet supported, hence the lack of *login_user* and *login_password* settings for forums of that type (nor is *extract_user_id* supported for XenForo forums).
 
 * *forum_type*: Required. One of phpbb or xenforo (case sensitive).
 
-* *base_url*: Required. Set this to the base URL of the forum. This is the URL that appears in your browser's address bar when you access the forum. Strip off everything onwards from (and including) the filename of whichever script is being accessed - for phpBB forums this will be e.g. /index.php or /viewtopic.php, and for XenForo forums, this will be e.g. /threads or /forums.
+* *base_url*: Required. The URL that appears in your browser's address bar when you access the forum, with everything onwards from (and including) the filename/path of whichever script is being accessed stripped off - for phpBB forums this will be e.g. /index.php or /viewtopic.php, and for XenForo forums, this will be e.g. /threads or /forums. Ideally, this value would not end in a forward slash, but scraping will almost certainly still work even if it does.
 
 * *extract_user_id*: Required. Set this to the user ID of the user whose posts are to be extracted. You can find a user's ID by hovering your cursor over a hyperlink to their name and in the URL in the browser's status bar: for phpBB forums, taking note of the number that appears after "&u="; for XenForo forums, taking note of everything that appears between "/members/" and the next "/" (i.e. this will be something like "my-member-name.12345").
 
@@ -80,7 +80,7 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 
 * *php_timezone*: Required. Set this to the timezone in which the user's posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the *start_from_date* setting (so it is safe to leave it set to the default if you are not supplying a value for the *start_from_date* setting). Valid values are listed starting [here](http://php.net/manual/en/timezones.php).
 
-* *debug*: Optional. If set true, additional debugging information will be output.
+* *debug*: Optional. If set to "true" or "1", additional debugging information will be output.
 
 Limitations
 -----------
@@ -91,8 +91,43 @@ Limitations
 
 * Relative URLS within posts are currently not converted into absolute URLs. This means that sometimes, images that were uploaded to the forum do not appear in the FUPS output of the phpBB posts linking to those images, and that certain internal links in XenForo posts (e.g. those linked with an up arrow) are not functional in the HTML file that FUPS outputs.
 
-Extending FUPS
---------------
+The code
+--------
+
+### Overview ###
+
+Super-quick start: the guts of the FUPS code (i.e. scraping and outputting the scraped posts) is in the `classes` subdirectory, especially in `classes/CFUPSBase.php`.
+
+The "true" entry-point script into all of that though is `fups.php`, which is invoked either directly via commmandline PHP, or by the web app as a background commandline PHP process. It is described below.
+
+#### Web app flow ####
+
+1.  The user browses to `index.php` and clicks on the forum type.
+2.  That click invokes `enter-options.php`, which shows options for the selected forum type, which the user then enters and submits. (This page also tests whether the user's browser is AJAX-capable by attempting to read the contents of `ajax-test.txt` via an AJAX call, and, if successful, it passes this information to the next step).
+3.  This submission invokes `run.php`, which processes the user's options, and then (except for user input error, in which case `run.php` displays an error message and does nothing further):
+  1. Generates a unique token.
+  2. Creates the following files in the `FUPS_DATADIR` directory, named based on the token: a settings file containing the settings entered by the user, an error file and a status file.
+  3. Forks off fups.php to run in the background, invoking it via commandline PHP, and supplying it with the unique token via a `-t` parameter.
+  4. Returns to the browser a status page, updating the contents of the status div via AJAX (through a call to ajax-get-status.php) if the browser was determined to be AJAX-capable in step #2, or otherwise via a full-page HTML meta refresh every 30 seconds. When the status file indicates to either `ajax-get-status.php` - or to `run.php` on full page refresh - that the `fups.php` process has completed, then the page updates to display a link to the scraped output (or it displays an error message if the `fups.php` process terminated due to error).
+
+#### Manual commandline invocation flow ####
+
+The user invokes `fups.php` as described in the section above, "Using from the commandline".
+
+#### What the fups.php process does ####
+
+1. Parses its commandline parameters (which differ between web app and manual commandline invocations).
+2. Determines the name of the settings file based either on the `-t` (token) parameter (web app invocation) or the `-i` (input file) parameter (commandline invocation), and extracts from that file the value of the `forum_type` option.
+3. Checks that this is a supported forum type, and, if so, instantiates an object of the corresponding class in the `classes` subdirectory, passing on to that object's constructor the parameters with which it was supplied (token or input+output file). During construction, the object reads, validates and stores the values of the settings file.
+4. Calls the `run()` method of that object. This method performs the scraping, regularly outputting status messages to either the status file (in the case of web invocation - `ajax-get-status.php` monitors this file for changes, which it transmits to the browser) or to standard error (for manual commandline invocation). Finally, `run()` calls `write_output()`, which writes to an appropriately named file either in the `output` sub-directory (web app invocation) or as stipulated via the `-o` parameter to `fups.php`.
+
+At regular points in the `run()` method, the object checks whether enough time has elapsed that it must "chain" itself - that is to say, exit after serialising its current state (again, to a unique file in the FUPS_DATADIR directory) and then reinvoking `fups.php` with the same parameters with which it was originally invoked, plus an additional parameter, `-c`, to indicate that it is being chained and thus that `fups.php` must unserialise it from its serialisation file rather than creating it anew. "Chaining" works around the problem of web hosts fixing the maximum execution time of PHP scripts, because the scraping process can often exceed this limit.
+
+Note that other files may or will be created in the `FUPS_DATADIR` by objects of the `FUPSBase` class and its descendants: in particular, a cookie file and an admin error file, which in the case of certain errors stores the full HTML of a problematic scraped page.
+
+A lot more could be said about how the `FUPSBase` class and its descendants do their work, and how the `FUPSBase` class caters for extensibility, but it is beyond the scope of this document. Best is to simply explore the code (starting from `FUPSBase->run()`), and drop me a line if you have any questions! In any case, the following checklist for extending FUPS to support a new forum type might help further.
+
+### Extending FUPS (to support other forum software) ###
 
 The steps to add support for a new type of forum software are:
 
@@ -100,6 +135,6 @@ The steps to add support for a new type of forum software are:
 
 2. In that file, declare a class named [forum_software_name]FUPS which extends the FUPSBase class (in classes/CFUPSBase.php).
 
-3. Implement in your new class all abstract methods of FUPSBase. At time of writing, these are: `get_post_url()`, `get_search_url()`, `get_topic_url()` and `get_user_page_url()`. Also implement the static methods `get_qanda()`, `get_forum_software_homepage()` and `get_msg_how_to_detect_forum()`. Also, set the `$required_settings`, `$optional_settings`, and `$regexps` properties appropriately. Your biggest task will probably be working out appropriate regexes.
+3. Implement in your new class all abstract methods of FUPSBase. At time of writing, these are: `get_post_url()`, `get_search_url()`, `get_topic_url()` and `get_user_page_url()`. Also implement the static methods `get_qanda()`, `get_forum_software_homepage()` and `get_msg_how_to_detect_forum()`. If your class is to support logging in, then also override `check_do_login()` and `supports_feature()`. Also, set the `$required_settings`, `$optional_settings`, and `$regexps` properties appropriately. Your biggest task will probably be working out appropriate regexes.
 
 4. If necessary, you can implement overrides of any of the provided hooks. Hook methods at time of writing are: `find_author_posts_via_search_page__ts_raw_hook()`, `find_author_posts_via_search_page__match_hook()`, `find_author_posts_via_search_page__end_hook()`, `get_post_contents__end_hook()`, `hook_after__user_post_search()`, `hook_after__user_post_scrape()`, `hook_after__topic_post_sort()`, `hook_after__posts_retrieval()`, `hook_after__extract_per_thread_info()`, `hook_after__handle_missing_posts()`, and `hook_after__write_output()`.
