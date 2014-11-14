@@ -62,7 +62,7 @@ define('FUPS_MAX_PHP_PROCESSES',                                   7);
 // The user-agent that is set by the scraper (based on cURL) when scraping
 // forums.
 $hostmsg = php_uname('n') ? 'host '.php_uname('n') : 'an unknown host';
-define('FUPS_USER_AGENT'       , 'FUPS version '.FUPS_VERSION.' (running from '.$hostmsg.')' );
+define('FUPS_USER_AGENT'       , 'FUPS (src: '.FUPS_SRC_URL.'; running from: '.$hostmsg.')');
 
 // The time in seconds after which to chain a new instance of PHP (to avoid
 // timeouts due to PHP's maximum execution time setting, typically enforced by

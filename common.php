@@ -27,8 +27,6 @@
  * Description: Contains defines and functions shared between FUPS scripts.
  */
 
-define('FUPS_VERSION'                , 'Thu, 13 Nov 2014 22:57:26 +0000');
-
 // Must come after the above define because that define is used in settings.php.
 require_once __DIR__.'/settings.php';
 
