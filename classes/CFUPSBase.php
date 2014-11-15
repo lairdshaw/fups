@@ -103,8 +103,8 @@ abstract class FUPSBase {
 	protected $dbg               =   false;
 	protected $quiet             =   false;
 	protected $progress_levels   = array(
-		0 => 'user_post_search',
-		1 => 'user_post_scrape',
+		0 => 'init_user_post_search',
+		1 => 'user_post_search',
 		2 => 'topic_post_sort',
 		3 => 'posts_retrieval',
 		4 => 'extract_per_thread_info',
@@ -598,8 +598,8 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	protected function hook_after__user_post_search() {} // Run after progress level 0
-	protected function hook_after__user_post_scrape() {} // Run after progress level 1
+	protected function hook_after__init_user_post_search() {} // Run after progress level 0
+	protected function hook_after__user_post_search() {} // Run after progress level 1
 	protected function hook_after__topic_post_sort() {} // Run after progress level 2
 	protected function hook_after__posts_retrieval() {} // Run after progress level 3
 	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
@@ -666,7 +666,7 @@ abstract class FUPSBase {
 			$this->init_search_user_posts();
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
 			$this->progress_level++;
-			$this->$hook_method(); // hook_after__user_post_search();
+			$this->$hook_method(); // hook_after__init_user_post_search();
 		}
 		if ($this->progress_level == 1) {
 			do {
@@ -676,7 +676,7 @@ abstract class FUPSBase {
 				$this->check_do_chain();
 			} while ($this->progress_level == 1);
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level-1];
-			$this->$hook_method(); // hook_after__user_post_scrape();
+			$this->$hook_method(); // hook_after__user_post_search();
 		}
 
 		# Sort topics and posts
