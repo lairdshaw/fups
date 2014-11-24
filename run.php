@@ -34,9 +34,6 @@
  */
 
 require_once __DIR__.'/common.php';
-require_once __DIR__.'/../includes/main.php';
-redirect_if_path_info();
-// do_headers(); Commented out so as to avoid caching
 $err = false;
 $file_errs = '';
 if (!isset($_GET['token'])) {
@@ -145,6 +142,7 @@ if ($err) {
 ?>
 			</div>
 			<script type="text/javascript">
+				//<![CDATA[
 				var xhr;
 				var filesize = 0;
 				var ts = <?php echo $ts; ?>;
@@ -158,38 +156,41 @@ if ($err) {
 					xhr = null;
 				}
 				if (xhr) {
+					function fups_xhr_state_change_function() {
+						try {
+							if (xhr.readyState == 4) {
+								if (xhr.status == 200) {
+									var p = xhr.responseText.indexOf("\n");
+									filesize = xhr.responseText.substr(0, p);
+									var p2 = xhr.responseText.indexOf("\n", p + 1);
+									ts = xhr.responseText.substr(p + 1, p2);
+									document.getElementById('ajax.fill').innerHTML = xhr.responseText.substr(p2 + 1);
+
+									var len = xhr.responseText.length;
+									var FUPS_FAILED_STR = '<?php echo FUPS_FAILED_STR; ?>';
+									var FUPS_DONE_STR = '<?php echo FUPS_DONE_STR; ?>';
+									var FUPS_CANCELLED_STR = '<?php echo FUPS_CANCELLED_STR; ?>';
+									var failed = (xhr.responseText.indexOf(FUPS_FAILED_STR) != -1);
+									var done = (xhr.responseText.indexOf(FUPS_DONE_STR) != -1);
+									var cancelled = (xhr.responseText.indexOf(FUPS_CANCELLED_STR) != -1);
+
+									if (!failed && !done && !cancelled) {
+										xhr.open('GET', base_url + '&filesize=' + filesize + '&ts=' + ts, true);
+										xhr.onreadystatechange = fups_xhr_state_change_function;
+										xhr.send(null);
+									}
+								}
+							}
+						} catch (e) { alert('Exception: ' + e); }
+					}				
 					try {
 						var base_url = 'ajax-get-status.php?token=<?php echo $token; ?>';
 						xhr.open('GET', base_url + '&filesize=' + filesize + '&ts=' + ts, true);
-						xhr.onreadystatechange = function () {
-							try {
-								if (xhr.readyState == 4) {
-									if (xhr.status == 200) {
-										var p = xhr.responseText.indexOf("\n");
-										filesize = xhr.responseText.substr(0, p);
-										var p2 = xhr.responseText.indexOf("\n", p + 1);
-										ts = xhr.responseText.substr(p + 1, p2);
-										document.getElementById('ajax.fill').innerHTML = xhr.responseText.substr(p2 + 1);
-
-										var len = xhr.responseText.length;
-										var FUPS_FAILED_STR = '<?php echo FUPS_FAILED_STR; ?>';
-										var FUPS_DONE_STR = '<?php echo FUPS_DONE_STR; ?>';
-										var FUPS_CANCELLED_STR = '<?php echo FUPS_CANCELLED_STR; ?>';
-										var failed = (xhr.responseText.indexOf(FUPS_FAILED_STR) != -1);
-										var done = (xhr.responseText.indexOf(FUPS_DONE_STR) != -1);
-										var cancelled = (xhr.responseText.indexOf(FUPS_CANCELLED_STR) != -1);
-
-										if (!failed && !done && !cancelled) {
-											xhr.open('GET', base_url + '&filesize=' + filesize + '&ts=' + ts, true);
-											xhr.send(null);
-										}
-									}
-								}
-							} catch (e) { alert('Exception: ' + e); }
-						}
+						xhr.onreadystatechange = fups_xhr_state_change_function;
 						xhr.send(null);
-					} catch (e) {}
+					} catch (e) { alert('Exception(2): ' + e); }
 				}
+				//]]>
 			</script>
 <?php
 } else {
