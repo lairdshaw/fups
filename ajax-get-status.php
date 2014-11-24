@@ -30,6 +30,8 @@
 
 require_once __DIR__.'/common.php';
 
+header('Content-Type:text/plain');
+
 define('MAX_WAIT_SECONDS', 90);
 
 $token = $_GET['token'];
