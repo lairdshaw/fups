@@ -38,6 +38,7 @@ abstract class FUPSBase {
 	public    $FUPS_CHAIN_DURATION =  null;
 	protected $required_settings = array();
 	protected $optional_settings = array();
+	protected $private_settings  = array('login_user', 'login_password');
 	/* Different skins sometimes output html different enough that
 	 * a different regex is required for each skin to match the values that
 	 * this script searches for: the array below collects all of these
@@ -213,7 +214,7 @@ abstract class FUPSBase {
 		if (empty($this->settings['board_title'])) {
 			# Try to discover the board's title
 			if (!$this->skins_preg_match('board_title', $html, $matches)) {
-				if ($this->dbg) $this->write_err("Warning: couldn't find the site title. The url of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+				if ($this->dbg) $this->write_err("Warning: couldn't find the site title. The URL of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
 			}
 			$this->settings['board_title'] = $matches[1];
 			if ($this->dbg) $this->write_err("Site title: {$this->settings['board_title']}");
@@ -230,7 +231,7 @@ abstract class FUPSBase {
 				$login_req = $this->skins_preg_match('login_required', $html, $matches);
 				$err_msg = "Fatal error: couldn't find the member name corresponding to specified user ID \"{$this->settings['extract_user_id']}\". ";
 				if ($login_req) $err_msg .= 'The board requires that you be logged in to view member names. You can specify a login username and password in the settings on the previous page. This error could be due to a wrong username/password combination. Alternatively, you can simply supply a value for "Extract User Username".';
-				else $err_msg .= 'The url of the searched page is <'.$this->last_url.'>.';
+				else $err_msg .= 'The URL of the searched page is <'.$this->last_url.'>.';
 				$this->exit_err($err_msg, __FILE__, __METHOD__, __LINE__, $html);
 			}
 			$this->settings['extract_user'] = $matches[1];
@@ -277,7 +278,7 @@ abstract class FUPSBase {
 					$i--;
 					continue;
 				}
-				$err = 'Received response other than 200 from server ('.$response_code.') for url: '.$this->last_url;
+				$err = 'Received response other than 200 from server ('.$response_code.') for URL: '.$this->last_url;
 				if ($this->dbg) $this->write_err($err, __FILE__, __METHOD__, __LINE__);
 			} else	{
 				$err = false;
@@ -302,47 +303,56 @@ abstract class FUPSBase {
 		$token = $this->web_initiated ? $this->token : false;
 		$dbg   = $this->dbg;
 		$this->write_err($msg, $file, $method, $line);
-		self::exit_err_common_s($msg, $file, $method, $line, $html, $send_mail, $token, $dbg);
+		$settings_str = '';
+		foreach ($this->settings as $k => $v) {
+			if (in_array($k, $this->private_settings)) {
+				$v = '[redacted]';
+			}
+			$settings_str .= "\t$k=$v\n";
+		}
+
+		self::exit_err_common_s($msg, $file, $method, $line, $html, $settings_str, $send_mail, $token, $dbg);
 	}
 
 	static public function exit_err_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
 		$ferr = fopen('php://stderr', 'a');
 		self::write_err_s($ferr, $msg, $file, $method, $line);
-		self::exit_err_common_s($msg, $file, $method, $line, $html, $send_mail, $token, $dbg);
+		self::exit_err_common_s($msg, $file, $method, $line, $html, false, $send_mail, $token, $dbg);
 	}
 
-	static public function exit_err_common_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
+	static public function exit_err_common_s($msg, $file, $method, $line, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
 		global $argv;
 
-		if ($token) {
-			self::write_status_s('A fatal error occurred. EXITING', $token);
-		}
-
 		$ferr = fopen('php://stderr', 'a');
-		$html_msg = 'The relevant page\'s HTML is:'."\n\n".$html."\n\n";
-		if ($html) {
-			if ($token) {
-				$filename = make_errs_admin_filename($token);
-				if ($dbg) {
-					if ($ferr !== false) {
-						fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'."\n");
-						fclose($ferr);
-					}
+		$html_msg = $html ? 'The relevant page\'s HTML is:'."\n\n".$html."\n\n" : '';
+		$settings_msg = $settings_str ? 'The session\'s settings are:'."\n".$settings_str : '';
+		$full_admin_msg = self::get_formatted_err($method, $line, $file, $msg)."\n\n".$settings_msg."\n".$html_msg;
+
+		if ($token) {
+			$filename = make_errs_admin_filename($token);
+			if ($dbg) {
+				if ($ferr !== false) {
+					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'."\n");
+					fclose($ferr);
 				}
-				$ferr_adm = fopen($filename, 'a');
-				if ($ferr_adm !== false) {
-					fwrite($ferr_adm, self::get_formatted_err($method, $line, $file, $msg)."\n".$html_msg);
-					fclose($ferr_adm);
-				} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'."\n");
-			} else	fwrite($ferr, $html_msg);
-		}
+			}
+			$ferr_adm = fopen($filename, 'a');
+			if ($ferr_adm !== false) {
+				fwrite($ferr_adm, $full_admin_msg);
+				fclose($ferr_adm);
+			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'."\n");
+		} else	fwrite($ferr, $html_msg);
 
 		if ($send_mail) {
 			$body  = 'A fatal error occurred in the FUPS process with commandline arguments:'."\n".var_export($argv, true)."\n\n";
-			$body .= 'The error message is:'."\n$msg\n\n".($html ? 'The relevant page\'s HTML is: '.$html : '');
+			$body .= $full_admin_msg;
 			$subject = 'Fatal error with FUPS process';
 			if ($token) $subject .= ' '.$token;
 			mail(FUPS_EMAIL_RECIPIENT, $subject, $body, 'From: '.FUPS_EMAIL_SENDER);
+		}
+
+		if ($token) {
+			self::write_status_s('A fatal error occurred. EXITING', $token);
 		}
 
 		exit(1);
@@ -367,7 +377,7 @@ abstract class FUPSBase {
 		}
 
 		if (!$this->skins_preg_match_all('search_results_page_data', $html, $matches, 'search_results_page_data_order', $combine = true)) {
-			$this->exit_err('Fatal error: couldn\'t find any search result matches on one of the search results pages.  The url of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			$this->exit_err('Fatal error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
 		}
 
 		$found_earliest = false;
@@ -479,14 +489,14 @@ abstract class FUPSBase {
 		$count = 0;
 		if (!$this->skins_preg_match_all('post_contents', $html, $matches)) {
 			$err = true;
-			$this->write_err('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The url of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+			$this->write_err('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
 		} else {
 			list($found, $count) = $this->get_post_contents_from_matches($matches, $postid, $topicid);
 			if ($found) {
 				if ($this->dbg) $this->write_err('Retrieved post contents of post ID "'.$postid.'"');
 				$ret = true;
 				$count--;
-			} else if ($this->dbg) $this->write_err('FAILED to retrieve post contents of post ID "'.$postid.'". The url of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+			} else if ($this->dbg) $this->write_err('FAILED to retrieve post contents of post ID "'.$postid.'". The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
 
 			if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts.');
 		}
@@ -760,7 +770,7 @@ abstract class FUPSBase {
 					$this->set_url($url);
 					$html = $this->do_send();
 					if (!$this->skins_preg_match('thread_author', $html, $matches)) {
-						$this->write_err("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The url of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+						$this->write_err("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 						$topic['startedby'] = '???';
 					} else {
 						$topic['startedby'] = $matches[1];

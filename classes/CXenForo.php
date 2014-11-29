@@ -135,7 +135,7 @@ class XenForoFUPS extends FUPSBase {
 	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {
 		if (!$err && $found) {
 			if (!$this->skins_preg_match('thread_id', $html, $matches)) {
-				$this->write_err('Error: could not match the thread_id on the page with url <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
+				$this->write_err('Error: could not match the thread_id on the page with URL <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
 				$this->topic_ids[$this->posts_data[$topicid]['topic']] = $matches[1];
 			}

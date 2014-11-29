@@ -92,9 +92,10 @@ if (!isset($_GET['token'])) {
 } else {
 	$token = $_GET['token'];
 	if (validate_token($token, $err)) {
-		$status_filename = make_status_filename($token);
-		$errs_filename = make_errs_filename($token);
-		$output_filename = make_output_filename($token);
+		$status_filename     = make_status_filename    ($token);
+		$errs_filename       = make_errs_filename      ($token);
+		$errs_admin_filename = make_errs_admin_filename($token);
+		$output_filename     = make_output_filename    ($token);
 	}
 }
 if (!$err) {
@@ -102,8 +103,9 @@ if (!$err) {
 	if ($ts === false) {
 		$err = 'The status file for your FUPS process with token "'.$token.'" does not exist - possibly because you have already deleted it.';
 	}
-	$status = @file_get_contents($status_filename);
-	$errs   = @file_get_contents($errs_filename  );
+	$status     = @file_get_contents($status_filename);
+	$errs       = @file_get_contents($errs_filename  );
+	$errs_admin = @file_get_contents($errs_admin_filename);
 }
 
 $head_extra = '';
@@ -134,11 +136,26 @@ if ($err) {
 ?>
 			<div class="fups_error"><?php echo $err; ?></div>
 <?php
-} else if (isset($_GET['ajax']) && !$done && !$cancelled && !$failed) {
+} else {
+?>
+
+			<script type="text/javascript">
+			//<![CDATA[
+			function toggle_ext_errs() {
+				var elem = document.getElementById('id_ext_err');
+				if (elem) {
+					elem.style.display = (elem.style.display == 'none' ? 'block' : 'none');
+				}
+			}
+			//]]>
+			</script>
+
+<?php
+	if (isset($_GET['ajax']) && !$done && !$cancelled && !$failed) {
 ?>
 			<div id="ajax.fill">
 <?php
-	output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, true);
+		output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin, true);
 ?>
 			</div>
 			<script type="text/javascript">
@@ -193,8 +210,7 @@ if ($err) {
 				//]]>
 			</script>
 <?php
-} else {
-	output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs);
+	} else	output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin);
 }
 
 fups_output_page_end($page);

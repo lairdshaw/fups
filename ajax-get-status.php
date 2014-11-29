@@ -39,9 +39,10 @@ $old_filesize = isset($_GET['filesize']) ? $_GET['filesize'] : 0;
 $old_ts = isset($_GET['ts']) ? $_GET['ts'] : '';
 
 if (validate_token($token, $err)) {
-	$status_filename = make_status_filename($token);
-	$errs_filename = make_errs_filename($token);
-	$output_filename = make_output_filename($token);
+	$status_filename     = make_status_filename    ($token);
+	$errs_filename       = make_errs_filename      ($token);
+	$errs_admin_filename = make_errs_admin_filename($token);
+	$output_filename     = make_output_filename    ($token);
 }
 
 $org_errs = @file_get_contents($errs_filename);
@@ -50,13 +51,14 @@ while ($i++ < MAX_WAIT_SECONDS) {
 	clearstatcache();
 	$filesize = filesize($status_filename);
 	$ts = filemtime($status_filename);
-	$status = @file_get_contents($status_filename);
-	$errs   = @file_get_contents($errs_filename  );
+	$status     = @file_get_contents($status_filename    );
+	$errs       = @file_get_contents($errs_filename      );
+	$errs_admin = @file_get_contents($errs_admin_filename);
 	if ($filesize != $old_filesize || $ts != $old_ts || $errs != $org_errs) {
 		get_failed_done_cancelled($status, $done, $cancelled, $failed);
 		echo $filesize."\n";
 		echo $ts."\n";
-		output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, true);
+		output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin, true);
 		exit;
 	}
 	sleep(1);

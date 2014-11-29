@@ -135,7 +135,7 @@ function show_delete($token, $had_success = false) {
 <?php
 }
 
-function output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $ajax = false) {
+function output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin = false, $ajax = false) {
 	if ($err) {
 ?>
 			<div class="fups_error"><?php echo format_html($err); ?></div>
@@ -148,6 +148,7 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 			<div id="fups_div_status">
 <?php	echo htmlspecialchars($status); ?>
 			</div>
+
 <?php
 	if ($done) {
 		$output_filename = make_output_filename($token, true);
@@ -182,6 +183,7 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 			</div>
 
 			<p>Alternatively, feel free to retry or to <a href="<?php echo FUPS_CONTACT_URL; ?>">contact me</a> manually about this error, quoting your run token of "<?php echo $token; ?>".</p>
+
 <?php
 		show_delete($token, false);
 	} else {
@@ -191,6 +193,7 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 				<a href="<?php echo 'run.php?token='.$token.($same_status ? '&amp;last_status='.htmlspecialchars(urlencode($status)) : '').($ajax ? '&amp;ajax=yes' : ''); ?>"><?php echo ($ajax ? 'Refresh page' : 'Check progress'); ?></a><?php if ($ajax): echo ' (it should not be necessary to click this link unless something goes wrong)'; endif; ?>.
 <?php		if ($same_status) { ?>
 				(It appears that progress has halted unexpectedly - the current status is the same as the previous status. It is likely that an error has caused the process to exit before finishing. We are sorry about this failure. In case you want to be sure that progress has indeed halted, you are welcome to click the preceding link, but otherwise, this page will no longer automatically refresh.)
+
 <?php
 			show_delete($token, false);
 		} else { ?>
@@ -201,11 +204,27 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 	}
 	if ($errs) {
 ?>
+
 			<h3>Errors</h3>
+
 			<div class="fups_error">
 <?php	echo format_html($errs); ?>
 			</div>
-<?php	}
+<?php
+		if ($errs_admin) {
+			// The toggle_ext_errs() Javascript function below is defined in run.php
+?>
+
+			<p><a href="javascript:toggle_ext_errs();">Show/hide extended error messages</a> (these have been emailed to me as-is, with your token, "<?php echo htmlspecialchars($token); ?>", included in the email's subject)</p>
+
+			<div id="id_ext_err" style="display: none;">
+
+				<h3>Extended error messages</h3>
+
+				<div class="fups_error"><?php echo format_html($errs_admin); ?></div>
+			</div>
+<?php		}
+	}
 
 	// Early return possible
 }

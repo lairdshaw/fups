@@ -174,7 +174,7 @@ class phpBBFUPS extends FUPSBase {
 				$sid = $matches[1];
 				if ($this->dbg) $this->write_err('SID: '.$sid);
 			} else {
-				$this->exit_err('Could not find the hidden sid input on the login page. The url of the searched page is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
+				$this->exit_err('Could not find the hidden sid input on the login page. The URL of the searched page is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
 			}
 			$this->write_status('Attempting to log in.');
 			# Attempt to log in
@@ -249,19 +249,19 @@ class phpBBFUPS extends FUPSBase {
 		if (!$found) {
 			if ($err || $this->dbg) write_err('Trying to find post ID '.$postid.' on previous page of thread, if that page exists.');
 			if (!$this->skins_preg_match('prev_page', $html, $matches__prev_page)) {
-				$this->write_err('Warning: could not extract the details of the previous thread page from the current page. The url of the current page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+				$this->write_err('Warning: could not extract the details of the previous thread page from the current page. The URL of the current page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
 				$this->set_url($this->get_post_url($matches__prev_page[1], $matches__prev_page[2], $matches__prev_page[3]));
 				$html__prev_page = $this->do_send();
 				if (!$this->skins_preg_match_all('post_contents', $html__prev_page, $matches__prev_posts)) {
-					if ($err || $this->dbg) $this->write_err('Warning: could not find any post contents on the previous page in the thread. The url of that previous page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__prev_page);
+					if ($err || $this->dbg) $this->write_err('Warning: could not find any post contents on the previous page in the thread. The URL of that previous page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__prev_page);
 				} else {
 					list($found, $count) = $this->get_post_contents_from_matches($matches__prev_posts, $postid, $topicid);
 					if ($found) {
 						if ($err || $this->dbg) $this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
 						$ret = true;
 					} else if ($err || $this->dbg) {
-						$this->write_err("Warning: post ID '$postid' not found on previous page. The url of that previous page is <".$this->last_url.'>.', __FILE__, __METHOD__, __LINE__, $html__prev_page);
+						$this->write_err("Warning: post ID '$postid' not found on previous page. The URL of that previous page is <".$this->last_url.'>.', __FILE__, __METHOD__, __LINE__, $html__prev_page);
 					}
 					if ($found) $count--;
 					if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts from the page.');
@@ -271,19 +271,19 @@ class phpBBFUPS extends FUPSBase {
 		if (!$found) {
 			if ($err || $this->dbg) $this->write_err('Trying to find post ID '.$postid.' on next page of thread, if that page exists.');
 			if (!$this->skins_preg_match('next_page', $html, $matches__next_page)) {
-				$this->write_err('Warning: could not extract the details of the next thread page from the current page. The url of that page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+				$this->write_err('Warning: could not extract the details of the next thread page from the current page. The URL of that page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
 				$this->set_url($this->get_post_url($matches__next_page[1], $matches__next_page[2], $matches__next_page[3]));
 				$html__next_page = $this->do_send();
 				if (!$this->skins_preg_match_all('post_contents', $html__next_page, $matches__next_posts)) {
-					if ($err || $this->dbg) $this->write_err('Warning: could not find any post contents on the next page in the thread. The url of that next page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__next_page);
+					if ($err || $this->dbg) $this->write_err('Warning: could not find any post contents on the next page in the thread. The URL of that next page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__next_page);
 				} else {
 					list($found, $count) = $this->get_post_contents_from_matches($matches__next_posts, $postid, $topicid);
 					if ($found) {
 						if ($err || $this->dbg) $this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
 						$ret = true;
 					} else if ($err || $this->dbg) {
-						$this->write_err("Warning: post ID '$postid' not found on next page. The url of that next page is <".$this->last_url.'>.', __FILE__, __METHOD__, __LINE__, $html__next_page);
+						$this->write_err("Warning: post ID '$postid' not found on next page. The URL of that next page is <".$this->last_url.'>.', __FILE__, __METHOD__, __LINE__, $html__next_page);
 					}
 					if ($found) $count--;
 					if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts from the page.');
