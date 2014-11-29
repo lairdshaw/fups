@@ -82,7 +82,7 @@ class phpBBFUPS extends FUPSBase {
 			),
 			*/
 			'prosilver.1' => array(
-				'sid'                      => '/name="sid" value="(.*)"/',
+				'sid'                      => '/name="sid" value="([^"]*)"/',
 				'board_title'              => '#<title>(.*) &bull;#Us',
 				'login_success'            => '/<div class="panel" id="message">/',
 				'login_required'           => '/class="panel"/',
@@ -136,7 +136,7 @@ class phpBBFUPS extends FUPSBase {
 				/* 'next_page'                => ? (not constructed yet), */
 			),
 			'subsilver.0' => array(
-				'sid'                      => '#href="\\./index\\.php\\?sid=(.*)"#',
+				'sid'                      => '#href="\\./index\\.php\\?sid=([^"]*)"#',
 				'board_title'              => '#<title>(.*) :: Log in</title>#',
 				/* 'login_success'            => ? (not constructed yet), */
 				/* 'login_required'           => ? (not constructed yet), */
@@ -174,7 +174,7 @@ class phpBBFUPS extends FUPSBase {
 				$sid = $matches[1];
 				if ($this->dbg) $this->write_err('SID: '.$sid);
 			} else {
-				$this->exit_err('Could not find the hidden sid input on the login page. The url of the searched page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+				$this->exit_err('Could not find the hidden sid input on the login page. The url of the searched page is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
 			}
 			$this->write_status('Attempting to log in.');
 			# Attempt to log in
@@ -198,7 +198,7 @@ class phpBBFUPS extends FUPSBase {
 
 			$html = $this->do_send();
 			if (!$this->skins_preg_match('login_success', $html, $dummy)) {
-				$this->exit_err('Login was unsuccessful (did not find success message). This could be due to a wrong username/password combination', __FILE__, __METHOD__, __LINE__,  $html);
+				$this->exit_err('Login was unsuccessful (did not find success message). This could be due to a wrong username/password combination. The URL is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__,  $html);
 			} else if ($this->dbg) $this->write_err('Logged in successfully.');
 
 			# Set cURL method back to GET because this class and especially its ancestor rely on the default method being GET

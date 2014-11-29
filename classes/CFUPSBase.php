@@ -273,6 +273,7 @@ abstract class FUPSBase {
 					$tmp = explode('#', $url, 2);
 					$url = $tmp[0];
 					$this->set_url($url);
+					if ($this->dbg) $this->write_err('In '.__CLASS__.'::'.__METHOD__.'(): Found a "Location" header; following to <'.$url.'>.');
 					$i--;
 					continue;
 				}
@@ -317,20 +318,23 @@ abstract class FUPSBase {
 			self::write_status_s('A fatal error occurred. EXITING', $token);
 		}
 
-		if ($html && $token) {
-			$filename = make_errs_admin_filename($token);
-			if ($dbg) {
-				$ferr = fopen('php://stderr', 'a');
-				if ($ferr !== false) {
-					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'."\n");
-					fclose($ferr);
+		$ferr = fopen('php://stderr', 'a');
+		$html_msg = 'The relevant page\'s HTML is:'."\n\n".$html."\n\n";
+		if ($html) {
+			if ($token) {
+				$filename = make_errs_admin_filename($token);
+				if ($dbg) {
+					if ($ferr !== false) {
+						fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'."\n");
+						fclose($ferr);
+					}
 				}
-			}
-			$ferr_adm = fopen($filename, 'a');
-			if ($ferr_adm !== false) {
-				fwrite($ferr_adm, $msg."\n".'The relevant page\'s HTML is: '.$html."\n\n");
-				fclose($ferr_adm);
-			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'."\n");
+				$ferr_adm = fopen($filename, 'a');
+				if ($ferr_adm !== false) {
+					fwrite($ferr_adm, self::get_formatted_err($method, $line, $file, $msg)."\n".$html_msg);
+					fclose($ferr_adm);
+				} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'."\n");
+			} else	fwrite($ferr, $html_msg);
 		}
 
 		if ($send_mail) {
@@ -447,11 +451,17 @@ abstract class FUPSBase {
 		return '';
 	}
 
+	static protected function get_formatted_err($method, $line, $file, $msg) {
+		return "In method $method in line $line of file '$file': $msg";
+	}
+	 
 	static function get_forum_software_homepage() {
 		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}
 
-	abstract protected function get_post_url($forumid, $topicid, $postid, $with_hash = false);
+	static function get_msg_how_to_detect_forum() {
+		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	}
 
 	protected function get_post_contents($forumid, $topicid, $postid) {
 		$ret = false;
@@ -506,11 +516,7 @@ abstract class FUPSBase {
 		return array($found, $count);
 	}
 
-	static function get_msg_how_to_detect_forum() {
-		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
-	}
-
-	abstract protected function get_search_url();
+	abstract protected function get_post_url($forumid, $topicid, $postid, $with_hash = false);
 
 	static function get_qanda() {
 		return array(
@@ -532,6 +538,8 @@ abstract class FUPSBase {
 			),
 		);
 	}
+
+	abstract protected function get_search_url();
 
 	public function get_settings_array() {
 		$default_settings = array(
@@ -598,13 +606,13 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	protected function hook_after__init_user_post_search() {} // Run after progress level 0
-	protected function hook_after__user_post_search() {} // Run after progress level 1
-	protected function hook_after__topic_post_sort() {} // Run after progress level 2
-	protected function hook_after__posts_retrieval() {} // Run after progress level 3
+	protected function hook_after__init_user_post_search  () {} // Run after progress level 0
+	protected function hook_after__user_post_search       () {} // Run after progress level 1
+	protected function hook_after__topic_post_sort        () {} // Run after progress level 2
+	protected function hook_after__posts_retrieval        () {} // Run after progress level 3
 	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
-	protected function hook_after__handle_missing_posts() {} // Run after progress level 5
-	protected function hook_after__write_output() {} // Run after progress level 6
+	protected function hook_after__handle_missing_posts   () {} // Run after progress level 5
+	protected function hook_after__write_output           () {} // Run after progress level 6
 
 	protected function init_post_search_counter() {
 		$this->post_search_counter = 0;
@@ -624,7 +632,7 @@ abstract class FUPSBase {
 		$settings = array();
 		foreach ($contents_a as $line) {
 			$a = explode('=', $line, 2);
-			if (count($a) < 2 || trim($a[1]) == '') continue;
+			if (count($a) < 2) continue;
 			$setting = $a[0];
 			$value = $a[1];
 			$ret[$setting] = $value;
@@ -912,7 +920,7 @@ abstract class FUPSBase {
 
 	static public function write_err_s($ferr, $msg, $file = null, $method = null, $line = null) {
 		if (!is_null($file) && !is_null($method) && !is_null($line)) {
-			$msg = "In method $method in line $line of file '$file': $msg";
+			$msg = self::get_formatted_err($method, $line, $file, $msg);
 		}
 		if ($ferr) {
 			fwrite($ferr, $msg."\n");
