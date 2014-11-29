@@ -89,6 +89,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2014-11-14 - 2014-11-30
+					<ul>
+						<li>Fixed bugs and made small improvements (see Git log).</li>
+					</ul>
+				</li>
 				<li>2014-11-13
 					<ul>
 						<li>Finalised the refactoring of the code into the object-oriented paradigm.</li>
