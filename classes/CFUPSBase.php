@@ -91,9 +91,11 @@ abstract class FUPSBase {
 	protected $settings_filename =   false;
 	protected $output_filename   =   false;
 	protected $errs_filename     =   false;
+	protected $cookie_filename   =   false;
 	protected $ch                =    null;
 	protected $last_url          =    null;
 	protected $search_id         =    null;
+	protected $post_search_counter =     0;
 	protected $posts_not_found   = array();
 	protected $posts_data        = array();
 	protected $total_posts       =       0;
@@ -112,6 +114,7 @@ abstract class FUPSBase {
 		5 => 'handle_missing_posts',
 		6 => 'write_output',
 	);
+	protected $was_chained       =   false;
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		if (!$do_not_init) {
@@ -176,9 +179,10 @@ abstract class FUPSBase {
 		}
 	}
 
-	protected function __wakeup() {
+	public function __wakeup() {
 		$this->start_time = time();
 		date_default_timezone_set($this->settings['php_timezone']);
+		$this->was_chained = true;
 		$this->write_status('Woke up in chained process.');
 	}
 
@@ -198,12 +202,16 @@ abstract class FUPSBase {
 				$args['settings_filename'] = $this->settings_filename;
 				$args['output_filename'] = $this->output_filename;
 			}
+
+			curl_close($this->ch); // So we save the cookie file to disk for the chained process.
+
 			$cmd = make_php_exec_cmd($args);
-			if ($this->dbg) write_err('Chaining process: about to run command: '.$cmd);
+			if ($this->dbg) $this->write_err('Chaining process: about to run command: '.$cmd);
 			exec($cmd, $output, $res);
 			if ($res) {
 				$this->exit_err('Apologies, the server encountered a technical error: it was unable to initiate a chained background process to continue the task of scraping, sorting and finally presenting your posts. The command used was:'."\n\n".$cmd."\n\n".'Any output was:'."\n".implode("\n", $output)."\n\n".'You might like to try again.', __FILE__, __METHOD__, __LINE__);
 			}
+			if ($this->dbg) $this->write_err('Exiting parent chaining process.');
 			exit;
 		}
 	}
@@ -372,6 +380,7 @@ abstract class FUPSBase {
 		$html = $this->do_send();
 
 		if ($this->skins_preg_match('search_results_not_found', $html, $matches)) {
+			if ($this->dbg) $this->write_err('Matched "search_results_not_found" regex; we have finished finding posts.');
 			$this->progress_level++;
 			return 0;
 		}
@@ -652,7 +661,11 @@ abstract class FUPSBase {
 	}
 
 	public function run() {
-		$cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
+		$this->cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
+
+		if (!$this->was_chained) {
+			@unlink($this->cookie_filename); // Ensure that any existing cookie file on commandline reruns doesn't mess with us.
+		}
 
 		$this->ch = curl_init();
 		if ($this->ch === false) {
@@ -664,8 +677,8 @@ abstract class FUPSBase {
 			CURLOPT_RETURNTRANSFER =>             true,
 			CURLOPT_HEADER         =>             true,
 			CURLOPT_TIMEOUT        =>               20,
-			CURLOPT_COOKIEJAR      => $cookie_filename,
-			CURLOPT_COOKIEFILE     => $cookie_filename,
+			CURLOPT_COOKIEJAR      => $this->cookie_filename,
+			CURLOPT_COOKIEFILE     => $this->cookie_filename,
 		);
 		if (!curl_setopt_array($this->ch, $opts)) {
 			$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
@@ -673,11 +686,14 @@ abstract class FUPSBase {
 
 		# Login if necessary
 		if ($this->supports_feature('login')) {
-			$this->check_do_login();
+			if ($this->was_chained) {
+				if ($this->dbg) $this->write_err('Not bothering to check whether to log in again, because we\'ve just chained.');
+			} else	$this->check_do_login();
 		}
 
 		# Find all of the user's posts through the search feature
 		if ($this->progress_level == 0) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			$this->check_get_username();
 			$this->search_page_num = 1;
 			$this->init_post_search_counter();
@@ -687,9 +703,12 @@ abstract class FUPSBase {
 			$this->$hook_method(); // hook_after__init_user_post_search();
 		}
 		if ($this->progress_level == 1) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			do {
 				$this->write_status('Scraping search page for posts starting from page #'.$this->search_page_num.'.');
-				$this->total_posts += $this->find_author_posts_via_search_page();
+				$num_posts_found = $this->find_author_posts_via_search_page();
+				if ($this->dbg) $this->write_err('Found '.$num_posts_found.' posts.');
+				$this->total_posts += $num_posts_found;
 				$this->search_page_num++;
 				$this->check_do_chain();
 			} while ($this->progress_level == 1);
@@ -699,6 +718,7 @@ abstract class FUPSBase {
 
 		# Sort topics and posts
 		if ($this->progress_level == 2) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			$this->write_status('Sorting posts and topics prior to scraping posts\' content.');
 			# Sort topics in ascending alphabetical order
 			uasort($this->posts_data, 'cmp_topics_topic');
@@ -725,6 +745,7 @@ abstract class FUPSBase {
 
 		# Retrieve the contents of all of the user's posts
 		if ($this->progress_level == 3) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			# If the current topic ID is already set, then we are continuing after having chained.
 			$go = is_null($this->current_topic_id);
 			foreach ($this->posts_data as $topicid => $dummy) {
@@ -758,6 +779,7 @@ abstract class FUPSBase {
 
 		# Extract per-thread information: thread author and forum
 		if ($this->progress_level == 4) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			# If the current topic ID is already set, then we are continuing after having chained.
 			$go = is_null($this->current_topic_id);
 			$total_threads = count($this->posts_data);
@@ -789,6 +811,7 @@ abstract class FUPSBase {
 
 		# Warn about missing posts
 		if ($this->progress_level == 5) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			if ($this->posts_not_found) {
 				$this->write_err("\n\n\nThe contents of the following posts were not found::\n\n\n");
 				foreach ($this->posts_not_found as $postid => $dummy) {
@@ -807,6 +830,7 @@ abstract class FUPSBase {
 
 		# Write output
 		if ($this->progress_level == 6) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			$this->write_status('Writing output.');
 
 			# Write the HTML output

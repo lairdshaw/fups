@@ -247,7 +247,7 @@ class phpBBFUPS extends FUPSBase {
 		# and instead appear on the previous or next page in the thread. Here, we deal with those scenarios.
 		$org_url = $this->last_url;
 		if (!$found) {
-			if ($err || $this->dbg) write_err('Trying to find post ID '.$postid.' on previous page of thread, if that page exists.');
+			if ($err || $this->dbg) $this->write_err('Trying to find post ID '.$postid.' on previous page of thread, if that page exists.');
 			if (!$this->skins_preg_match('prev_page', $html, $matches__prev_page)) {
 				$this->write_err('Warning: could not extract the details of the previous thread page from the current page. The URL of the current page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {

@@ -46,7 +46,7 @@ function make_cancellation_filename($token) {
 }
 
 function make_cookie_filename($token_or_settings_filename) {
-	return FUPS_DATADIR.$token_or_settings_filename.'.cookies.txt';
+	return ($token_or_settings_filename[0] == '/' ? '' : FUPS_DATADIR).$token_or_settings_filename.'.cookies.txt';
 }
 
 function make_errs_filename($token) {
@@ -63,20 +63,20 @@ function make_output_filename($token, $for_web = false) {
 
 function make_php_exec_cmd($params) {
 	$args = '';
-	$redirect = '';
+	$redirect = ' 1>/dev/null';
 	if (isset($params['token'])) {
 		if ($args) $args .= ' ';
-		$args .= '-t '.$params['token'];
+		$args .= '-t '.escapeshellarg($params['token']);
 		$errs_fname = make_errs_filename($params['token']);
 		$redirect = ' 1>>'.$errs_fname.' 2>>'.$errs_fname;
 	}
 	if (isset($params['settings_filename'])) {
 		if ($args) $args .= ' ';
-		$args .= '-i '.$params['settings_filename'];
+		$args .= '-i '.escapeshellarg($params['settings_filename']);
 	}
 	if (isset($params['output_filename'])) {
 		if ($args) $args .= ' ';
-		$args .= '-o '.$params['output_filename'];
+		$args .= '-o '.escapeshellarg($params['output_filename']);
 	}
 	if (isset($params['chained']) && $params['chained'] == true) {
 		if ($args) $args .= ' ';
@@ -87,7 +87,7 @@ function make_php_exec_cmd($params) {
 }
 
 function make_serialize_filename($token_or_settings_filename) {
-	return FUPS_DATADIR.$token_or_settings_filename.'.serialize.txt';
+	return ($token_or_settings_filename[0] == '/' ? '' : FUPS_DATADIR).$token_or_settings_filename.'.serialize.txt';
 }
 
 function make_settings_filename($token) {
