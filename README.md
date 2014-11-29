@@ -62,7 +62,7 @@ Depending on which forum software the forum you wish to scrape from runs, differ
 
 ### The options ###
 
-First note that logging in to XenForo forums is not yet supported, hence the lack of *login_user* and *login_password* options for forums of that type (nor is *extract_user_id* supported for XenForo forums).
+First note that logging in to XenForo forums is not yet supported, hence the lack of *login_user* and *login_password* options for forums of that type (nor is *extract_user* supported for XenForo forums).
 
 * *forum_type*: Required. One of phpbb or xenforo (case sensitive).
 
@@ -72,13 +72,13 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 
 * *extract_user*: Optional. Applies to phpBB forums only. Set this to the username corresponding to the *extract_user_id* - this saves FUPS from having to look this value up, which it often can only do when you are logged in, so this additionally might save you from having to provide values for *login_user* or *login_password*.
 
-* *login_user*: Optional. Applies to phpBB forums only. Set this to the username of the user whom you wish to log in as (it's fine to set it to the same value as extract_user). If unset, FUPS will not log in. If supplied, then the timestamps associated with each post will be according to the timezone specified in this user's preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts.
+* *login_user*: Optional. Applies to phpBB forums only. Set this to the username of the user whom you wish to log in as (it's fine to set it to the same value as *extract_user*). If unset, FUPS will not log in. If supplied, then the timestamps associated with each post will be according to the timezone specified in this user's preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts.
 
 * *login_password*: Optional. Applies to phpBB forums only. Set this to the password associated with the *login_user* user.
 
 * *start_from_date*: Optional. Set this to the datetime of the earliest post to be extracted i.e. only posts of this datetime and later will be extracted. If not set then all posts will be extracted. This value is parsed with PHP's [strtotime()](http://www.php.net/strtotime) function, so check that link for details on what it should look like. An example of something that will work is: 2013-04-30 15:30.
 
-* *php_timezone*: Required. Set this to the timezone in which the user's posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the *start_from_date* setting (so it is safe to leave it set to the default if you are not supplying a value for the *start_from_date* setting). Valid values are listed starting [here](http://php.net/manual/en/timezones.php).
+* *php_timezone*: Required. Set this to the timezone in which the user's posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the *start_from_date* setting, so it is safe to leave it set to the default if you are not supplying a value for the *start_from_date* setting. Valid values are listed starting [here](http://php.net/manual/en/timezones.php).
 
 * *debug*: Optional. If set to "true" or "1", additional debugging information will be output.
 
