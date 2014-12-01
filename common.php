@@ -57,7 +57,7 @@ function make_cancellation_filename($token) {
 }
 
 function make_cookie_filename($token_or_settings_filename) {
-	return ($token_or_settings_filename[0] == '/' ? '' : FUPS_DATADIR).$token_or_settings_filename.'.cookies.txt';
+	return FUPS_DATADIR.sanitise_filename($token_or_settings_filename).'.cookies.txt';
 }
 
 function make_errs_filename($token) {
@@ -112,8 +112,13 @@ function try_run_bg_proc($cmd) {
 	return $ret;
 }
 
+function sanitise_filename($filename) {
+	$sanitised = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
+	return $sanitised !== null ? $sanitised : $filename;
+}
+
 function make_serialize_filename($token_or_settings_filename) {
-	return ($token_or_settings_filename[0] == '/' ? '' : FUPS_DATADIR).$token_or_settings_filename.'.serialize.txt';
+	return FUPS_DATADIR.sanitise_filename($token_or_settings_filename).'.serialize.txt';
 }
 
 function make_settings_filename($token) {
