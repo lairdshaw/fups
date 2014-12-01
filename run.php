@@ -37,11 +37,14 @@ require_once __DIR__.'/common.php';
 $err = false;
 $file_errs = '';
 if (!isset($_GET['token'])) {
-	exec('ps -e | grep php | wc -l', $output, $res);
-	$num_php_processes = $output[0];
-	if ($num_php_processes > FUPS_MAX_PHP_PROCESSES) {
-		$err = 'Apologies, my web hosting account is currently running short of allowable tasks; please wait a little and then try again. Feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a> if this situation persists over an extended period. Thank you!';
-	} else {
+	if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
+		exec('ps -e | grep php | wc -l', $output, $res);
+		$num_php_processes = $output[0];
+		if ($num_php_processes > FUPS_MAX_PHP_PROCESSES) {
+			$err = 'Apologies, my web hosting account is currently running short of allowable tasks; please wait a little and then try again. Feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a> if this situation persists over an extended period. Thank you!';
+		}
+	}
+	if (!$err) {
 		$num_settings_set = 0;
 		foreach (array_keys($_POST) as $setting) {
 			if ($_POST[$setting]) $num_settings_set++;
@@ -62,7 +65,7 @@ if (!isset($_GET['token'])) {
 			} else {
 				foreach (array_keys($_POST) as $setting) {
 					$value = $_POST[$setting];
-					fwrite($fp, $setting.'='.$value."\n");
+					fwrite($fp, $setting.'='.$value.PHP_EOL);
 				}
 				fclose($fp);
 				$status_filename = make_status_filename($token);
@@ -82,9 +85,8 @@ if (!isset($_GET['token'])) {
 					$file_errs .= 'Error: unable to write to the serialization file.';
 				}
 				$cmd = make_php_exec_cmd(array('token' => $token));
-				exec($cmd, $output, $res);
-				if ($res) {
-					$err = 'Apologies, the server encountered a technical error: it was unable to initiate the background process to perform the task of scraping, sorting and finally presenting your posts. The command used was:<br />'."\n".'<br />'."\n".$cmd.'<br />'."\n".'<br />'."\n".'Any output was:<br />'."\n".implode('<br />'."\n", $output).'<br />'."\n".'<br />'."\n".'You might like to try again or <a href="'.FUPS_CONTACT_URL.'">contact me</a> about this error.';
+				if (!try_run_bg_proc($cmd)) {
+					$err = 'Apologies, the server encountered a technical error: it was unable to initiate the background process to perform the task of scraping, sorting and finally presenting your posts. The command used was:<br />'.PHP_EOL.'<br />'.PHP_EOL.$cmd.'<br />'.PHP_EOL.'<br />'.PHP_EOL.'You might like to try again or <a href="'.FUPS_CONTACT_URL.'">contact me</a> about this error.';
 				}
 			}
 		}

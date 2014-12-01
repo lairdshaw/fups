@@ -185,7 +185,7 @@ class XenForoFUPS extends FUPSBase {
 		// 	CURLOPT_HEADER         => true ,
 		// );
 		// if (!curl_setopt_array($this->ch, $opts)) {
-		// 	$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+		// 	$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 		// }
 
 		$response = curl_exec($this->ch);
@@ -212,7 +212,7 @@ class XenForoFUPS extends FUPSBase {
 		// 	CURLOPT_HEADER         => false,
 		// );
 		// if (!curl_setopt_array($this->ch, $opts)) {
-		// 	$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+		// 	$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 		// }
 
 		return $search_id;

@@ -193,7 +193,7 @@ class phpBBFUPS extends FUPSBase {
 				CURLOPT_POSTFIELDS     => $postfields
 			);
 			if (!curl_setopt_array($this->ch, $opts)) {
-				$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+				$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 			}
 
 			$html = $this->do_send();

@@ -1,0 +1,8 @@
+# A .gitattributes file based on advice here:
+# <https://help.github.com/articles/dealing-with-line-endings/>
+
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Windows .bat files should always have Windows line endings.
+*.bat text eol=crlf

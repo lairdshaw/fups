@@ -21,12 +21,23 @@
  */
 
 // Where to store any status, error, cookie, and (web) settings files associated
-// with each FUPS process. Must be writable by your web server if running FUPS
-// as a web app, or by the user you run FUPS as from the commandline.
+// with each FUPS process. This directory, and FUPS_OUTPUTDIR below, must be
+// writable by your web server if running FUPS as a web app, or by the user you
+// run FUPS as from the commandline. It also MUST end in whichever path separator
+// character is valid for your operating system - i.e. a forward slash, "/",
+// for UNIX-like OSes, and an escaped backslash, "\\" for Windows-based OSes.
+//
 // N.B. THIS DIRECTORY SHOULD NOT BE PUBLICLY ACCESSIBLE - it will potentially
 // contain settings files which include forum passwords. i.e. It should NOT be
 // under your web root.
+//
+// Under Windows, be sure to use, as directory separators, escaped (i.e. doubled)
+// backslashes rather than forward slashes, as e.g. in the commented-out line below.
+// Also, a hint: if running under IIS under Windows, by default the IIS user is IUSR,
+// so unless you have a different setup, ensure that user IUSR has write permission
+// on the directory you choose here (and on the FUPS_OUTPUTDIR further below).
 define('FUPS_DATADIR'          , '/home/yourusername/fups-files/'   );
+//define('FUPS_DATADIR'          , 'C:\\fups-files\\'                 );
 
 // The email address to send error notifications to when running FUPS as a
 // web app.
@@ -42,8 +53,12 @@ define('FUPS_EMAIL_SENDER'     , 'fups@example.com'                 );
 define('FUPS_CONTACT_URL'      , '/contact'                         );
 
 // The path (can be, and might need to be, absolute) to your php executable when
-// run from the commandline.
+// run from the commandline. The typical value for Windows is commented out below.
+// If you need to configure an alternative Windows directory, don't forget to
+// escape path separators - i.e. use two consecutive backslashes where you would
+// normally use only one.
 define('FUPS_CMDLINE_PHP_PATH' , 'php'                              );
+//define('FUPS_CMDLINE_PHP_PATH' , 'C:\\PHP\\php.exe'                 );
 
 // The URL from where the source code of this FUPS installation can be
 // downloaded. Note that under the terms under which this code is licensed,
@@ -73,7 +88,13 @@ define('FUPS_USER_AGENT'       , 'FUPS (src: '.FUPS_SRC_URL.'; running from: '.$
 define('FUPS_CHAIN_DURATION'   ,                                  -1);
 
 // The filesystem path to the directory in which to store output when running as
-// a web app.
+// a web app. The FUPS process, whether run by you or your web server, must have
+// write permission on this directory (again, by default under IIS under Windows,
+// that user is IUSR).
+//
+// This path MUST end in whichever path separator character is valid for your
+// operating system - i.e. a forward slash, "/", for UNIX-like OSes, and an escaped
+// backslash, "\\" for Windows-based OSes.
 define('FUPS_OUTPUTDIR'        , __DIR__.'/output/'                 );
 
 // As above but from the perspective of the browser (i.e. URL).

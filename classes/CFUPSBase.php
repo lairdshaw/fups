@@ -206,10 +206,10 @@ abstract class FUPSBase {
 			curl_close($this->ch); // So we save the cookie file to disk for the chained process.
 
 			$cmd = make_php_exec_cmd($args);
+			$this->write_status('Chaining next process.');
 			if ($this->dbg) $this->write_err('Chaining process: about to run command: '.$cmd);
-			exec($cmd, $output, $res);
-			if ($res) {
-				$this->exit_err('Apologies, the server encountered a technical error: it was unable to initiate a chained background process to continue the task of scraping, sorting and finally presenting your posts. The command used was:'."\n\n".$cmd."\n\n".'Any output was:'."\n".implode("\n", $output)."\n\n".'You might like to try again.', __FILE__, __METHOD__, __LINE__);
+			if (!try_run_bg_proc($cmd)) {
+				$this->exit_err('Apologies, the server encountered a technical error: it was unable to initiate a chained background process to continue the task of scraping, sorting and finally presenting your posts. The command used was:'.PHP_EOL.PHP_EOL.$cmd.PHP_EOL.PHP_EOL.'Any output was:'.PHP_EOL.implode(PHP_EOL, $output).PHP_EOL.PHP_EOL.'You might like to try again.', __FILE__, __METHOD__, __LINE__);
 			}
 			if ($this->dbg) $this->write_err('Exiting parent chaining process.');
 			exit;
@@ -298,7 +298,7 @@ abstract class FUPSBase {
 			if ($err && !$quit_on_error) return false;
 		}
 		if ($err) {
-			if ($quit_on_error) $this->exit_err('Too many errors with http request; abandoning page and quitting.'."\n".'Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
+			if ($quit_on_error) $this->exit_err('Too many errors with http request; abandoning page and quitting.'.PHP_EOL.'Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
 		} else {
 			$this->check_get_board_title($html);
 		}
@@ -316,7 +316,7 @@ abstract class FUPSBase {
 			if (in_array($k, $this->private_settings)) {
 				$v = '[redacted]';
 			}
-			$settings_str .= "\t$k=$v\n";
+			$settings_str .= "\t$k=$v".PHP_EOL;
 		}
 
 		self::exit_err_common_s($msg, $file, $method, $line, $html, $settings_str, $send_mail, $token, $dbg);
@@ -332,15 +332,15 @@ abstract class FUPSBase {
 		global $argv;
 
 		$ferr = fopen('php://stderr', 'a');
-		$html_msg = $html ? 'The relevant page\'s HTML is:'."\n\n".$html."\n\n" : '';
-		$settings_msg = $settings_str ? 'The session\'s settings are:'."\n".$settings_str : '';
-		$full_admin_msg = self::get_formatted_err($method, $line, $file, $msg)."\n\n".$settings_msg."\n".$html_msg;
+		$html_msg = $html ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL : '';
+		$settings_msg = $settings_str ? 'The session\'s settings are:'.PHP_EOL.$settings_str : '';
+		$full_admin_msg = self::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$settings_msg.PHP_EOL.$html_msg;
 
 		if ($token) {
 			$filename = make_errs_admin_filename($token);
 			if ($dbg) {
 				if ($ferr !== false) {
-					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'."\n");
+					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'.PHP_EOL);
 					fclose($ferr);
 				}
 			}
@@ -348,11 +348,11 @@ abstract class FUPSBase {
 			if ($ferr_adm !== false) {
 				fwrite($ferr_adm, $full_admin_msg);
 				fclose($ferr_adm);
-			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'."\n");
+			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'.PHP_EOL);
 		} else	fwrite($ferr, $html_msg);
 
 		if ($send_mail) {
-			$body  = 'A fatal error occurred in the FUPS process with commandline arguments:'."\n".var_export($argv, true)."\n\n";
+			$body  = 'A fatal error occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
 			$body .= $full_admin_msg;
 			$subject = 'Fatal error with FUPS process';
 			if ($token) $subject .= ' '.$token;
@@ -471,9 +471,18 @@ abstract class FUPSBase {
 	}
 
 	static protected function get_formatted_err($method, $line, $file, $msg) {
-		return "In method $method in line $line of file '$file': $msg";
+		$ret = '';
+		if ($method) $ret = "In $method";
+		if ($line) {
+			$ret .= ($ret ? ' in' : 'In')." line $line";
+		}
+		if ($file) {
+			$ret .= ($ret ? ' in' : 'In')." file $file";
+		}
+		$ret .= ($ret ? ': ' : '')."$msg";
+		return $ret;
 	}
-	 
+ 
 	static function get_forum_software_homepage() {
 		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}
@@ -647,7 +656,7 @@ abstract class FUPSBase {
 	static public function read_settings_raw_s($settings_filename) {
 		$ret = array();
 		$contents = file_get_contents($settings_filename);
-		$contents_a = explode("\n", $contents);
+		$contents_a = explode(PHP_EOL, $contents);
 		$settings = array();
 		foreach ($contents_a as $line) {
 			$a = explode('=', $line, 2);
@@ -681,7 +690,7 @@ abstract class FUPSBase {
 			CURLOPT_COOKIEFILE     => $this->cookie_filename,
 		);
 		if (!curl_setopt_array($this->ch, $opts)) {
-			$this->exit_err('Failed to set the following cURL options:'."\n".var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+			$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 		}
 
 		# Login if necessary
@@ -813,7 +822,7 @@ abstract class FUPSBase {
 		if ($this->progress_level == 5) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			if ($this->posts_not_found) {
-				$this->write_err("\n\n\nThe contents of the following posts were not found::\n\n\n");
+				$this->write_err(PHP_EOL.PHP_EOL.PHP_EOL."The contents of the following posts were not found::".PHP_EOL.PHP_EOL.PHP_EOL);
 				foreach ($this->posts_not_found as $postid => $dummy) {
 					$a = $this->find_post($postid);
 					if ($a == false) $this->write_err("\tError: failed to find post with ID '$postid' in internal data.");
@@ -943,11 +952,17 @@ abstract class FUPSBase {
 	}
 
 	public function write_err($msg, $file = null, $method = null, $line = null) {
-		static $ferr = null;
-		if (!$ferr) {
+		static $ferr = false;
+		if ($ferr === false) {
 			if ($this->errs_filename === false) {
 				$ferr = fopen('php://stderr'      , 'w');
-			} else	$ferr = fopen($this->errs_filename, 'a');
+			} else {
+				$ferr = @fopen($this->errs_filename, 'a');
+				// The above seems to fail on Windows, perhaps because generally
+				// we are already redirecting stderr to that file - the below seems
+				// to handle that case.
+				if ($ferr === false) $ferr = fopen('php://stderr', 'w');
+			}
 		}
 		self::write_err_s($ferr, $msg, $file, $method, $line);
 	}
@@ -957,7 +972,7 @@ abstract class FUPSBase {
 			$msg = self::get_formatted_err($method, $line, $file, $msg);
 		}
 		if ($ferr) {
-			fwrite($ferr, $msg."\n");
+			fwrite($ferr, $msg.PHP_EOL);
 		} else	echo $msg;
 	}
 
