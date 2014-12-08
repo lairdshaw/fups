@@ -191,6 +191,9 @@ abstract class FUPSBase {
 	protected function check_do_chain() {
 		if (time() - $this->start_time > $this->FUPS_CHAIN_DURATION) {
 			$serialize_filename = make_serialize_filename($this->web_initiated ? $this->token : $this->settings_filename);
+
+			if ($this->dbg) $this->write_err('Set $serialize_filename to "'.$serialize_filename.'".');
+
 			if (!file_put_contents($serialize_filename, serialize($this))) {
 				$this->exit_err('file_put_contents returned false.', __FILE__, __METHOD__, __LINE__);
 			}
@@ -203,6 +206,7 @@ abstract class FUPSBase {
 			} else {
 				$args['settings_filename'] = $this->settings_filename;
 				$args['output_filename'] = $this->output_filename;
+				$args['quiet'] = $this->quiet;
 			}
 
 			curl_close($this->ch); // So we save the cookie file to disk for the chained process.
@@ -289,7 +293,7 @@ abstract class FUPSBase {
 						$url = $tmp[0];
 						$this->validate_url($url, 'the redirected-to location', true);
 						$this->set_url($url);
-						if ($this->dbg) $this->write_err('In '.__CLASS__.'::'.__METHOD__.'(): Found a "Location" header; following to <'.$url.'>.');
+						if ($this->dbg) $this->write_err('In '.__METHOD__.'(): Found a "Location" header; following to <'.$url.'>.');
 						$i--;
 						continue;
 					}
@@ -678,6 +682,8 @@ abstract class FUPSBase {
 
 		$this->cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
 
+		if ($this->dbg) $this->write_err('Set cookie_filename to "'.$this->cookie_filename.'".');
+
 		if (!$this->was_chained) {
 			@unlink($this->cookie_filename); // Ensure that any existing cookie file on commandline reruns doesn't mess with us.
 		}
@@ -997,7 +1003,7 @@ abstract class FUPSBase {
 		static $ferr = false;
 		if ($ferr === false) {
 			if ($this->errs_filename === false) {
-				$ferr = fopen('php://stderr'      , 'w');
+				$ferr =  fopen('php://stderr'      , 'w');
 			} else {
 				$ferr = @fopen($this->errs_filename, 'a');
 				// The above seems to fail on Windows, perhaps because generally
@@ -1010,7 +1016,7 @@ abstract class FUPSBase {
 	}
 
 	static public function write_err_s($ferr, $msg, $file = null, $method = null, $line = null) {
-		if (!is_null($file) && !is_null($method) && !is_null($line)) {
+		if (!is_null($file) || !is_null($method) || !is_null($line)) {
 			$msg = self::get_formatted_err($method, $line, $file, $msg);
 		}
 		if ($ferr) {

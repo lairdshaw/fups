@@ -26,12 +26,11 @@
 /* File       : fups.php.
  * Description: The main scraping script, initiated either automatically by
  *              the web app (run.php) or manually e.g. via the commandline.
- *              Manual initiation should be as follows (from within the
- *              current file's directory):
+ *              Manual initiation should be as follows:
  *
- *              php fups.php -i my-options-file.txt -o my-output-file.html
+ *              php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/outputfile.html
  *
- *              The my-options-file.txt should contain a series of lines of
+ *              The optionsfile.txt file should contain a series of lines of
  *              supported options, each option followed by an equals sign
  *              and then its value. The first option should be "forum_type",
  *              which should be set to one of (at time of writing) "phpbb" or

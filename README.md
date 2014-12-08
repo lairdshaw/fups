@@ -29,11 +29,11 @@ Simply navigate to `index.php`. The rest should be self-explanatory. (In some of
 
 ### Using from the commandline ###
 
-Create an options file. Change to the root FUPS directory and type:
+Create an options file. Type:
 
-    php fups.php -i path/to/your/optionsfile.txt -o path/to/your/outputfile.html
+    php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/outputfile.html
 
-Optionally, a `-q` parameter can be added to suppress status update messages.
+Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than your PHP max_execution_time ini setting, because in that case, it will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you otherwise.
 
 Depending on which forum software the forum you wish to scrape from runs, different options are available for your options file. Here are sample options files for both currently supported forum types - adjust these options as required. The meaning of each option is described further below.
 
@@ -90,6 +90,8 @@ Limitations
 * The only XenForo skin supported is whichever skin is accessible by default for anonymous users on [civilwartalk.com](http://civilwartalk.com/) - I have no idea whether this is a default XenForo skin or a custom skin. If it is a custom skin, then civilwartalk.com is probably the only XenForo forum that FUPS is actually capable of scraping at present.
 
 * Relative URLS within posts are currently not converted into absolute URLs. This means that sometimes, images that were uploaded to the forum do not appear in the FUPS output of the phpBB posts linking to those images, and that certain internal links in XenForo posts (e.g. those linked with an up arrow) are not functional in the HTML file that FUPS outputs.
+
+* The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable, and quotes are not truncated in FUPS output anyway.
 
 The code
 --------

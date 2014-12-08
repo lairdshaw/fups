@@ -100,9 +100,17 @@ function make_php_exec_cmd($params) {
 		if ($args) $args .= ' ';
 		$args .= '-c';
 	}
+	if (isset($params['quiet']) && $params['quiet'] == true) {
+		if ($args) $args .= ' ';
+		$args .= '-q';
+	}
 
+	$fups_path = realpath(__DIR__.'/fups.php');
+	if ($fups_path === false) {
+		$fups_path = 'fups.php';
+	}
 	// Early return possible
-	return $prefix.FUPS_CMDLINE_PHP_PATH.' -d max_execution_time=0 fups.php '.$args.' '.$redirect.' '.$bg_token;
+	return $prefix.FUPS_CMDLINE_PHP_PATH.' -d max_execution_time=0 '.$fups_path.' '.$args.' '.$redirect.' '.$bg_token;
 }
 
 function try_run_bg_proc($cmd) {
@@ -113,8 +121,11 @@ function try_run_bg_proc($cmd) {
 }
 
 function sanitise_filename($filename) {
-	$sanitised = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
-	return $sanitised !== null ? $sanitised : $filename;
+	$tmp = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
+	$sanitised = ($tmp !== null ? $tmp : $filename);
+	$sanitised2 = str_replace('..', '__', $sanitised);
+
+	return $sanitised2;
 }
 
 function make_serialize_filename($token_or_settings_filename) {

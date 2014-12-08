@@ -237,7 +237,7 @@ class XenForoFUPS extends FUPSBase {
 	}
 
 	protected function get_user_page_url() {
-		return $this->settings['base_url'].'/members/'.$this->settings['extract_user_id'].'/';
+		return $this->settings['base_url'].'/members/'.urlencode($this->settings['extract_user_id']).'/';
 	}
 
 	# Second and final part of the postponed resolution of thread (topic) IDs -

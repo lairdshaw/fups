@@ -89,7 +89,7 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
-				<li>2014-11-14 - 2014-11-30
+				<li>2014-11-14 - 2014-12-08
 					<ul>
 						<li>Fixed bugs and made small improvements (see Git log).</li>
 					</ul>
