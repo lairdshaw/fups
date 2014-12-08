@@ -176,6 +176,8 @@ abstract class FUPSBase {
 				$this->write_err(var_export($this->settings, true));
 			}
 			$this->write_status('Finished reading settings.');
+
+			$this->validate_settings();
 		}
 	}
 
@@ -238,7 +240,7 @@ abstract class FUPSBase {
 			if (!$this->skins_preg_match('user_name', $html, $matches)) {
 				$login_req = $this->skins_preg_match('login_required', $html, $matches);
 				$err_msg = "Fatal error: couldn't find the member name corresponding to specified user ID \"{$this->settings['extract_user_id']}\". ";
-				if ($login_req) $err_msg .= 'The board requires that you be logged in to view member names. You can specify a login username and password in the settings on the previous page. This error could be due to a wrong username/password combination. Alternatively, you can simply supply a value for "Extract User Username".';
+				if ($login_req) $err_msg .= 'The board requires that you be logged in to view member names. You can specify a login username and password in the settings on the previous page. If you already did specify them, then this error could be due to a wrong username/password combination. Instead of supplying login details, you can simply supply a value for "Extract User Username".';
 				else $err_msg .= 'The URL of the searched page is <'.$this->last_url.'>.';
 				$this->exit_err($err_msg, __FILE__, __METHOD__, __LINE__, $html);
 			}
@@ -269,28 +271,34 @@ abstract class FUPSBase {
 			// This bug is activated when following XenForo post URLs when CURLOPT_FOLLOWLOCATION
 			// is set.
 			$response = curl_exec($this->ch);
-			$header_size = curl_getinfo($this->ch, CURLINFO_HEADER_SIZE);
-			$headers = substr($response, 0, $header_size);
-			$html = substr($response, $header_size);
-			$response_code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
-			if ($response_code != 200) {
-				$location = false;
-				if (preg_match('/^Location: (.*)$/im', $headers, $matches)) {
-					$url = trim($matches[1]);
-					// Strip from any # onwards - this appears to be buggy either in
-					// certain older versions of cURL or receiving webservers.
-					$tmp = explode('#', $url, 2);
-					$url = $tmp[0];
-					$this->set_url($url);
-					if ($this->dbg) $this->write_err('In '.__CLASS__.'::'.__METHOD__.'(): Found a "Location" header; following to <'.$url.'>.');
-					$i--;
-					continue;
-				}
-				$err = 'Received response other than 200 from server ('.$response_code.') for URL: '.$this->last_url;
+			if ($response === false) {
+				$err = 'curl_exec returned false. curl_error returns: "'.curl_error($this->ch).'".';
 				if ($this->dbg) $this->write_err($err, __FILE__, __METHOD__, __LINE__);
-			} else	{
-				$err = false;
-				break;
+			} else {
+				$header_size = curl_getinfo($this->ch, CURLINFO_HEADER_SIZE);
+				$headers = substr($response, 0, $header_size);
+				$html = substr($response, $header_size);
+				$response_code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
+				if ($response_code != 200) {
+					$location = false;
+					if (preg_match('/^Location: (.*)$/im', $headers, $matches)) {
+						$url = trim($matches[1]);
+						// Strip from any # onwards - this appears to be buggy either in
+						// certain older versions of cURL or receiving webservers.
+						$tmp = explode('#', $url, 2);
+						$url = $tmp[0];
+						$this->validate_url($url, 'the redirected-to location', true);
+						$this->set_url($url);
+						if ($this->dbg) $this->write_err('In '.__CLASS__.'::'.__METHOD__.'(): Found a "Location" header; following to <'.$url.'>.');
+						$i--;
+						continue;
+					}
+					$err = 'Received response other than 200 from server ('.$response_code.') for URL: '.$this->last_url;
+					if ($this->dbg) $this->write_err($err, __FILE__, __METHOD__, __LINE__);
+				} else	{
+					$err = false;
+					break;
+				}
 			}
 			# If quit_on_error is false then we are expecting the
 			# possibility of a 404 or other error, which is why we don't
@@ -298,7 +306,7 @@ abstract class FUPSBase {
 			if ($err && !$quit_on_error) return false;
 		}
 		if ($err) {
-			if ($quit_on_error) $this->exit_err('Too many errors with http request; abandoning page and quitting.'.PHP_EOL.'Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
+			if ($quit_on_error) $this->exit_err('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
 		} else {
 			$this->check_get_board_title($html);
 		}
@@ -560,10 +568,6 @@ abstract class FUPSBase {
 				'q' => 'Why is this script so slow?',
 				'a' => 'So as to avoid hammering other people\'s web servers, the script pauses for five seconds between each page retrieval.',
 			),
-			'q_relationship' => array(
-				'q' => 'Does this script have any relationship with <a href="https://github.com/ProgVal/PHPBB-Extract">the PHPBB-Extract script on GitHub</a>?',
-				'a' => 'No, they are separate projects.',
-			),
 		);
 	}
 
@@ -670,6 +674,8 @@ abstract class FUPSBase {
 	}
 
 	public function run() {
+		$valid_protocols = (CURLPROTO_HTTP | CURLPROTO_HTTPS);
+
 		$this->cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
 
 		if (!$this->was_chained) {
@@ -681,13 +687,15 @@ abstract class FUPSBase {
 			$this->exit_err('Failed to initialise cURL.', __FILE__, __METHOD__, __LINE__);
 		}
 		$opts = array(
-			CURLOPT_USERAGENT      =>  FUPS_USER_AGENT,
-			CURLOPT_FOLLOWLOCATION =>            false, // We emulate this due to a bug - see do_send().
-			CURLOPT_RETURNTRANSFER =>             true,
-			CURLOPT_HEADER         =>             true,
-			CURLOPT_TIMEOUT        =>               20,
-			CURLOPT_COOKIEJAR      => $this->cookie_filename,
-			CURLOPT_COOKIEFILE     => $this->cookie_filename,
+			CURLOPT_USERAGENT       =>  FUPS_USER_AGENT,
+			CURLOPT_FOLLOWLOCATION  =>            false, // We emulate this due to a bug - see do_send().
+			CURLOPT_RETURNTRANSFER  =>             true,
+			CURLOPT_HEADER          =>             true,
+			CURLOPT_TIMEOUT         =>               20,
+			CURLOPT_COOKIEJAR       => $this->cookie_filename,
+			CURLOPT_COOKIEFILE      => $this->cookie_filename,
+			CURLOPT_PROTOCOLS       => $valid_protocols, // Protect against malicious users specifying 'file://...' as base_url setting.
+			CURLOPT_REDIR_PROTOCOLS => $valid_protocols, // Protect against malicious users specifying a base_url setting to a server which redirects to 'file://...'.
 		);
 		if (!curl_setopt_array($this->ch, $opts)) {
 			$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
@@ -828,7 +836,7 @@ abstract class FUPSBase {
 					if ($a == false) $this->write_err("\tError: failed to find post with ID '$postid' in internal data.");
 					else {
 						list($p, $t, $topicid) = $a;
-						$this->write_err("\t{$p['posttitle']} ({$t['topic']}; {$p['timestamp']}; {$t['forum']}; forumid: {$t['forumid']}; topicid: $topicid; postid: $postid; ".$this->settings['base_url'].'/viewtopic.php?f='.$t['forumid'].'&t='.$topicid.'&p='.$postid.")");
+						$this->write_err("\t{$p['posttitle']} ({$t['topic']}; {$p['timestamp']}; {$t['forum']}; forumid: {$t['forumid']}; topicid: $topicid; postid: $postid; ".$this->get_post_url($t['forumid'], $topicid, $postid).')');
 					}
 				}
 			}
@@ -938,6 +946,40 @@ abstract class FUPSBase {
 		return isset($default_features[$feature]) ? $default_features[$feature] : false;
 	}
 
+	# Returns empty string on successful validation, or, if URL is invalid, then
+	# if $exit_on_err is set to true, which it is by default, exits, otherwise
+	# (i.e. if $exit_on_err is false) returns error message..
+	protected function validate_url($url, $url_label, $exit_on_err = true) {
+		static $valid_schemes = array('http', 'https');
+
+		$err = '';
+
+		$parsed = parse_url($url);
+		if ($parsed === false) {
+			$err = ucfirst($url_label).' ("'.$url.'") was invalid according to PHP\'s parse_url() function, which returned false for it.';
+			if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
+		} else {
+			if (!in_array($parsed['scheme'], $valid_schemes)) {
+				$err = 'The URL scheme ("'.$parsed['scheme'].'") of '.$url_label.' ("'.$url.'") is invalid; it should be one of: '.implode(', ', $valid_schemes).'.';
+				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
+			}
+			$ip = gethostbyname($parsed['host']);
+			if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE)) {
+				$err = 'The host ("'.$parsed['host'].'") in '.$url_label.' ("'.$url.'") maps to the IP address "'.$ip.'", which is a private or reserved IP address, or is unmapped.';
+				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
+			}
+		}
+
+		return $err;
+	}
+
+	# Check the settings in the $this->settings array. Exits on invalid setting(s).
+	# If overriding this function, make sure to take appropriate action on
+	# invalid settings yourself, including exiting if appropriate.
+	protected function validate_settings() {
+		$this->validate_url($this->settings['base_url'], 'the supplied base_url setting', true);
+	}
+
 	protected function wait_courteously() {
 		if ($this->web_initiated) {
 			$cancellation_filename = make_cancellation_filename($this->token);
@@ -977,8 +1019,8 @@ abstract class FUPSBase {
 	}
 
 	protected function write_output() {
-		$heading = "Postings of {$this->settings['extract_user']} to <a href=\"{$this->settings['base_url']}\">{$this->settings['board_title']}</a>";
-		if (!empty($this->settings['start_from_date'])) $heading .= ' starting from '.$this->settings['start_from_date'];
+		$heading = 'Postings of '.htmlspecialchars($this->settings['extract_user']).' to <a href="'.htmlspecialchars($this->settings['base_url']).'">'.htmlspecialchars($this->settings['board_title']).'</a>';
+		if (!empty($this->settings['start_from_date'])) $heading .= ' starting from '.htmlspecialchars($this->settings['start_from_date']);
 
 		if (!ob_start(null, 0, PHP_OUTPUT_HANDLER_CLEANABLE|PHP_OUTPUT_HANDLER_FLUSHABLE|PHP_OUTPUT_HANDLER_REMOVABLE)) {
 			$this->exit_err('Fatal error: unable to start output buffering.', __FILE__, __METHOD__, __LINE__);

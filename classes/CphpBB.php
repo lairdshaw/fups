@@ -33,7 +33,7 @@ class phpBBFUPS extends FUPSBase {
 	protected $regexps = null;
 	protected $old_version   = false;
 	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
-	protected $optional_settings = array('extract_user', 'start_from_date', 'login_user', 'login_password', 'delay', 'debug');
+	protected $optional_settings = array('extract_user', 'start_from_date', 'login_user', 'login_password', 'debug');
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		parent::__construct($web_initiated, $params, $do_not_init);
@@ -298,6 +298,12 @@ class phpBBFUPS extends FUPSBase {
 
 	static function get_qanda() {
 		$qanda = parent::get_qanda();
+		$qanda = array_merge($qanda, array(
+			'q_relationship' => array(
+				'q' => 'Does this script have any relationship with <a href="https://github.com/ProgVal/PHPBB-Extract">the PHPBB-Extract script on GitHub</a>?',
+				'a' => 'No, they are separate projects.',
+			),
+		));
 		$qanda_new = array(
 			'q_how_know_phpbb' => array(
 				'q' => 'How can I know if a forum is a phpBB forum?',
@@ -349,8 +355,8 @@ class phpBBFUPS extends FUPSBase {
 
 	protected function get_search_url() {
 		if ($this->old_version) {
-			$url = $this->settings['base_url'].'/search.php?'.($this->search_id !== null ? 'search_id='.$this->search_id : 'search_author='.$this->settings['extract_user']).'&start='.$this->post_search_counter;
-		} else	$url = $this->settings['base_url'].'/search.php?st=0&sk=t&sd=d&author_id='.$this->settings['extract_user_id'].'&start='.$this->post_search_counter;
+			$url = $this->settings['base_url'].'/search.php?'.($this->search_id !== null ? 'search_id='.urlencode($this->search_id) : 'search_author='.urlencode($this->settings['extract_user'])).'&start='.urlencode($this->post_search_counter);
+		} else	$url = $this->settings['base_url'].'/search.php?st=0&sk=t&sd=d&author_id='.urlencode($this->settings['extract_user_id']).'&start='.urlencode($this->post_search_counter);
 
 		return $url;
 	}
@@ -378,11 +384,11 @@ class phpBBFUPS extends FUPSBase {
 	}
 
 	protected function get_topic_url($forumid, $topicid) {
-		return $this->settings['base_url'].'/viewtopic.php?f='.$forumid.'&t='.$topicid;
+		return $this->settings['base_url'].'/viewtopic.php?f='.urlencode($forumid).'&t='.urlencode($topicid);
 	}
 
 	protected function get_user_page_url() {
-		return $this->settings['base_url'].'/memberlist.php?mode=viewprofile&u='.$this->settings['extract_user_id'];
+		return $this->settings['base_url'].'/memberlist.php?mode=viewprofile&u='.urlencode($this->settings['extract_user_id']);
 	}
 
 	public function supports_feature($feature) {
@@ -393,6 +399,13 @@ class phpBBFUPS extends FUPSBase {
 		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature($feature);
 	}
 
+	protected function validate_settings() {
+		parent::validate_settings();
+
+		if (filter_var($this->settings['extract_user_id'], FILTER_VALIDATE_INT) === false) {
+			$this->exit_err('The value supplied for the extract_user_id setting, "'.$this->settings['extract_user_id'].'", is not an integer, which it is required to be for phpBB boards.', __FILE__, __METHOD__, __LINE__);
+		}
+	}
 }
 
 ?>

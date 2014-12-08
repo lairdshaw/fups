@@ -29,7 +29,7 @@
 
 class XenForoFUPS extends FUPSBase {
 	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
-	protected $optional_settings = array('start_from_date', 'delay', 'debug');
+	protected $optional_settings = array('start_from_date', 'debug');
 	protected $user_id_num       =      '';
 	protected $topic_ids         = array();
 
