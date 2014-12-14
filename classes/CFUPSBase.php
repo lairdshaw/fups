@@ -166,7 +166,7 @@ abstract class FUPSBase {
 			date_default_timezone_set($this->settings['php_timezone']); // This timezone only matters when converting the earliest time setting.
 			if (!empty($this->settings['start_from_date'])) {
 				$this->settings['earliest'] = $this->strtotime_intl($this->settings['start_from_date']);
-				if ($this->settings['earliest'] === false) write_err("Error: failed to convert 'start_from_date' ({$this->settings['start_from_date']}) into a UNIX timestamp.");
+				if ($this->settings['earliest'] === false) $this->write_err("Error: failed to convert 'start_from_date' ({$this->settings['start_from_date']}) into a UNIX timestamp.");
 			}
 
 			$this->dbg = in_array($this->settings['debug'], array('true', '1')) ? true : false;
