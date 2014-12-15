@@ -59,13 +59,16 @@ for %%f in (%1) do (
 		)
 	) else (
 		REM It does (have an extension).
-		REM Now check whether it exists in the path.
+		REM Now check whether it exists in the path or
+		REM whether it exists as a file.
+		set exists=0
 		if NOT "%%~$PATH:f"=="" (
-			REM It does. Exit with success return (zero).
-			exit /b 0
+			set exists=1
 		)
-		REM Check whether it exists as a file.
 		if EXIST "%%~ff" (
+			set exists=1
+		)
+		if defined exists (
 			REM It does. Now check whether its extension is a
 			REM valid executable extension.
 			for %%c in (%PATHEXT%) do (
