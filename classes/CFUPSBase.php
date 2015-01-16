@@ -368,7 +368,10 @@ abstract class FUPSBase {
 			$body .= $full_admin_msg;
 			$subject = 'Fatal error with FUPS process';
 			if ($token) $subject .= ' '.$token;
-			mail(FUPS_EMAIL_RECIPIENT, $subject, $body, 'From: '.FUPS_EMAIL_SENDER);
+			$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
+			           "MIME-Version: 1.0\r\n" .
+			           "Content-type: text/plain; charset=UTF-8\r\n";
+			mail(FUPS_EMAIL_RECIPIENT, $subject, $body, $headers);
 		}
 
 		if ($token) {
@@ -491,10 +494,11 @@ abstract class FUPSBase {
 		if ($file) {
 			$ret .= ($ret ? ' in' : 'In')." file $file";
 		}
-		$ret .= ($ret ? ': ' : '')."$msg";
+		$ret .= ($ret ? ': ' : '').$msg;
+
 		return $ret;
 	}
- 
+
 	static function get_forum_software_homepage() {
 		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}

@@ -137,6 +137,7 @@ class phpBBFUPS extends FUPSBase {
 			),
 			'subsilver.0' => array(
 				'sid'                      => '#href="\\./index\\.php\\?sid=([^"]*)"#',
+				/** @todo Remove English-specific components of this regex ("Log in" and potentially the double-colon). */
 				'board_title'              => '#<title>(.*) :: Log in</title>#',
 				/* 'login_success'            => ? (not constructed yet), */
 				/* 'login_required'           => ? (not constructed yet), */
