@@ -331,22 +331,23 @@ abstract class FUPSBase {
 			$settings_str .= "\t$k=$v".PHP_EOL;
 		}
 
-		self::exit_err_common_s($msg, $file, $method, $line, $html, $settings_str, $send_mail, $token, $dbg);
+		self::exit_err_common_s($msg, $file, $method, $line, get_class($this), $html, $settings_str, $send_mail, $token, $dbg);
 	}
 
 	static public function exit_err_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
 		$ferr = fopen('php://stderr', 'a');
 		self::write_err_s($ferr, $msg, $file, $method, $line);
-		self::exit_err_common_s($msg, $file, $method, $line, $html, false, $send_mail, $token, $dbg);
+		self::exit_err_common_s($msg, $file, $method, $line, null, $html, false, $send_mail, $token, $dbg);
 	}
 
-	static public function exit_err_common_s($msg, $file, $method, $line, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
+	static public function exit_err_common_s($msg, $file, $method, $line, $classname = null, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
 		global $argv;
 
 		$ferr = fopen('php://stderr', 'a');
 		$html_msg = $html ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL : '';
 		$settings_msg = $settings_str ? 'The session\'s settings are:'.PHP_EOL.$settings_str : '';
-		$full_admin_msg = self::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$settings_msg.PHP_EOL.$html_msg;
+		$class_msg = $classname ? 'The active FUPS class is: '.$classname.PHP_EOL.PHP_EOL : '';
+		$full_admin_msg = self::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$class_msg.$settings_msg.PHP_EOL.$html_msg;
 
 		if ($token) {
 			$filename = make_errs_admin_filename($token);
