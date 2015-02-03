@@ -28,7 +28,7 @@
  */
 
 class XenForoFUPS extends FUPSBase {
-	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
+	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone', 'thread_url_prefix');
 	protected $optional_settings = array('start_from_date', 'debug');
 	protected $user_id_num       =      '';
 	protected $topic_ids         = array();
@@ -69,7 +69,7 @@ class XenForoFUPS extends FUPSBase {
 			// post ids and contents on the page
 			'post_contents'            => '#<li id="post-(\\d+)".*<article>\\s*<blockquote class="messageText [^"]*">(.*)\\s*?</blockquote>\\s*</article>#Us',
 			// a regexp to match the thread id in a thread page
-			'thread_id'                => '#<a href="threads/([^/]*)/">#',
+			'thread_id'                => '[THIS REGEX IS SET WITHIN __construct()]',
 			'older_content'            => '#<div class="secondaryContent olderMessages">\\s*<a href="search/member\\?user_id=\\d*&amp;before=(\\d+)">#'
 		),
 		'cwt_default2' => array(
@@ -79,11 +79,18 @@ class XenForoFUPS extends FUPSBase {
 		),
 	);
 
+	public function __construct($web_initiated, $params, $do_not_init = false) {
+		parent::__construct($web_initiated, $params, $do_not_init);
+		if (!$do_not_init) {
+			$this->regexps['cwt_default']['thread_id'] = '#<a href="'.$this->settings['thread_url_prefix'].'([^/]*)/[^"]*" title="[^"]*" class="datePermalink"#';
+		}
+	}
+
 	protected function find_author_posts_via_search_page__match_hook($match, &$forum, &$forumid, &$topic, &$topicid, &$postid, &$posttitle, &$ts_raw, &$ts) {
 		# Messy workaround: posts which start a thread are displayed as a "thread" result in XenForo search results,
 		# so we need to convert the threadid into a postid.
 		if (isset($match['match_indexes']['postsorthreads']) && $match[$match['match_indexes']['postsorthreads']] == 'threads') {
-			$url = $this->settings['base_url'].'/threads/'.$postid; # really a threadid
+			$url = $this->settings['base_url'].'/'.$this->settings['thread_url_prefix'].$postid; # really a threadid
 			$this->set_url($url);
 			$html = $this->do_send();
 			if (!$this->skins_preg_match('post_contents', $html, $matches)) {
@@ -229,11 +236,17 @@ class XenForoFUPS extends FUPSBase {
 		$settings_arr['base_url']['description'] .= ' This is the URL that appears in your browser\'s address bar when you access the forum, only with everything onwards from (and including) the path of whichever script is being accessed (e.g. /threads or /forums) stripped off. The default URL provided is for the particular XenForo board known as "CivilWarTalk".';
 		$settings_arr['extract_user_id']['description'] .= ' You can find a user\'s ID by hovering your cursor over a hyperlink to their name and taking note of everything that appears between "/members/" and the next "/" (i.e. this will be something like "my-member-name.12345") in the browser\'s status bar.';
 
+		$settings_arr['thread_url_prefix'] = array(
+			'label' => 'Thread URL prefix',
+			'default' => 'threads/',
+			'description' => 'Set this to that part of the URL for forum thread (topic) pages between the beginning part of the URL, that which was entered above beside "Base forum URL" but followed by a forward slash, and the end part of the URL, the thread id optionally followed by forward slash and page number. By default, this setting should be "threads/", but the XenForo forum software supports changing this default through <a href="https://xenforo.com/help/route-filters/">route filters</a>, and some XenForo forums have been configured in this way such that this setting ("Thread URL prefix") needs to be empty. An example of how to discern this value (it is emboldened) in a typical thread URL with "Base forum URL" set to "http://civilwartalk.com" is: "http://civilwartalk.com/<b>threads/</b>traveller.84936/page-2". Here, the initial base URL plus forward slash is obvious, the thread id part is "traveller.84936" and the optional-forward-slash-followed-by-page-number part is "/page-2". If route filtering were set up on the CivilWarTalk forum such that this setting should be empty, then that same thread URL would have looked like this: "http://civilwartalk.com/traveller.84936/page-2". If, hypothetically, this "Thread URL prefix" setting were to correctly be "topic/here/", then that same thread URL would have looked like this: "http://civilwartalk.com/topic/here/traveller.84936/page-2".',
+		);
+
 		return $settings_arr;
 	}
 
 	protected function get_topic_url($forumid, $topicid) {
-		return $this->settings['base_url'].'/threads/'.$topicid.'/';
+		return $this->settings['base_url'].'/'.$this->settings['thread_url_prefix'].$topicid.'/';
 	}
 
 	protected function get_user_page_url() {
