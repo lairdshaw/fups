@@ -87,8 +87,6 @@ Limitations
 
 * As already noted, FUPS currently doesn't support logging in to XenForo forums.
 
-* The only XenForo skin supported is whichever skin is accessible by default for anonymous users on [civilwartalk.com](http://civilwartalk.com/) - I have no idea whether this is a default XenForo skin or a custom skin. If it is a custom skin, then civilwartalk.com is probably the only XenForo forum that FUPS is actually capable of scraping at present.
-
 * Relative URLS within posts are currently not converted into absolute URLs. This means that sometimes, images that were uploaded to the forum do not appear in the FUPS output of the phpBB posts linking to those images, and that certain internal links in XenForo posts (e.g. those linked with an up arrow) are not functional in the HTML file that FUPS outputs.
 
 * The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway.

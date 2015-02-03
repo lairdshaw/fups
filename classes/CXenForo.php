@@ -173,7 +173,7 @@ class XenForoFUPS extends FUPSBase {
 				);
 				$qanda_new['q_which_skins_supported'] = array(
 					'q' => 'Which skins are supported?',
-					'a' => 'Whichever skin is default for the <a href="http://civilwartalk.com">CivilWarTalk</a> forum - I don\'t even know which skin that is, having developed the XenForo scraping functionality as a paid job for a friend who wanted to extract posts from that forum, and having not even registered for an account there. Potentially it\'s even a customised skin, and FUPS won\'t work for any other XenForo forum. If you need support for another XenForo skin, feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a>.',
+					'a' => 'Whichever skin(s) is/are default for the <a href="http://civilwartalk.com">CivilWarTalk</a> and <a href="http://ecigssa.co.za/">ECIGS SA</a> forums. FUPS\' XenForo scraping functionality was originally developed as a paid job to extract posts from the CivilWarTalk forum; the XenForo software is otherwise unknown to the author of the FUPS software, who has not even registered for an account on CivilWarTalk, nor on any other XenForo forum, and who doesn\'t otherwise have access to the XenForo software, having not purchased it. If you need support for another XenForo skin, feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a>.',
 				);
 			}
 		}

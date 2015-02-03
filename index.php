@@ -89,6 +89,17 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-02-04
+					<ul>
+						<li>Fixed several deficiencies in XenForo scraping (see Git log), which included adding a "Thread URL prefix" XenForo setting, and a generic "Non-US date format" setting.</li>
+						<li>Made other small changes to the code, and updated messages and the documentation to no longer suggest the possibility that FUPS can scrape only a single XenForo forum, now that it has been tested on another (which revealed the deficiencies mentioned above, but no fundamental skin incompatibility).</li>
+					</ul>
+				</li>
+				<li>2015-01-23
+					<ul>
+						<li>Made small improvements to admin error messaging and the README.</li>
+					</ul>
+				</li>
 				<li>2014-11-14 - 2014-12-16
 					<ul>
 						<li>Fixed bugs and made small improvements (see Git log).</li>
