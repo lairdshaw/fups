@@ -36,6 +36,7 @@ abstract class FUPSBase {
 	# The maximum time in seconds before the script chains a new instance of itself and then exits,
 	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
 	public    $FUPS_CHAIN_DURATION =  null;
+	protected $have_written_to_admin_err_file = false;
 	protected $required_settings = array();
 	protected $optional_settings = array();
 	protected $private_settings  = array('login_user', 'login_password');
@@ -113,6 +114,7 @@ abstract class FUPSBase {
 		4 => 'extract_per_thread_info',
 		5 => 'handle_missing_posts',
 		6 => 'write_output',
+		7 => 'check_send_non_fatal_err_email',
 	);
 	protected $was_chained       =   false;
 
@@ -243,20 +245,20 @@ abstract class FUPSBase {
 			$html = $this->do_send();
 			if (!$this->skins_preg_match('user_name', $html, $matches)) {
 				$login_req = $this->skins_preg_match('login_required', $html, $matches);
-				$err_msg = "Fatal error: couldn't find the member name corresponding to specified user ID \"{$this->settings['extract_user_id']}\". ";
+				$err_msg = "Error: couldn't find the member name corresponding to specified user ID \"{$this->settings['extract_user_id']}\". ";
 				if ($login_req) $err_msg .= 'The board requires that you be logged in to view member names. You can specify a login username and password in the settings on the previous page. If you already did specify them, then this error could be due to a wrong username/password combination. Instead of supplying login details, you can simply supply a value for "Extract User Username".';
 				else $err_msg .= 'The URL of the searched page is <'.$this->last_url.'>.';
-				$this->exit_err($err_msg, __FILE__, __METHOD__, __LINE__, $html);
-			}
-			$this->settings['extract_user'] = $matches[1];
+				$this->write_and_record_err_admin($err_msg, __FILE__, __METHOD__, __LINE__, $html);
+				$this->settings['extract_user'] = '[unknown]';
+			} else	$this->settings['extract_user'] = $matches[1];
 		}
 	}
 
-	function do_send($quit_on_error = true) {
+	function do_send() {
 		static $retry_delays = array(0, 5, 5);
 		static $first_so_no_wait = true;
 
-		$html = false;
+		$html = '';
 
 		if ($first_so_no_wait) $first_so_no_wait = false;
 		else $this->wait_courteously();
@@ -304,13 +306,10 @@ abstract class FUPSBase {
 					break;
 				}
 			}
-			# If quit_on_error is false then we are expecting the
-			# possibility of a 404 or other error, which is why we don't
-			# want to keep on retrying if we get one.
-			if ($err && !$quit_on_error) return false;
+			if ($err) break;
 		}
 		if ($err) {
-			if ($quit_on_error) $this->exit_err('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
+			$this->write_err('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
 		} else {
 			$this->check_get_board_title($html);
 		}
@@ -323,56 +322,22 @@ abstract class FUPSBase {
 		$token = $this->web_initiated ? $this->token : false;
 		$dbg   = $this->dbg;
 		$this->write_err($msg, $file, $method, $line);
-		$settings_str = '';
-		foreach ($this->settings as $k => $v) {
-			if (in_array($k, $this->private_settings)) {
-				$v = '[redacted]';
-			}
-			$settings_str .= "\t$k=$v".PHP_EOL;
-		}
+		$settings_str = $this->get_settings_str();
 
-		self::exit_err_common_s($msg, $file, $method, $line, get_class($this), $html, $settings_str, $send_mail, $token, $dbg);
+		self::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, get_class($this), $html, $settings_str, $send_mail, $token, $dbg);
 	}
 
 	static public function exit_err_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
 		$ferr = fopen('php://stderr', 'a');
 		self::write_err_s($ferr, $msg, $file, $method, $line);
-		self::exit_err_common_s($msg, $file, $method, $line, null, $html, false, $send_mail, $token, $dbg);
+		self::exit_err_common_s($msg, $file, $method, $line, false, null, $html, false, $send_mail, $token, $dbg);
 	}
 
-	static public function exit_err_common_s($msg, $file, $method, $line, $classname = null, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
-		global $argv;
-
-		$ferr = fopen('php://stderr', 'a');
-		$html_msg = $html ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL : '';
-		$settings_msg = $settings_str ? 'The session\'s settings are:'.PHP_EOL.$settings_str : '';
-		$class_msg = $classname ? 'The active FUPS class is: '.$classname.PHP_EOL.PHP_EOL : '';
-		$full_admin_msg = self::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$class_msg.$settings_msg.PHP_EOL.$html_msg;
-
-		if ($token) {
-			$filename = make_errs_admin_filename($token);
-			if ($dbg) {
-				if ($ferr !== false) {
-					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'.PHP_EOL);
-					fclose($ferr);
-				}
-			}
-			$ferr_adm = fopen($filename, 'a');
-			if ($ferr_adm !== false) {
-				fwrite($ferr_adm, $full_admin_msg);
-				fclose($ferr_adm);
-			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'.PHP_EOL);
-		} else	fwrite($ferr, $html_msg);
+	static public function exit_err_common_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $classname = null, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
+		$full_admin_msg = static::record_err_admin_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $classname, $html, $settings_str, $token, $dbg);
 
 		if ($send_mail) {
-			$body  = 'A fatal error occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
-			$body .= $full_admin_msg;
-			$subject = 'Fatal error with FUPS process';
-			if ($token) $subject .= ' '.$token;
-			$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
-			           "MIME-Version: 1.0\r\n" .
-			           "Content-type: text/plain; charset=UTF-8\r\n";
-			mail(FUPS_EMAIL_RECIPIENT, $subject, $body, $headers);
+			static::send_err_mail_to_admin_s($full_admin_msg, $token, true);
 		}
 
 		if ($token) {
@@ -389,7 +354,7 @@ abstract class FUPSBase {
 		if ($this->dbg) $this->write_err('Reached search page with post_search_counter set to '.$this->post_search_counter.'.');
 
 		if (!curl_setopt($this->ch, CURLOPT_POST, false)) {
-			$this->exit_err('Failed to set cURL option CURLOPT_POST to false.',__FILE__, __METHOD__, __LINE__);
+			$this->write_err('Failed to set cURL option CURLOPT_POST to false.',__FILE__, __METHOD__, __LINE__);
 		}
 
 		$this->set_url($this->get_search_url());
@@ -402,7 +367,9 @@ abstract class FUPSBase {
 		}
 
 		if (!$this->skins_preg_match_all('search_results_page_data', $html, $matches, 'search_results_page_data_order', $combine = true)) {
-			$this->exit_err('Fatal error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			$this->write_err('Error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			$this->progress_level++;
+			return 0;
 		}
 
 		$found_earliest = false;
@@ -475,6 +442,10 @@ abstract class FUPSBase {
 		return false; # Earlier return possible
 	}
 
+	static protected function get_classname_msg_s($classname) {
+		return 'The active FUPS class is: '.$classname;
+	}
+
 	protected function get_default_settings() {
 		return array(
 			'delay' => 5,
@@ -513,7 +484,7 @@ abstract class FUPSBase {
 		$found = false;
 
 		if (!curl_setopt($this->ch, CURLOPT_POST, false)) {
-			$this->exit_err('Failed to set cURL option CURLOPT_POST to false.',__FILE__, __METHOD__, __LINE__);
+			$this->write_err('Failed to set cURL option CURLOPT_POST to false.',__FILE__, __METHOD__, __LINE__);
 		}
 
 		$url = $this->get_post_url($forumid, $topicid, $postid);
@@ -628,7 +599,23 @@ abstract class FUPSBase {
 
 		return $default_settings;
 	}
-	
+
+	static protected function get_settings_msg_s($settings_str) {
+		return 'The session\'s settings are:'.PHP_EOL.$settings_str;
+	}
+
+	protected function get_settings_str() {
+		$settings_str = '';
+		foreach ($this->settings as $k => $v) {
+			if (in_array($k, $this->private_settings)) {
+				$v = '[redacted]';
+			}
+			$settings_str .= "\t$k=$v".PHP_EOL;
+		}
+
+		return $settings_str;
+	}
+
 	abstract protected function get_topic_url($forumid, $topicid);
 
 	abstract protected function get_user_page_url();
@@ -654,6 +641,7 @@ abstract class FUPSBase {
 	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
 	protected function hook_after__handle_missing_posts   () {} // Run after progress level 5
 	protected function hook_after__write_output           () {} // Run after progress level 6
+	protected function hook_after__check_send_non_fatal_err_email() {} // Run after progress level 7
 
 	protected function init_post_search_counter() {
 		$this->post_search_counter = 0;
@@ -680,6 +668,33 @@ abstract class FUPSBase {
 		}
 
 		return $ret;
+	}
+
+	static protected function record_err_admin_s($msg, $file, $method, $line, &$have_written_to_admin_err_file, $classname = null, $html = false, $settings_str = false, $token = false, $dbg = false) {
+		$ferr = fopen('php://stderr', 'a');
+		$html_msg = $html !== false ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL : '';
+		$settings_msg = (!$have_written_to_admin_err_file && $settings_str) ? static::get_settings_msg_s($settings_str) : '';
+		$classname_msg = (!$have_written_to_admin_err_file && $classname) ? static::get_classname_msg_s($classname).PHP_EOL.PHP_EOL : '';
+		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.self::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$html_msg;
+
+		if ($token) {
+			$filename = make_errs_admin_filename($token);
+			if ($dbg) {
+				if ($ferr !== false) {
+					fwrite($ferr, 'Attempting to open "'.$filename.'" for appending.'.PHP_EOL);
+				}
+			}
+			$ferr_adm = fopen($filename, 'a');
+			if ($ferr_adm !== false) {
+				if (fwrite($ferr_adm, $full_admin_msg) === false) {
+					if ($dbg) fwrite($ferr, 'Error: failed to fwrite() to '.$filename.'.'.PHP_EOL);
+				} else	$have_written_to_admin_err_file = true;
+				fclose($ferr_adm);
+			} else if ($dbg) fwrite($ferr, 'Error: failed to fopen() '.$filename.' for appending.'.PHP_EOL);
+		} else	fwrite($ferr, $html_msg);
+
+		fclose($ferr);
+		return $full_admin_msg;
 	}
 
 	public function run() {
@@ -871,6 +886,58 @@ abstract class FUPSBase {
 			$this->progress_level++;
 			$this->$hook_method(); // hook_after__write_output();
 		}
+
+		# Potentially send an admin email re non-fatal errors.
+		if ($this->progress_level == 7) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+
+			if ($this->web_initiated) {
+				$errs       = file_get_contents(make_errs_filename      ($this->token));
+				$errs_admin = file_get_contents(make_errs_admin_filename($this->token));
+				if ($errs || $errs_admin) {
+					$err_msg = '';
+					if ($errs) {
+						// No need to include the settings and classname if admin error info exists too,
+						// because settings and classname are already included each time the admin error
+						// file is appended to.
+						if (!$errs_admin) {
+							$settings_msg = static::get_settings_msg_s(static::get_settings_str());
+							$classname_msg = static::get_classname_msg(get_class($this));
+							$err_msg .= $settings_msg.PHP_EOL.PHP_EOL.$classname_msg.PHP_EOL;
+						}
+						$err_msg .= 'The following non-fatal errors were recorded in the error file:'.PHP_EOL.PHP_EOL.$errs.PHP_EOL;
+					}
+					if ($errs_admin) {
+						if ($errs) $err_msg .= PHP_EOL.PHP_EOL;
+						$len = strlen($errs_admin);
+						$trunc_msg = '';
+						if ($len > FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH) {
+							$errs_admin = substr($errs_admin, 0, FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH);
+							$trunc_msg = ' (truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH).' bytes)';
+						}
+						$err_msg .= 'The following extended non-fatal error messages were recorded in the admin error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs_admin.PHP_EOL;
+					}
+					static::send_err_mail_to_admin_s($err_msg, $this->token, false);
+				}
+			}
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__check_send_non_fatal_err_email();
+		}
+	}
+
+	static protected function send_err_mail_to_admin_s($full_admin_msg, $token = false, $is_fatal = true) {
+		global $argv;
+
+		$body  = ($is_fatal ? 'F' : 'Non-f').'atal error'.($is_fatal ? '' : '(s)').' occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
+		$body .= $full_admin_msg;
+		$subject = ($is_fatal ? 'F' : 'Non-f').'atal error'.($is_fatal ? '' : '(s)').' in FUPS process';
+		if ($token) $subject .= ' '.$token;
+		$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
+				"MIME-Version: 1.0\r\n" .
+				"Content-type: text/plain; charset=UTF-8\r\n";
+		mail(FUPS_EMAIL_RECIPIENT, $subject, $body, $headers);
 	}
 
 	protected function set_url($url) {
@@ -1004,6 +1071,16 @@ abstract class FUPSBase {
 		sleep($this->settings['delay']);
 	}
 
+	protected function write_and_record_err_admin($msg, $file, $method, $line, $html = false) {
+		$token = $this->web_initiated ? $this->token : false;
+		$dbg   = $this->dbg;
+		$this->write_err($msg, $file, $method, $line);
+		$settings_str = $this->get_settings_str();
+
+		static::record_err_admin_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, get_class($this), $html, $settings_str, $token, $dbg);
+		$this->have_written_to_admin_err_file = true;
+	}
+
 	public function write_err($msg, $file = null, $method = null, $line = null) {
 		static $ferr = false;
 		if ($ferr === false) {
@@ -1030,7 +1107,7 @@ abstract class FUPSBase {
 	}
 
 	protected function write_output() {
-		$heading = 'Postings of '.htmlspecialchars($this->settings['extract_user']).' to <a href="'.htmlspecialchars($this->settings['base_url']).'">'.htmlspecialchars($this->settings['board_title']).'</a>';
+		$heading = 'Postings of '.htmlspecialchars($this->settings['extract_user']).' to <a href="'.htmlspecialchars($this->settings['base_url']).'">'.(isset($this->settings['board_title']) ? htmlspecialchars($this->settings['board_title']) : '[unknown]').'</a>';
 		if (!empty($this->settings['start_from_date'])) $heading .= ' starting from '.htmlspecialchars($this->settings['start_from_date']);
 
 		if (!ob_start(null, 0, PHP_OUTPUT_HANDLER_CLEANABLE|PHP_OUTPUT_HANDLER_FLUSHABLE|PHP_OUTPUT_HANDLER_REMOVABLE)) {

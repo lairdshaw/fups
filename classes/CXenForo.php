@@ -87,7 +87,7 @@ class XenForoFUPS extends FUPSBase {
 			$this->set_url($url);
 			$html = $this->do_send();
 			if (!$this->skins_preg_match('post_contents', $html, $matches)) {
-				$this->write_err("Error: the regex to detect the first post ID on the thread page at <$url> failed.", __FILE__, __METHOD__, __LINE__, $html);
+				$this->write_and_record_err_admin("Error: the regex to detect the first post ID on the thread page at <$url> failed.", __FILE__, __METHOD__, __LINE__, $html);
 				$postid = null;
 			} else {
 				$postid = $matches[1];
@@ -135,7 +135,7 @@ class XenForoFUPS extends FUPSBase {
 	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {
 		if (!$err && $found) {
 			if (!$this->skins_preg_match('thread_id', $html, $matches)) {
-				$this->write_err('Error: could not match the thread_id on the page with URL <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
+				$this->write_and_record_err_admin('Error: could not match the thread_id on the page with URL <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
 				$this->topic_ids[$this->posts_data[$topicid]['topic']] = $matches[1];
 			}
@@ -190,7 +190,7 @@ class XenForoFUPS extends FUPSBase {
 
 		$response = curl_exec($this->ch);
 		if ($response === false) {
-			$this->write_err('curl_exec returned false.', __FILE__, __METHOD__, __LINE__);
+			$this->write_err('curl_exec returned false. curl_error returns: "'.curl_error($this->ch).'".', __FILE__, __METHOD__, __LINE__);
 		} else {
 			$header_size = curl_getinfo($this->ch, CURLINFO_HEADER_SIZE);
 			$headers = substr($response, 0, $header_size);

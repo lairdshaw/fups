@@ -244,25 +244,38 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 			</p>
 <?php
 	}
+
+	$paren_msg_emailed = '(Unless a mailing error occurred, these have been emailed to me as-is, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
 	if ($errs) {
 ?>
 
 			<h3>Errors</h3>
 
+			<p><?php echo $paren_msg_emailed; ?></p>
+
 			<div class="fups_error">
 <?php	echo format_html($errs); ?>
 			</div>
 <?php
-		if ($errs_admin) {
+		if ($errs_admin && ($done || $failed)) {
 			// The toggle_ext_errs() Javascript function below is defined in run.php
 ?>
 
-			<p><a href="javascript:toggle_ext_errs();">Show/hide extended error messages</a> (unless a mailing error occurred, these have been emailed to me as-is, with your token, "<?php echo htmlspecialchars($token); ?>", included in the email's subject)</p>
+			<p><a href="javascript:toggle_ext_errs();">Show/hide extended error messages</a> <?php echo $paren_msg_emailed; ?></p>
 
 			<div id="id_ext_err" style="display: none;">
 
 				<h3>Extended error messages</h3>
-
+<?php
+			$len = strlen($errs_admin);
+			if ($len > FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH) {
+				$errs_admin = substr($errs_admin, 0, FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH);
+				$trunc_msg = '[Truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH).' bytes]';
+?>
+				<p><?php echo $trunc_msg; ?></p>
+<?php
+			}
+?>
 				<div class="fups_error"><?php echo format_html($errs_admin); ?></div>
 			</div>
 <?php		}
