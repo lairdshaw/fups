@@ -115,7 +115,7 @@ define('FUPS_SHOW_CHANGELOG'   ,                                true);
 // general information displayed when the FUPS process ends successfully with
 // output. Ideally, you will set up a cron job so that you can set this to the
 // commented-out string.
-define('ROUTINE_DELETION_POLICY', '' /*' If not manually deleted, FUPS session files will be deleted by a routine scheduled task, which runs once a day and deletes all files more than two days old.'*/);
+define('FUPS_ROUTINE_DELETION_POLICY', '' /*' If not manually deleted, FUPS session files will be deleted by a routine scheduled task, which runs once a day and deletes all files more than two days old.'*/);
 
 // The maximum number of bytes to include from the admin errors file
 //in an admin error email.

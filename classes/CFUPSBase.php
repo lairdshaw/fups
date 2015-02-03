@@ -893,7 +893,9 @@ abstract class FUPSBase {
 
 			if ($this->web_initiated) {
 				$errs       = file_get_contents(make_errs_filename      ($this->token));
-				$errs_admin = file_get_contents(make_errs_admin_filename($this->token));
+				// Disable error messages because if there are no errors then this file
+				// won't exist - we want to avoid an error message telling us as much.
+				$errs_admin = @file_get_contents(make_errs_admin_filename($this->token));
 				if ($errs || $errs_admin) {
 					$err_msg = '';
 					if ($errs) {
