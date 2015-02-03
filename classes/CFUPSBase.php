@@ -327,13 +327,13 @@ abstract class FUPSBase {
 		$this->write_err($msg, $file, $method, $line);
 		$settings_str = $this->get_settings_str();
 
-		self::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, get_class($this), $html, $settings_str, $send_mail, $token, $dbg);
+		static::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, get_class($this), $html, $settings_str, $send_mail, $token, $dbg);
 	}
 
 	static public function exit_err_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
 		$ferr = fopen('php://stderr', 'a');
-		self::write_err_s($ferr, $msg, $file, $method, $line);
-		self::exit_err_common_s($msg, $file, $method, $line, false, null, $html, false, $send_mail, $token, $dbg);
+		static::write_err_s($ferr, $msg, $file, $method, $line);
+		static::exit_err_common_s($msg, $file, $method, $line, false, null, $html, false, $send_mail, $token, $dbg);
 	}
 
 	static public function exit_err_common_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $classname = null, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
@@ -344,7 +344,7 @@ abstract class FUPSBase {
 		}
 
 		if ($token) {
-			self::write_status_s('A fatal error occurred. EXITING', $token);
+			static::write_status_s('A fatal error occurred. EXITING', $token);
 		}
 
 		exit(1);
@@ -663,7 +663,7 @@ abstract class FUPSBase {
 	protected function init_search_user_posts() {}
 
 	static public function read_forum_type_from_settings_file_s($settings_filename) {
-		$settings_raw = self::read_settings_raw_s($settings_filename);
+		$settings_raw = static::read_settings_raw_s($settings_filename);
 		return isset($settings_raw['forum_type']) ? $settings_raw['forum_type'] : false;
 	}
 
@@ -688,7 +688,7 @@ abstract class FUPSBase {
 		$html_msg = $html !== false ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL : '';
 		$settings_msg = (!$have_written_to_admin_err_file && $settings_str) ? static::get_settings_msg_s($settings_str) : '';
 		$classname_msg = (!$have_written_to_admin_err_file && $classname) ? static::get_classname_msg_s($classname).PHP_EOL.PHP_EOL : '';
-		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.self::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$html_msg;
+		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.static::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$html_msg;
 
 		if ($token) {
 			$filename = make_errs_admin_filename($token);
@@ -1120,12 +1120,12 @@ abstract class FUPSBase {
 				if ($ferr === false) $ferr = fopen('php://stderr', 'w');
 			}
 		}
-		self::write_err_s($ferr, $msg, $file, $method, $line);
+		static::write_err_s($ferr, $msg, $file, $method, $line);
 	}
 
 	static public function write_err_s($ferr, $msg, $file = null, $method = null, $line = null) {
 		if (!is_null($file) || !is_null($method) || !is_null($line)) {
-			$msg = self::get_formatted_err($method, $line, $file, $msg);
+			$msg = static::get_formatted_err($method, $line, $file, $msg);
 		}
 		if ($ferr) {
 			fwrite($ferr, $msg.PHP_EOL);
@@ -1208,7 +1208,7 @@ abstract class FUPSBase {
 
 	protected function write_status($msg) {
 		if ($this->web_initiated || !$this->quiet) {
-			self::write_status_s($msg, $this->token, $this->org_start_time);
+			static::write_status_s($msg, $this->token, $this->org_start_time);
 		}
 
 	}
@@ -1229,7 +1229,7 @@ abstract class FUPSBase {
 			if (!$ferr) {
 				$ferr = fopen('php://stderr', 'w');
 			}
-			self::write_err_s($ferr, $contents);
+			static::write_err_s($ferr, $contents);
 		}
 	}
 }
