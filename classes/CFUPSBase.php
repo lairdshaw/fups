@@ -38,7 +38,7 @@ abstract class FUPSBase {
 	public    $FUPS_CHAIN_DURATION =  null;
 	protected $have_written_to_admin_err_file = false;
 	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
-	protected $optional_settings = array('start_from_date', 'debug');
+	protected $optional_settings = array('start_from_date', 'non_us_date_format', 'debug');
 	protected $private_settings  = array('login_user', 'login_password');
 	/* Different skins sometimes output html different enough that
 	 * a different regex is required for each skin to match the values that
@@ -389,7 +389,11 @@ abstract class FUPSBase {
 
 			$ts = $this->strtotime_intl($ts_raw);
 			if ($ts === false) {
-				$this->write_err("Error: strtotime_intl failed for '$ts_raw'.");
+				$err_msg = "Error: strtotime_intl failed for '$ts_raw'.";
+				if ($ret === false && !isset($this->settings['non_us_date_format']) && strpos($time_str, '/') !== false) {
+					$err_msg .= ' Hint: Perhaps you need to check the "Non-US date format" box on the previous page.';
+				}
+				$this->write_err($err_msg);
 			} else	{
 				if (!empty($this->settings['earliest']) && $ts < $this->settings['earliest']) {
 					$found_earliest = true;
@@ -597,6 +601,12 @@ abstract class FUPSBase {
 				'label' => 'PHP Timezone',
 				'default' => 'Australia/Hobart',
 				'description' => 'Set this to the time zone in which the user\'s posts were made. Valid time zone values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>. This is a required setting, because PHP requires the time zone to be set when using date/time functions, however it only applies when "Start From Date+Time" is set above, in which case the value that you supply for "Start From Date+Time" will be assumed to be in the time zone you supply here, as will the date+times for posts retrieved from the forum. It is safe to leave this value set to the default if you are not supplying a value for the "Start From Date+Time" setting.',
+			),
+			'non_us_date_format' => array(
+				'label' => 'Non-US date format',
+				'default' => '',
+				'description' => 'Check this box if the forum from which you\'re scraping outputs dates in the non-US ordering dd/mm rather than the US ordering mm/dd. Applies only if day and month are specified by digits and separated by forward slashes.',
+				'type' => 'checkbox',
 			),
 		));
 
@@ -996,7 +1006,17 @@ abstract class FUPSBase {
 		static $months_full_intl;
 		static $months_abbr_intl;
 
-		if ($this->dbg) $this->write_err('Running strtotime() on "'.$time_str.'"');
+		$time_str_org = $time_str;
+		$non_us_date_format = isset($this->settings['non_us_date_format']);
+		if ($non_us_date_format) {
+			// Switch month and day in that part of the date formatted as either m/d/y or m/d/y,
+			// where m and d are either one or two digits, and y is either two or four digits.
+			// The phrase m/d/y can occur anywhere in the string so long as at either end it is
+			// either separated from the rest of the string by a space or occurs at the
+			// beginning/end of the string (as such, it may comprise the entire string).
+			$time_str = preg_replace('#(^|\s)(\d{1,2})/(\d{1,2})(/\d\d|/\d\d\d\d|)(\s|$)#', '$1$3/$2$4$5', $time_str);
+		}
+		if ($this->dbg) $this->write_err('Running strtotime() on "'.$time_str.'".'.($non_us_date_format ? 'This was derived from "'.$time_str_org.'" due to the "Non-US date format" setting being in effect.' : ''));
 		$ret = strtotime($time_str);
 		if ($ret === false) {
 			// This is necessary for translated phpBB forums
