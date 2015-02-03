@@ -28,10 +28,8 @@
  */
 
 class XenForoFUPS extends FUPSBase {
-	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone', 'thread_url_prefix');
-	protected $optional_settings = array('start_from_date', 'debug');
-	protected $user_id_num       =      '';
-	protected $topic_ids         = array();
+	protected $user_id_num =      '';
+	protected $topic_ids   = array();
 
 	protected $regexps = array(
 		'cwt_default' => array(
@@ -80,6 +78,9 @@ class XenForoFUPS extends FUPSBase {
 	);
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
+		if (!$do_not_init) {
+			$this->required_settings[] = 'thread_url_prefix';
+		}
 		parent::__construct($web_initiated, $params, $do_not_init);
 		if (!$do_not_init) {
 			$this->regexps['cwt_default']['thread_id'] = '#<a href="'.$this->settings['thread_url_prefix'].'([^/]*)/[^"]*" title="[^"]*" class="datePermalink"#';

@@ -32,8 +32,6 @@ require_once __DIR__.'/../phpBB-days-and-months-intl.php';
 class phpBBFUPS extends FUPSBase {
 	protected $regexps = null;
 	protected $old_version   = false;
-	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
-	protected $optional_settings = array('extract_user', 'start_from_date', 'login_user', 'login_password', 'debug');
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		parent::__construct($web_initiated, $params, $do_not_init);
@@ -157,6 +155,7 @@ class phpBBFUPS extends FUPSBase {
 				'board_title'              => '#<title>(.*)</title>#',
 			),
 		);
+		$this->optional_settings[] = 'extract_user';
 	}
 
 	protected function check_do_login() {

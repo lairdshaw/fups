@@ -37,8 +37,8 @@ abstract class FUPSBase {
 	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
 	public    $FUPS_CHAIN_DURATION =  null;
 	protected $have_written_to_admin_err_file = false;
-	protected $required_settings = array();
-	protected $optional_settings = array();
+	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
+	protected $optional_settings = array('start_from_date', 'debug');
 	protected $private_settings  = array('login_user', 'login_password');
 	/* Different skins sometimes output html different enough that
 	 * a different regex is required for each skin to match the values that
@@ -122,6 +122,9 @@ abstract class FUPSBase {
 		if (!$do_not_init) {
 			$this->org_start_time = time();
 			$this->start_time = $this->org_start_time;
+			if ($this->supports_feature('login')) {
+				$this->optional_settings = array_merge($this->optional_settings, array('login_user', 'login_password'));
+			}
 			$this->web_initiated = $web_initiated;
 			if ($this->web_initiated) {
 				if (!isset($params['token'])) {
