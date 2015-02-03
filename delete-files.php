@@ -63,7 +63,7 @@ $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
 fups_output_page_start($page, 'FUPS: file deletion page', 'Permanently remove from the web server all files used to scrape your posts.');
 ?>
 			<ul class="fups_listmin">
-				<li><a href=".">&lt;&lt; The FUPS homepage</a></li>
+				<li><a href=".">&lt;&lt; Back to the FUPS homepage</a></li>
 			</ul>
 
 			<h2>FUPS: file deletion page</h2>

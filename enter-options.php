@@ -79,6 +79,10 @@ EOF;
 $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
 fups_output_page_start($page, $errmsg ? $errmsg : 'FUPS options entry for '.$valid_forum_types[$forum_type].' forums', $errmsg ? $errmsg : 'Scrape posts made under a particular username from a '.$valid_forum_types[$forum_type].' forum.', $head_extra);
 ?>
+			<ul class="fups_listmin">
+				<li><a href=".">&lt;&lt; Back to the FUPS homepage</a></li>
+			</ul>
+
 			<h2>FUPS: Forum user-post scraper</h2>
 <?php
 $script = '';
