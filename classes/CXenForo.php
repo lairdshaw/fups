@@ -39,7 +39,7 @@ class XenForoFUPS extends FUPSBase {
 			'board_title'              => '#<div class="boardTitle"><strong>([^<]*)</strong></div>#',
 			// a regexp to extract the user's name from the user's profile page:
 			//   </members/[user_id]/>
-			'user_name'                => '#<h1 itemprop="name" class="username"><span class="[^"]*">([^<]*)</span></h1>#',
+			'user_name'                => '#<h1 itemprop="name" class="username"><span class="[^"]*">([^<]*)</span>#',
 			// a regexp to extract the thread's author from the thread view page:
 			//   </threads/[topicid]/>
 			'thread_author'            => '#<p id="pageDescription" class="muted ">[^<]*<a href="forums/[^/]*/">[^<]*</a>[^<]*<a href="members/[^/]*/" class="username"[^>]*>([^<]*)</a>#Us',
