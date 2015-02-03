@@ -58,6 +58,8 @@ Depending on which forum software the forum you wish to scrape from runs, differ
     extract_user_id=example-username.12345
     start_from_date=2013-05-31 07:30
     php_timezone=Australia/Hobart
+    thread_url_prefix=thread/
+    non_us_date_format=
     debug=0
 
 ### The options ###
@@ -79,6 +81,10 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 * *start_from_date*: Optional. Set this to the datetime of the earliest post to be extracted i.e. only posts of this datetime and later will be extracted. If not set then all posts will be extracted. This value is parsed with PHP's [strtotime()](http://www.php.net/strtotime) function, so check that link for details on what it should look like. An example of something that will work is: 2013-04-30 15:30.
 
 * *php_timezone*: Required. Set this to the timezone in which the user's posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the *start_from_date* setting, so it is safe to leave it set to the default if you are not supplying a value for the *start_from_date* setting. Valid values are listed starting [here](http://php.net/manual/en/timezones.php).
+
+* *non_us_date_format*: Optional. The mere presence of this setting indicates that it should take effect; omit it completely for it to have no effect. Include it when the forum from which you're scraping outputs dates in the non-US ordering dd/mm rather than the US ordering mm/dd, but only if the day and month are specified by digits and separated by forward slashes.
+
+* *thread_url_prefix*: Required for XenForo forums, to which it only applies. Set this to that part of the URL for forum thread (topic) pages between the beginning part of the URL, the value of the *base_url* setting but followed by a forward slash, and the end part of the URL, the thread id optionally followed by forward slash and page number. By default, this setting should be "threads/", but the XenForo forum software supports changing this default through [route filters](https://xenforo.com/help/route-filters/), and some XenForo forums have been configured in this way such that this setting (*thread_url_prefix*) needs to be empty. An example of how to discern this value (it is emboldened) in a typical thread URL with *base_url* set to "http://civilwartalk.com" is: "http://civilwartalk.com/**threads/**traveller.84936/page-2". Here, the initial base URL plus forward slash is obvious, the thread id part is "traveller.84936" and the optional-forward-slash-followed-by-page-number part is "/page-2". If route filtering were set up on the CivilWarTalk forum such that this setting should be empty, then that same thread URL would have looked like this: "http://civilwartalk.com/traveller.84936/page-2". If, hypothetically, this *thread_url_prefix* setting were to correctly be "topic/here/", then that same thread URL would have looked like this: "http://civilwartalk.com/topic/here/traveller.84936/page-2".
 
 * *debug*: Optional. If set to "true" or "1", additional debugging information will be output.
 
