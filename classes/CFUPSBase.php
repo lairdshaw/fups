@@ -593,7 +593,7 @@ abstract class FUPSBase {
 			'php_timezone' => array(
 				'label' => 'PHP Timezone',
 				'default' => 'Australia/Hobart',
-				'description' => 'Set this to the timezone in which the user\'s posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the Start From Date+Time setting above (so it is safe to leave it set to the default if you are not supplying a value for the Start From Date+Time setting). Valid values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>.',
+				'description' => 'Set this to the time zone in which the user\'s posts were made. Valid time zone values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>. This is a required setting, because PHP requires the time zone to be set when using date/time functions, however it only applies when "Start From Date+Time" is set above, in which case the value that you supply for "Start From Date+Time" will be assumed to be in the time zone you supply here, as will the date+times for posts retrieved from the forum. It is safe to leave this value set to the default if you are not supplying a value for the "Start From Date+Time" setting.',
 			),
 		));
 
@@ -781,6 +781,7 @@ abstract class FUPSBase {
 					}
 				}
 			}
+			$this->write_status('Finished sorting posts and topics. Now scraping contents of '.$this->total_posts.' posts.');
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
 			$this->progress_level++;
 			$this->$hook_method(); // hook_after__topic_post_sort();
