@@ -34,128 +34,133 @@ class phpBBFUPS extends FUPSBase {
 	protected $old_version   = false;
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
+		if (!$do_not_init) {
+			$this->optional_settings[] = 'extract_user';
+		}
+
 		parent::__construct($web_initiated, $params, $do_not_init);
 
-		$this->regexps = array(
-			/* 'template_skin' => array(
-				'sid'                      => a regexp to extract the SID value from the login page <ucp.php?mode=login>
-				'board_title'              => a regexp to extract the board's title from the login page
-				                              <ucp.php?mode=login>
-				'login_success'            => a regexp to match the html of a successful-login page
-				'login_required'           => a regexp to match a phpBB error that login is required to view
-				                              member details
-				'user_name'                => a regexp to extract the user's name from the user's profile page
-				                              <memberlist.php?mode=viewprofile&u=[user_id]>
-				'thread_author'            => a regexp to extract the thread's author from the thread view page
-				                              <viewtopic.php?f=[forumid]&t=[topicid]>
-				'search_results_not_found' => a regexp to detect when a search results page returns no results i.e. on:
-				                              <search.php?st=0&sk=t&sd=d&author_id=[author_id]&start=[start]>
-				// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-				'search_results_page_data' => a regexp to be matched on the user's posts search page
-				                              <search.php?st=0&sk=t&sd=d&author_id=[author_id]&start=[start]> using
-				                              preg_match_all with flags set to PREG_SET_ORDER so that each entry of
-				                              $matches ends up with the following matches in the order specified in
-				                              search_results_page_data_order.
-				'search_results_page_data_order' => an array specifying the order in which the following matches occur
-				                                    in the matches returned by the previous array.
-					= array(
-						'title'   => the match index of the title of post,
-						'ts'      => the match index of the timestamp of post,
-						'forum'   => the match index of the title of forum,
-						'topic'   => the match index of the thread topic,
-						'forumid' => the match index of the forum id,
-						'topicid' => the match index of the topic id,
-						'postid'  => the match index of the post id,
-					)
-				'search_id'                => a regexp to match the search id (only available in older versions of phpBB)
-				'post_contents'            => a regexp to match post id (first match) and post contents (second match)
-				                              on a thread page; it is called with match_all so it will return all
-				                              post ids and contents on the page
-				'prev_page'                => a regexp to extract the forumid (first match), topicid (second match) and
-				                              start (third match) parameters from the "previous page" url on a thread
-				                              view page
-				'next_page'                => a regexp to extract the forumid (first match), topicid (second match) and
-				                              start (third match) parameters from the "next page" url on a thread
-				                              view page
-			),
-			*/
-			'prosilver.1' => array(
-				'sid'                      => '/name="sid" value="([^"]*)"/',
-				'board_title'              => '#<title>(.*) &bull;#Us',
-				'login_success'            => '/<div class="panel" id="message">/',
-				'login_required'           => '/class="panel"/',
-				'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>(.+)</span><#Us',
-				'thread_author'            => '#<p class="author">.*memberlist\.php.*>(.+)<#Us',
-				'search_results_not_found' => '#<div class="panel" id="message">\\s*<div class="inner"><span class="corners-top"><span></span></span>\\s*<h2>#Us',
-				# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-				'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>'.get_posted_on_date_regex().' (.+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
-				'search_results_page_data_order' => array('title' => 1, 'ts' => 3, 'forum' => 4, 'topic' => 5, 'forumid' => 6, 'topicid' => 7, 'postid' => 8),
-				'post_contents'            => '#<div id="p(\d+)".*<div class="content">(.*)</div>[\r\n]+#Us',
-				'prev_page'                => '#<strong>\\d+</strong>[^<]+<strong>\\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">\\d+</a><span class="page-sep">, </span><strong>\\d+</strong>#Us',
-				'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
-			),
-			'prosilver.2' => array(
-				'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
-				'search_results_page_data_order' => array('title' => 1, 'ts' => 2, 'forum' => 3, 'topic' => 4, 'forumid' => 5, 'topicid' => 6, 'postid' => 7),
-			),
-			'subsilver.2' => array(
-				/* 'sid'                      => ? (not constructed yet), */
-				/* 'board_title'              => ? (not constructed yet), */
-				'login_success'            => '#<table class="tablebg" width="100%" cellspacing="1">\\s*<tr>\\s*<th>[^<]*</th>\\s*</tr>\\s*<tr>\\s*<td class="row1" align="center"><br /><p class="gen">#Us',
-				/* 'login_required'           => ? (not constructed yet), */
-				'user_name'                => '#<td align="center"><b class="gen">([^<]*)</b></td>#',
-				/* 'thread_author'            => ? (not constructed yet), */
-				'search_results_not_found'  => '#<td class="row1" align="center"><br /><p class="gen">[^<]*</p><br /></td>#',
-				# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-				'search_results_page_data'  => '#<tr class="row2">\\s*<td colspan="2" height="25"><p class="topictitle"><a name="p(\\d+)" id="p\\d+"></a>&nbsp;[^:]*: <a href="\\./viewforum\\.php\\?f=(\\d+?)[^"]*">([^<]*)</a> &nbsp; [^:]*: <a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+?)[^"]*">([^<]+)</a> </p></td>\\s*</tr>\\s*<tr class="row1">\\s*<td width="150" align="center" valign="middle"><b class="postauthor"><a href="[^"]*">[^<]*</a></b></td>\\s*<td height="25">\\s*<table width="100%" cellspacing="0" cellpadding="0" border="0">\\s*<tr>\\s*<td class="gensmall">\\s*<div style="float: left;">\\s*&nbsp;<b>[^:]*:</b> <a href="[^"]*">([^<]*)</a>\\s*</div>\\s*<div style="float: right;"><b>[^:]*:</b>\\s(.*)&nbsp;</div>#Us',
-				'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
-				/* 'post_contents'            => ? (not constructed yet), */
-				/* 'prev_page'                => same as for prosilver.1 */
-				'next_page'                => '#<strong>\d+</strong>[^<]+<strong>\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a></b></td>#Us',
-			),
-			// Try the above first
-			'subsilver.2x' => array(
-				// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-				'search_results_page_data'  => '#<tr class="row2">\\s*<td colspan="2" height="25"><p class="topictitle"><a name="p(\\d+?)" id="p\\d+"></a>&nbsp;[^:]*: <a href="\\./viewforum\\.php\\?f=(\\d+?)[^"]*">([^<]*)</a> &nbsp; [^:]*: <a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+?)">([^<]+)</a> </p></td>\\s*</tr>\\s*<tr class="row1">\\s*<td width="150" align="center" valign="middle"><b class="postauthor"><a href="[^"]*">[^<]*</a></b></td>\\s*<td height="25">\\s*<table width="100%" cellspacing="0" cellpadding="0" border="0">\\s*<tr>\\s*<td class="gensmall">\\s*<div style="float: left;">\\s*\\[[^\\]]*\\]\\s*</div>\\s*<div style="float: right;"><b>[^:]*:</b>\\s(.*)&nbsp;</div>#Us',
-				'search_results_page_data_order' => array('title' => 7 /* this match is deliberately designed to be an empty one because posts matching this regex don't actually have a title, which is the whole reason this subsilver.2x entry is necessary */, 'ts' => 6, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
-			),
-			'subsilver.1' => array(
-				/* 'sid'                      => ? (not constructed yet), */
-				/* 'board_title'              => ? (not constructed yet), */
-				/* 'login_success'            => ? (not constructed yet), */
-				/* 'login_required'           => ? (not constructed yet), */
-				/* 'user_name'                => ? (not constructed yet), */
-				'thread_author'             => '#<b class="postauthor">(.+)</b>#Us',
-				/* 'search_results_not_found' => ? (not constructed yet), */
-				// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-				/* 'search_results_page_data' => ? (not constructed yet), */
-				'post_contents'             => '#<a name="p(\\d+)">.*<td valign="top">\\s*<table width="100%" cellspacing="5">\\s*<tr>\\s*<td>\\s*?(.*)(\\s*?<br /><br />\\s*<span class="gensmall">.*</span>|)\\n\\s*<br clear="all" /><br />#Us',
-				'prev_page'                 => '#<a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+)">[^<]+</a>&nbsp;&nbsp;<a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=\\d+[^"]*">\\d+</a><span class="page-sep">,#',
-				/* 'next_page'                => ? (not constructed yet), */
-			),
-			'subsilver.0' => array(
-				'sid'                      => '#href="\\./index\\.php\\?sid=([^"]*)"#',
-				/** @todo Remove English-specific components of this regex ("Log in" and potentially the double-colon). */
-				'board_title'              => '#<title>(.*) :: Log in</title>#',
-				/* 'login_success'            => ? (not constructed yet), */
-				/* 'login_required'           => ? (not constructed yet), */
-				/* 'user_name'                => ? (not constructed yet), */
-				'search_results_not_found' => '#<table border="0" cellpadding="3" cellspacing="1" width="100%" class="forumline" align="center">\\s*<tr>\\s*<th width="150" height="25" class="thCornerL" nowrap="nowrap">Author</th>\\s*<th width="100%" class="thCornerR" nowrap="nowrap">Message</th>\\s*</tr>\\s*<tr>\\s*<td class="catBottom" colspan="2" height="28" align="center">&nbsp; </td>\\s*</tr>\\s*</table>#Us',
-				// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-				'search_results_page_data' => '#<tr>\\s*<td[^>]*><span class="topictitle"><img src="[^"]+" align="absmiddle" />&nbsp; .*:&nbsp;<a href="viewtopic\\.php\\?t=(\\d+)&amp;highlight=" class="topictitle">([^<]*)</a></span></td>\\s*</tr>\\s*<tr>\\s*<td width="\\d+" align="left" valign="top" class="row1" rowspan="2"><span class="name"><b><a href="profile\\.php\\?mode=viewprofile&amp;u=3">[^<]*</a></b></span><br />\\s*<br />\\s*<span class="postdetails">[^<]*<b>[^<]*</b><br />\\s*[^<]*<b>[^<]*</b></span><br />\\s*</td>\\s*<td width="100%" valign="top" class="row1"><img[^>]*><span class="postdetails">[^<]*<b><a href="viewforum\\.php\\?f=(\\d+)" class="postdetails">([^<]*)</a></b>&nbsp; &nbsp;[^:]*: (.*)&nbsp; &nbsp;[^:]*: <b><a href="viewtopic\\.php\\?p=(\\d+)&amp;highlight=\\#\\d+">([^<]+)</a></b></span></td>\\s*</tr>#Us',
-				'search_results_page_data_order' => array('title' => 7, 'ts' => 5, 'forum' => 4, 'topic' => 2, 'forumid' => 3, 'topicid' => 1, 'postid' => 6),
-				'search_id'                => '#\\?search_id=(\\d+)&#',
-				'post_contents'            => '#<tr>\\s*<td width="100%"><a href="viewtopic\\.php\\?p=(\\d+?)[^\\#]*\\#\\d+"><img[^>]*></a><span class="postdetails">[^<]*<span class="gen">&nbsp;</span>[^<]*</span></td>\\s*<td valign="top" nowrap="nowrap"><a href="posting\\.php\\?[^"]*"><img[^>]*></a>\\s*</td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><span class="postbody">(.*)</span><span class="gensmall">(<br /><br />|)[^<]*</span></td>\\s*</tr>#Us',
-				'thread_author'            => '#<b>(.*?)</b></span><br /><span class="postdetails">#',
-				'prev_page'                => '#()<span class="gensmall"><b>[^<]+<a href="viewtopic\\.php\\?t=(\\d+).*start=(\\d+)[^"]*">#',
-				/* 'next_page'                => ? (not constructed yet), */
-			),
-			'forexfactory' => array(
-				'sid'                      => '#SSIONURL = \'?(s\=)(.*&)|(.*)\';#',
-				'board_title'              => '#<title>(.*)</title>#',
-			),
-		);
-		$this->optional_settings[] = 'extract_user';
+		if (!$do_not_init) {
+			$this->regexps = array(
+				/* 'template_skin' => array(
+					'sid'                      => a regexp to extract the SID value from the login page <ucp.php?mode=login>
+					'board_title'              => a regexp to extract the board's title from the login page
+								<ucp.php?mode=login>
+					'login_success'            => a regexp to match the html of a successful-login page
+					'login_required'           => a regexp to match a phpBB error that login is required to view
+								member details
+					'user_name'                => a regexp to extract the user's name from the user's profile page
+								<memberlist.php?mode=viewprofile&u=[user_id]>
+					'thread_author'            => a regexp to extract the thread's author from the thread view page
+								<viewtopic.php?f=[forumid]&t=[topicid]>
+					'search_results_not_found' => a regexp to detect when a search results page returns no results i.e. on:
+								<search.php?st=0&sk=t&sd=d&author_id=[author_id]&start=[start]>
+					// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					'search_results_page_data' => a regexp to be matched on the user's posts search page
+								<search.php?st=0&sk=t&sd=d&author_id=[author_id]&start=[start]> using
+								preg_match_all with flags set to PREG_SET_ORDER so that each entry of
+								$matches ends up with the following matches in the order specified in
+								search_results_page_data_order.
+					'search_results_page_data_order' => an array specifying the order in which the following matches occur
+									in the matches returned by the previous array.
+						= array(
+							'title'   => the match index of the title of post,
+							'ts'      => the match index of the timestamp of post,
+							'forum'   => the match index of the title of forum,
+							'topic'   => the match index of the thread topic,
+							'forumid' => the match index of the forum id,
+							'topicid' => the match index of the topic id,
+							'postid'  => the match index of the post id,
+						)
+					'search_id'                => a regexp to match the search id (only available in older versions of phpBB)
+					'post_contents'            => a regexp to match post id (first match) and post contents (second match)
+								on a thread page; it is called with match_all so it will return all
+								post ids and contents on the page
+					'prev_page'                => a regexp to extract the forumid (first match), topicid (second match) and
+								start (third match) parameters from the "previous page" url on a thread
+								view page
+					'next_page'                => a regexp to extract the forumid (first match), topicid (second match) and
+								start (third match) parameters from the "next page" url on a thread
+								view page
+				),
+				*/
+				'prosilver.1' => array(
+					'sid'                      => '/name="sid" value="([^"]*)"/',
+					'board_title'              => '#<title>(.*) &bull;#Us',
+					'login_success'            => '/<div class="panel" id="message">/',
+					'login_required'           => '/class="panel"/',
+					'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>(.+)</span><#Us',
+					'thread_author'            => '#<p class="author">.*memberlist\.php.*>(.+)<#Us',
+					'search_results_not_found' => '#<div class="panel" id="message">\\s*<div class="inner"><span class="corners-top"><span></span></span>\\s*<h2>#Us',
+					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>'.get_posted_on_date_regex().' (.+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
+					'search_results_page_data_order' => array('title' => 1, 'ts' => 3, 'forum' => 4, 'topic' => 5, 'forumid' => 6, 'topicid' => 7, 'postid' => 8),
+					'post_contents'            => '#<div id="p(\d+)".*<div class="content">(.*)</div>[\r\n]+#Us',
+					'prev_page'                => '#<strong>\\d+</strong>[^<]+<strong>\\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">\\d+</a><span class="page-sep">, </span><strong>\\d+</strong>#Us',
+					'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
+				),
+				'prosilver.2' => array(
+					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
+					'search_results_page_data_order' => array('title' => 1, 'ts' => 2, 'forum' => 3, 'topic' => 4, 'forumid' => 5, 'topicid' => 6, 'postid' => 7),
+				),
+				'subsilver.2' => array(
+					/* 'sid'                      => ? (not constructed yet), */
+					/* 'board_title'              => ? (not constructed yet), */
+					'login_success'            => '#<table class="tablebg" width="100%" cellspacing="1">\\s*<tr>\\s*<th>[^<]*</th>\\s*</tr>\\s*<tr>\\s*<td class="row1" align="center"><br /><p class="gen">#Us',
+					/* 'login_required'           => ? (not constructed yet), */
+					'user_name'                => '#<td align="center"><b class="gen">([^<]*)</b></td>#',
+					/* 'thread_author'            => ? (not constructed yet), */
+					'search_results_not_found'  => '#<td class="row1" align="center"><br /><p class="gen">[^<]*</p><br /></td>#',
+					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					'search_results_page_data'  => '#<tr class="row2">\\s*<td colspan="2" height="25"><p class="topictitle"><a name="p(\\d+)" id="p\\d+"></a>&nbsp;[^:]*: <a href="\\./viewforum\\.php\\?f=(\\d+?)[^"]*">([^<]*)</a> &nbsp; [^:]*: <a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+?)[^"]*">([^<]+)</a> </p></td>\\s*</tr>\\s*<tr class="row1">\\s*<td width="150" align="center" valign="middle"><b class="postauthor"><a href="[^"]*">[^<]*</a></b></td>\\s*<td height="25">\\s*<table width="100%" cellspacing="0" cellpadding="0" border="0">\\s*<tr>\\s*<td class="gensmall">\\s*<div style="float: left;">\\s*&nbsp;<b>[^:]*:</b> <a href="[^"]*">([^<]*)</a>\\s*</div>\\s*<div style="float: right;"><b>[^:]*:</b>\\s(.*)&nbsp;</div>#Us',
+					'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
+					/* 'post_contents'            => ? (not constructed yet), */
+					/* 'prev_page'                => same as for prosilver.1 */
+					'next_page'                => '#<strong>\d+</strong>[^<]+<strong>\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a></b></td>#Us',
+				),
+				// Try the above first
+				'subsilver.2x' => array(
+					// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					'search_results_page_data'  => '#<tr class="row2">\\s*<td colspan="2" height="25"><p class="topictitle"><a name="p(\\d+?)" id="p\\d+"></a>&nbsp;[^:]*: <a href="\\./viewforum\\.php\\?f=(\\d+?)[^"]*">([^<]*)</a> &nbsp; [^:]*: <a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+?)">([^<]+)</a> </p></td>\\s*</tr>\\s*<tr class="row1">\\s*<td width="150" align="center" valign="middle"><b class="postauthor"><a href="[^"]*">[^<]*</a></b></td>\\s*<td height="25">\\s*<table width="100%" cellspacing="0" cellpadding="0" border="0">\\s*<tr>\\s*<td class="gensmall">\\s*<div style="float: left;">\\s*\\[[^\\]]*\\]\\s*</div>\\s*<div style="float: right;"><b>[^:]*:</b>\\s(.*)&nbsp;</div>#Us',
+					'search_results_page_data_order' => array('title' => 7 /* this match is deliberately designed to be an empty one because posts matching this regex don't actually have a title, which is the whole reason this subsilver.2x entry is necessary */, 'ts' => 6, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
+				),
+				'subsilver.1' => array(
+					/* 'sid'                      => ? (not constructed yet), */
+					/* 'board_title'              => ? (not constructed yet), */
+					/* 'login_success'            => ? (not constructed yet), */
+					/* 'login_required'           => ? (not constructed yet), */
+					/* 'user_name'                => ? (not constructed yet), */
+					'thread_author'             => '#<b class="postauthor">(.+)</b>#Us',
+					/* 'search_results_not_found' => ? (not constructed yet), */
+					// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					/* 'search_results_page_data' => ? (not constructed yet), */
+					'post_contents'             => '#<a name="p(\\d+)">.*<td valign="top">\\s*<table width="100%" cellspacing="5">\\s*<tr>\\s*<td>\\s*?(.*)(\\s*?<br /><br />\\s*<span class="gensmall">.*</span>|)\\n\\s*<br clear="all" /><br />#Us',
+					'prev_page'                 => '#<a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+)">[^<]+</a>&nbsp;&nbsp;<a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=\\d+[^"]*">\\d+</a><span class="page-sep">,#',
+					/* 'next_page'                => ? (not constructed yet), */
+				),
+				'subsilver.0' => array(
+					'sid'                      => '#href="\\./index\\.php\\?sid=([^"]*)"#',
+					/** @todo Remove English-specific components of this regex ("Log in" and potentially the double-colon). */
+					'board_title'              => '#<title>(.*) :: Log in</title>#',
+					/* 'login_success'            => ? (not constructed yet), */
+					/* 'login_required'           => ? (not constructed yet), */
+					/* 'user_name'                => ? (not constructed yet), */
+					'search_results_not_found' => '#<table border="0" cellpadding="3" cellspacing="1" width="100%" class="forumline" align="center">\\s*<tr>\\s*<th width="150" height="25" class="thCornerL" nowrap="nowrap">Author</th>\\s*<th width="100%" class="thCornerR" nowrap="nowrap">Message</th>\\s*</tr>\\s*<tr>\\s*<td class="catBottom" colspan="2" height="28" align="center">&nbsp; </td>\\s*</tr>\\s*</table>#Us',
+					// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					'search_results_page_data' => '#<tr>\\s*<td[^>]*><span class="topictitle"><img src="[^"]+" align="absmiddle" />&nbsp; .*:&nbsp;<a href="viewtopic\\.php\\?t=(\\d+)&amp;highlight=" class="topictitle">([^<]*)</a></span></td>\\s*</tr>\\s*<tr>\\s*<td width="\\d+" align="left" valign="top" class="row1" rowspan="2"><span class="name"><b><a href="profile\\.php\\?mode=viewprofile&amp;u=3">[^<]*</a></b></span><br />\\s*<br />\\s*<span class="postdetails">[^<]*<b>[^<]*</b><br />\\s*[^<]*<b>[^<]*</b></span><br />\\s*</td>\\s*<td width="100%" valign="top" class="row1"><img[^>]*><span class="postdetails">[^<]*<b><a href="viewforum\\.php\\?f=(\\d+)" class="postdetails">([^<]*)</a></b>&nbsp; &nbsp;[^:]*: (.*)&nbsp; &nbsp;[^:]*: <b><a href="viewtopic\\.php\\?p=(\\d+)&amp;highlight=\\#\\d+">([^<]+)</a></b></span></td>\\s*</tr>#Us',
+					'search_results_page_data_order' => array('title' => 7, 'ts' => 5, 'forum' => 4, 'topic' => 2, 'forumid' => 3, 'topicid' => 1, 'postid' => 6),
+					'search_id'                => '#\\?search_id=(\\d+)&#',
+					'post_contents'            => '#<tr>\\s*<td width="100%"><a href="viewtopic\\.php\\?p=(\\d+?)[^\\#]*\\#\\d+"><img[^>]*></a><span class="postdetails">[^<]*<span class="gen">&nbsp;</span>[^<]*</span></td>\\s*<td valign="top" nowrap="nowrap"><a href="posting\\.php\\?[^"]*"><img[^>]*></a>\\s*</td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><span class="postbody">(.*)</span><span class="gensmall">(<br /><br />|)[^<]*</span></td>\\s*</tr>#Us',
+					'thread_author'            => '#<b>(.*?)</b></span><br /><span class="postdetails">#',
+					'prev_page'                => '#()<span class="gensmall"><b>[^<]+<a href="viewtopic\\.php\\?t=(\\d+).*start=(\\d+)[^"]*">#',
+					/* 'next_page'                => ? (not constructed yet), */
+				),
+				'forexfactory' => array(
+					'sid'                      => '#SSIONURL = \'?(s\=)(.*&)|(.*)\';#',
+					'board_title'              => '#<title>(.*)</title>#',
+				),
+			);
+		}
 	}
 
 	protected function check_do_login() {
