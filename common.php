@@ -245,13 +245,25 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 <?php
 	}
 
+	$paren_msg_will_be_emailed = '(Unless a mailing error occurs, these will be emailed to me as-is if/when FUPS finishes running, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
 	$paren_msg_emailed = '(Unless a mailing error occurred, these have been emailed to me as-is, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
 	if ($errs) {
 ?>
 
 			<h3>Errors</h3>
 
-			<p><?php echo $paren_msg_emailed; ?></p>
+			<p><?php echo ($done || $failed ? $paren_msg_emailed : $paren_msg_will_be_emailed); ?></p>
+
+<?php
+			$len = strlen($errs);
+			if ($len > FUPS_MAX_ERROR_FILE_EMAIL_LENGTH) {
+				$errs = substr($errs, 0, FUPS_MAX_ERROR_FILE_EMAIL_LENGTH);
+				$trunc_msg = '[Truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ERROR_FILE_EMAIL_LENGTH).' bytes]';
+?>
+				<p><?php echo $trunc_msg; ?></p>
+<?php
+			}
+?>
 
 			<div class="fups_error">
 <?php	echo format_html($errs); ?>

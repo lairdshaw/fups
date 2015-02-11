@@ -913,6 +913,12 @@ abstract class FUPSBase {
 				if ($errs || $errs_admin) {
 					$err_msg = '';
 					if ($errs) {
+						$len = strlen($errs);
+						$trunc_msg = '';
+						if ($len > FUPS_MAX_ERROR_FILE_EMAIL_LENGTH) {
+							$errs = substr($errs, 0, FUPS_MAX_ERROR_FILE_EMAIL_LENGTH);
+							$trunc_msg = ' (truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ERROR_FILE_EMAIL_LENGTH).' bytes)';
+						}
 						// No need to include the settings and classname if admin error info exists too,
 						// because settings and classname are already included each time the admin error
 						// file is appended to.
@@ -921,7 +927,7 @@ abstract class FUPSBase {
 							$classname_msg = static::get_classname_msg(get_class($this));
 							$err_msg .= $settings_msg.PHP_EOL.PHP_EOL.$classname_msg.PHP_EOL;
 						}
-						$err_msg .= 'The following non-fatal errors were recorded in the error file:'.PHP_EOL.PHP_EOL.$errs.PHP_EOL;
+						$err_msg .= 'The following non-fatal errors were recorded in the error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs.PHP_EOL;
 					}
 					if ($errs_admin) {
 						if ($errs) $err_msg .= PHP_EOL.PHP_EOL;

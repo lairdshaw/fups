@@ -117,6 +117,10 @@ define('FUPS_SHOW_CHANGELOG'   ,                                true);
 // commented-out string.
 define('FUPS_ROUTINE_DELETION_POLICY', '' /*' If not manually deleted, FUPS session files will be deleted by a routine scheduled task, which runs once a day and deletes all files more than two days old.'*/);
 
+// The maximum number of bytes to include from the ordinary errors file
+//in an admin error email.
+define('FUPS_MAX_ERROR_FILE_EMAIL_LENGTH',                    300000);
+
 // The maximum number of bytes to include from the admin errors file
 //in an admin error email.
 define('FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH',                    300000);
