@@ -89,6 +89,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-02-12
+					<ul>
+						<li>Fixed a bug: the "Extract User Username" setting for phpBB forums was being ignored.</li>
+					</ul>
+				</li>
 				<li>2015-02-11
 					<ul>
 						<li>Fixed two bugs affecting phpBB forums: user name detection and post contents detection. The user name detection fix applies to certain non-English phpBB forums, in particular to German ones. The post contents detection fix applies to some setups which output HTML with lines ending in CRLF rather than in LF alone.</li>
