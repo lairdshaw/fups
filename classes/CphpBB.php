@@ -89,7 +89,7 @@ class phpBBFUPS extends FUPSBase {
 					'board_title'              => '#<title>(.*) &bull;#Us',
 					'login_success'            => '/<div class="panel" id="message">/',
 					'login_required'           => '/class="panel"/',
-					'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>(.+)</span><#Us',
+					'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>([^<]+)</span>#Us',
 					'thread_author'            => '#<p class="author">.*memberlist\.php.*>(.+)<#Us',
 					'search_results_not_found' => '#<div class="panel" id="message">\\s*<div class="inner"><span class="corners-top"><span></span></span>\\s*<h2>#Us',
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
