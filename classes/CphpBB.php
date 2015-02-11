@@ -84,13 +84,13 @@ class phpBBFUPS extends FUPSBase {
 				'board_title'              => '#<title>(.*) &bull;#Us',
 				'login_success'            => '/<div class="panel" id="message">/',
 				'login_required'           => '/class="panel"/',
-				'user_name'                => '#<h2>[^-]* - (.+)<#Us',
+				'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>(.+)</span><#Us',
 				'thread_author'            => '#<p class="author">.*memberlist\.php.*>(.+)<#Us',
 				'search_results_not_found' => '#<div class="panel" id="message">\\s*<div class="inner"><span class="corners-top"><span></span></span>\\s*<h2>#Us',
 				# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
 				'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>'.get_posted_on_date_regex().' (.+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
 				'search_results_page_data_order' => array('title' => 1, 'ts' => 3, 'forum' => 4, 'topic' => 5, 'forumid' => 6, 'topicid' => 7, 'postid' => 8),
-				'post_contents'            => '#<div id="p(\d+)".*<div class="content">(.*)</div>\n#Us',
+				'post_contents'            => '#<div id="p(\d+)".*<div class="content">(.*)</div>[\r\n]+#Us',
 				'prev_page'                => '#<strong>\\d+</strong>[^<]+<strong>\\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">\\d+</a><span class="page-sep">, </span><strong>\\d+</strong>#Us',
 				'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
 			),
@@ -103,7 +103,7 @@ class phpBBFUPS extends FUPSBase {
 				/* 'board_title'              => ? (not constructed yet), */
 				'login_success'            => '#<table class="tablebg" width="100%" cellspacing="1">\\s*<tr>\\s*<th>[^<]*</th>\\s*</tr>\\s*<tr>\\s*<td class="row1" align="center"><br /><p class="gen">#Us',
 				/* 'login_required'           => ? (not constructed yet), */
-				/* 'user_name'                => ? (not constructed yet), */
+				'user_name'                => '#<td align="center"><b class="gen">([^<]*)</b></td>#',
 				/* 'thread_author'            => ? (not constructed yet), */
 				'search_results_not_found'  => '#<td class="row1" align="center"><br /><p class="gen">[^<]*</p><br /></td>#',
 				# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
