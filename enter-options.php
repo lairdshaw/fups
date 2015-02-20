@@ -90,7 +90,10 @@ $script = '';
 if ($errmsg) {
 	echo '<p style="border: thin solid black; background-color: red;">Error: '.$errmsg.'. Redirecting you to <a href=".">forum selection page</a> in 5 seconds.</p>';
 } else {
+	global $fups_url_run;
+
 	require_once __DIR__.'/classes/C'.$valid_forum_types[$forum_type].'.php';
+
 	$forum_class = $valid_forum_types[$forum_type].'FUPS';
 	$forum_obj = new $forum_class(null, null, true);
 	$settings_arr = $forum_obj->get_settings_array();
@@ -99,7 +102,7 @@ if ($errmsg) {
 
 			<p>To retrieve your posts: fill in the settings below, optionally after reading the questions and answers below the settings form, then click "Retrieve posts!". A status page will appear, updating progress automatically in a status box. When scraping is complete, a link to the results (a single, self-contained HTML page) will appear.</p>
 
-			<form id="mainform" method="post" action="run.php">
+			<form id="mainform" method="post" action="<?php echo $fups_url_run; ?>">
 			<table id="table_fups_enter_options">
 				<tr><td class="fups_opt_label"><label>Forum type</label></td><td class="fups_opt_input"><input type="hidden" name="forum_type" id="type" value="<?php echo $forum_type; ?>" /><?php echo $forum_type; ?></td><td class="fups_opt_desc"></td></tr>
 <?php

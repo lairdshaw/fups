@@ -27,6 +27,23 @@
  * Description: Contains defines and functions shared between FUPS scripts.
  */
 
+// These are not defines because we want it to be possible to override them
+// in settings.php, and this is also why they occur before the require of
+// settings.php.
+if (isset($_SERVER['REQUEST_URI'])) {
+	list($tmp) = explode('?', $_SERVER['REQUEST_URI'], 2);
+	$fups_url_base = ($tmp[strlen($tmp)-1] == '/' ? $tmp : dirname($tmp));
+	if ($fups_url_base[strlen($fups_url_base)-1] != '/') {
+		$fups_url_base .= '/';
+	}
+} else	$fups_url_base = '';
+$fups_url_ajax_get_status      = $fups_url_base.'ajax-get-status.php';
+$fups_url_cancel               = $fups_url_base.'cancel.php';
+$fups_url_delete_files         = $fups_url_base.'delete-files.php';
+$fups_url_enter_options        = $fups_url_base.'enter-options.php';
+$fups_url_notify_email_address = $fups_url_base.'notify-email-address.php';
+$fups_url_run                  = $fups_url_base.'run.php';
+
 require_once __DIR__.'/settings.php';
 
 // Check before doing anything else that FUPS_CMDLINE_PHP_PATH is valid.
@@ -168,16 +185,19 @@ function get_failed_done_cancelled($status, &$done, &$cancelled, &$failed) {
 }
 
 function show_delete($token, $had_success = false) {
+	global $fups_url_delete_files;
 ?>
 			<p>For your privacy, you might wish to delete from this web server all session and output files associated with this request, especially if you have supplied a login username and password (files that store your username and password details are not publicly visible, but it is wise to delete them anyway).<?php echo FUPS_ROUTINE_DELETION_POLICY; ?></p>
 <?php	if ($had_success) { ?>
 			<p>Be sure to do this only <strong>after</strong> you have clicked the above "View result" link, and saved the contents at that page, because they will no longer be accessible after clicking the following link.</p>
 <?php	} ?>
-			<p><a href="delete-files.php?token=<?php echo htmlspecialchars(urlencode($token)); ?>">Delete all files</a> associated with your scrape from my web server - this includes your settings, including your password if you entered one.</p>
+			<p><a href="<?php echo $fups_url_delete_files; ?>?token=<?php echo htmlspecialchars(urlencode($token)); ?>">Delete all files</a> associated with your scrape from my web server - this includes your settings, including your password if you entered one.</p>
 <?php
 }
 
 function output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin = false, $ajax = false) {
+	global $fups_url_cancel, $fups_url_notify_email_address, $fups_url_run;
+
 	if ($err) {
 ?>
 			<div class="fups_error"><?php echo format_html($err); ?></div>
@@ -214,7 +234,7 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 			<p>The script appears to have exited due to an error; the error message is shown below. I have been notified of this error by email; if you would like me to get back to you if/when I have fixed the error, then please enter your email address into the following box and press the button to notify me of it.</p>
 
 			<div>
-				<form method="post" action="notify-email-address.php">
+				<form method="post" action="<?php echo $fups_url_notify_email_address; ?>">
 					<input type="hidden" name="token" value="<?php echo $token; ?>" />
 					<label for="email_address.id">Your contact email address:</label><br />
 					<input type="text" name="email_address" id="email_address.id" /><br />
@@ -232,14 +252,14 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 		$same_status = (isset($_GET['last_status']) && $status == $_GET['last_status']);
 ?>
 			<p>
-				<a href="<?php echo 'run.php?token='.$token.($same_status ? '&amp;last_status='.htmlspecialchars(urlencode($status)) : '').($ajax ? '&amp;ajax=yes' : ''); ?>"><?php echo ($ajax ? 'Refresh page' : 'Check progress'); ?></a><?php if ($ajax): echo ' (it should not be necessary to click this link unless something goes wrong)'; endif; ?>.
+				<a href="<?php echo $fups_url_run.'?token='.$token.($same_status ? '&amp;last_status='.htmlspecialchars(urlencode($status)) : '').($ajax ? '&amp;ajax=yes' : ''); ?>"><?php echo ($ajax ? 'Refresh page' : 'Check progress'); ?></a><?php if ($ajax): echo ' (it should not be necessary to click this link unless something goes wrong)'; endif; ?>.
 <?php		if ($same_status) { ?>
 				(It appears that progress has halted unexpectedly - the current status is the same as the previous status. It is likely that an error has caused the process to exit before finishing. We are sorry about this failure. In case you want to be sure that progress has indeed halted, you are welcome to click the preceding link, but otherwise, this page will no longer automatically refresh.)
 
 <?php
 			show_delete($token, false);
 		} else { ?>
-				<?php echo (!$ajax ? 'Your browser should automatically refresh this page every '.FUPS_META_REDIRECT_DELAY.' seconds or so to update progress, but if you don\'t want to wait, you\'re welcome to click the link. ' : ''); ?>If you have changed your mind about wanting to run this script through to the end, <strong>please</strong> click this <a href="cancel.php?token=<?php echo $token.($ajax ? '&amp;ajax=yes' : ''); ?>">cancel</a> link rather than just closing this page - clicking the cancel link will free up the resources (in particular a background process) associated with your task.
+				<?php echo (!$ajax ? 'Your browser should automatically refresh this page every '.FUPS_META_REDIRECT_DELAY.' seconds or so to update progress, but if you don\'t want to wait, you\'re welcome to click the link. ' : ''); ?>If you have changed your mind about wanting to run this script through to the end, <strong>please</strong> click this <a href="<?php echo $fups_url_cancel; ?>?token=<?php echo $token.($ajax ? '&amp;ajax=yes' : ''); ?>">cancel</a> link rather than just closing this page - clicking the cancel link will free up the resources (in particular a background process) associated with your task.
 <?php		} ?>
 			</p>
 <?php

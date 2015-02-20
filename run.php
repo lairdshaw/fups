@@ -113,10 +113,12 @@ if (!$err) {
 $head_extra = '';
 
 if (!$err) {
+	global $fups_url_run;
+
 	get_failed_done_cancelled($status, $done, $cancelled, $failed);
 
 	if (!isset($_GET['ajax']) && ((!isset($_GET['last_status']) || $status != $_GET['last_status']) && !$done && !$failed && !$err)) {
-		$head_extra = '<meta http-equiv="refresh" content="'.FUPS_META_REDIRECT_DELAY.'; URL='.$_SERVER['SCRIPT_NAME'].'?token='.htmlspecialchars(urlencode($token)).'&amp;last_status='.htmlspecialchars(urlencode($status)).'" />';
+		$head_extra = '<meta http-equiv="refresh" content="'.FUPS_META_REDIRECT_DELAY.'; URL='.$fups_url_run.'?token='.htmlspecialchars(urlencode($token)).'&amp;last_status='.htmlspecialchars(urlencode($status)).'" />';
 	}
 }
 
@@ -154,6 +156,7 @@ if ($err) {
 
 <?php
 	if (isset($_GET['ajax']) && !$done && !$cancelled && !$failed) {
+		global $fups_url_ajax_get_status;
 ?>
 			<div id="ajax.fill">
 <?php
@@ -201,9 +204,10 @@ if ($err) {
 								}
 							}
 						} catch (e) { alert('Exception: ' + e); }
-					}				
+					}
 					try {
-						var base_url = 'ajax-get-status.php?token=<?php echo $token; ?>';
+						var base_url = '<?php echo $fups_url_ajax_get_status; ?>?token=<?php echo $token; ?>';
+
 						xhr.open('GET', base_url + '&filesize=' + filesize + '&ts=' + ts, true);
 						xhr.onreadystatechange = fups_xhr_state_change_function;
 						xhr.send(null);

@@ -46,10 +46,12 @@ else {
 $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
 fups_output_page_start($page, 'FUPS cancellation page: cancel an in-progress task', 'Cancel an in-progress FUPS task.');
 
+global $fups_url_run;
+
 if (!$err) {
 ?>
 			<ul class="fups_listmin">
-				<li><a href="run.php?token=<?php echo $token.(isset($_GET['ajax']) ? '&amp;ajax=yes' : '');; ?>">&lt;&lt; Back to the FUPS status page</a></li>
+				<li><a href="<?php echo $fups_url_run; ?>?token=<?php echo $token.(isset($_GET['ajax']) ? '&amp;ajax=yes' : '');; ?>">&lt;&lt; Back to the FUPS status page</a></li>
 			</ul>
 <?php
 }
@@ -62,7 +64,7 @@ if ($err) {
 <?php
 } else {
 ?>
-			<p>Successfully wrote to the cancellation file; the task should pick up on this soon and quit. If you wish to delete the files associated with this task on the server, then please return to <a href="run.php?token=<?php echo $token.(isset($_GET['ajax']) ? '&amp;ajax=yes' : '');; ?>">the status page</a> and wait for the message that the script has encountered the cancellation request and exited. When that occurs, the link to delete all files will be presented to you.</p>
+			<p>Successfully wrote to the cancellation file; the task should pick up on this soon and quit. If you wish to delete the files associated with this task on the server, then please return to <a href="<?php echo $fups_url_run; ?>?token=<?php echo $token.(isset($_GET['ajax']) ? '&amp;ajax=yes' : '');; ?>">the status page</a> and wait for the message that the script has encountered the cancellation request and exited. When that occurs, the link to delete all files will be presented to you.</p>
 <?php
 }
 

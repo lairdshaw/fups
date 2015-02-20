@@ -23,7 +23,7 @@
  *
  */
 
-/* File       : delete.php.
+/* File       : delete-files.php.
  * Description: Deletes all files associated with the stipulated FUPS process.
  *              Part of the web app functionality of FUPS.
  */

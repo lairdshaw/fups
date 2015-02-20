@@ -30,6 +30,9 @@
 
 require_once __DIR__.'/common.php';
 require_once __DIR__.'/classes/CFUPSBase.php';
+
+global $fups_url_run;
+
 $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
 $valid_forum_types = FUPSBase::get_valid_forum_types();
 $forums_str = '';
@@ -53,7 +56,7 @@ for ($i = 0; $i < count($forums_arr); $i++) {
 	require_once __DIR__.'/classes/C'.$forums_arr[$i].'.php';
 	$forum_class = $forums_arr[$i].'FUPS';
 	$forums_str_linked .= '<a href="'.$forum_class::get_forum_software_homepage().'">'.$forums_arr[$i].'</a>';
-	$enter_options_links_str .= '<a href="enter-options.php?forum_type='.$forums_lc_arr[$i].'">'.$forums_arr[$i].'</a>';
+	$enter_options_links_str .= '<a href="'.$fups_url_enter_options.'?forum_type='.$forums_lc_arr[$i].'">'.$forums_arr[$i].'</a>';
 	$how_identify_list_html .= '				<li><b>'.$forums_arr[$i].'</b>: '.$forum_class::get_msg_how_to_detect_forum().'</li>'."\n";
 }
 fups_output_page_start($page, 'FUPS: Forum user-post scraper', 'Scrape posts made under a particular username from a '.$forums_str.' forum.');
