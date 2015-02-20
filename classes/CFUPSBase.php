@@ -620,7 +620,7 @@ abstract class FUPSBase {
 	protected function get_settings_str() {
 		$settings_str = '';
 		foreach ($this->settings as $k => $v) {
-			if (in_array($k, $this->private_settings)) {
+			if ($v && in_array($k, $this->private_settings)) {
 				$v = '[redacted]';
 			}
 			$settings_str .= "\t$k=$v".PHP_EOL;
