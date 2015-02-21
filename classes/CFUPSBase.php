@@ -924,7 +924,7 @@ abstract class FUPSBase {
 						// file is appended to.
 						if (!$errs_admin) {
 							$settings_msg = static::get_settings_msg_s(static::get_settings_str());
-							$classname_msg = static::get_classname_msg(get_class($this));
+							$classname_msg = static::get_classname_msg_s(get_class($this));
 							$err_msg .= $settings_msg.PHP_EOL.PHP_EOL.$classname_msg.PHP_EOL;
 						}
 						$err_msg .= 'The following non-fatal errors were recorded in the error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs.PHP_EOL;
