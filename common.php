@@ -316,4 +316,25 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 	// Early return possible
 }
 
-?>
+// Utility functions follow
+
+// Helper function for arrays_combos()
+function get_arrays_combos_r($arrays, $depth, $combo, &$combos) {
+	foreach ($arrays[$depth] as $item) {
+		$combo[$depth] = $item;
+		if ($depth == count($arrays) - 1) {
+			$combos[] = $combo;
+		} else	get_arrays_combos_r($arrays, $depth + 1, $combo, $combos);
+	}
+}
+
+// Returns an array of all array combinations generated
+// by taking a single element from each of the arrays
+// in $arrays.
+function arrays_combos($arrays) {
+	$ret = array();
+	$combo = array_fill(0, count($arrays), null);
+	get_arrays_combos_r($arrays, 0, $combo, $ret);
+
+	return $ret;
+}

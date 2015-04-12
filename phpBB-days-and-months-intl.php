@@ -2043,62 +2043,48 @@ $intl_data = array(
 		'Dec'		=> 'Tháng 12',
 		'POSTED_ON_DATE'			=> 'vào ngày',
 	),
+	'welsh_cymraeg' => array(
+		'Sunday'	=> 'Sul',
+		'Monday'	=> 'Llun',
+		'Tuesday'	=> 'Mawrth',
+		'Wednesday'	=> 'Mercher',
+		'Thursday'	=> 'Iau',
+		'Friday'	=> 'Gwener',
+		'Saturday'	=> 'Sadwrn',
+		'Sun'		=> 'Sul',#
+		'Mon'		=> 'Ll',
+		'Tue'		=> 'Maw',#
+		'Wed'		=> 'Mer',#
+		'Thu'		=> 'Iau',#
+		'Fri'		=> 'Gwe',#
+		'Sat'		=> 'Sad',#
+		'January'	=> 'Ionawr',
+		'February'	=> 'Chwefror',
+		'March'		=> 'Mawrth',
+		'April'		=> 'Ebrill',
+		'May'		=> 'Mai',
+		'June'		=> 'Mehefin',
+		'July'		=> 'Gorffennaf',
+		'August'	=> 'Awst',
+		'September'	=> 'Medi',
+		'October'	=> 'Hydref',
+		'November'	=> 'Tachwedd',
+		'December'	=> 'Rhagfyr',
+		'Jan'		=> 'Ion',
+		'Feb'		=> 'Chw',
+		'Mar'		=> 'Maw',
+		'Apr'		=> 'Ebr',
+		'May_short'	=> 'Mai', // Short representation of "May". May_short used because in English the short and long date are the same for May.
+		'Jun'		=> 'Meh',
+		'Jul'		=> 'Gor',#
+		'Aug'		=> 'Aws',
+		'Sep'		=> 'Medi',#
+		'Oct'		=> 'Hyd',
+		'Nov'		=> 'Tach',#
+		'Dec'		=> 'Rhag',#
+		'POSTED_ON_DATE'			=> 'op',
+	),
 );
-
-function get_day_and_month_name_intl_regexes(&$days_of_week_full_intl_regexes, &$days_of_week_abbr_intl_regexes, &$months_full_intl_regexes, &$months_abbr_intl_regexes) {
-	global $intl_data;
-
-	$days_of_week_full_en = array('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday');
-	$days_of_week_abbr_en = array('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
-	$months_full_en = array('January', 'February', 'March', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
-	$months_abbr_en = array('Jan', 'Feb', 'Mar', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec');
-	$days_of_week_full_intl_regexes = array();
-	$days_of_week_abbr_intl_regexes = array();
-	$months_full_intl_regexes = array();
-	$months_abbr_intl_regexes = array();
-
-	foreach ($days_of_week_full_en as $day_of_week) {
-		$days_of_week_full_intl_regexes[$day_of_week] = '';
-		foreach ($intl_data as $intl_arr) {
-			if (!empty($intl_arr[$day_of_week])) {
-				if ($days_of_week_full_intl_regexes[$day_of_week]) $days_of_week_full_intl_regexes[$day_of_week] .= '|';
-				$days_of_week_full_intl_regexes[$day_of_week] .= preg_quote($intl_arr[$day_of_week], '/');
-			}
-		}
-		$days_of_week_full_intl_regexes[$day_of_week] = '/('.$days_of_week_full_intl_regexes[$day_of_week].')/';
-	}
-	foreach ($days_of_week_abbr_en as $day_of_week) {
-		$day_of_week_index = $day_of_week == 'May' ? 'May_short' : $day_of_week;
-		$days_of_week_abbr_intl_regexes[$day_of_week] = '';
-		foreach ($intl_data as $intl_arr) {
-			if (!empty($intl_arr[$day_of_week_index])) {
-				if ($days_of_week_abbr_intl_regexes[$day_of_week]) $days_of_week_abbr_intl_regexes[$day_of_week] .= '|';
-				$days_of_week_abbr_intl_regexes[$day_of_week] .= preg_quote($intl_arr[$day_of_week_index], '/');
-			}
-		}
-		$days_of_week_abbr_intl_regexes[$day_of_week] = '/\\b('.$days_of_week_abbr_intl_regexes[$day_of_week].')\\b/';
-	}
-	foreach ($months_full_en as $month) {
-		$months_full_intl_regexes[$month] = '';
-		foreach ($intl_data as $intl_arr) {
-			if (!empty($intl_arr[$month])) {
-				if ($months_full_intl_regexes[$month]) $months_full_intl_regexes[$month] .= '|';
-				$months_full_intl_regexes[$month] .= preg_quote($intl_arr[$month], '/');
-			}
-		}
-		$months_full_intl_regexes[$month] = '/\\b('.$months_full_intl_regexes[$month].')\\b/';
-	}
-	foreach ($months_abbr_en as $month) {
-		$months_abbr_intl_regexes[$month] = '';
-		foreach ($intl_data as $intl_arr) {
-			if (!empty($intl_arr[$month])) {
-				if ($months_abbr_intl_regexes[$month]) $months_abbr_intl_regexes[$month] .= '|';
-				$months_abbr_intl_regexes[$month] .= preg_quote($intl_arr[$month], '/');
-			}
-		}
-		$months_abbr_intl_regexes[$month] = '/\\b('.$months_abbr_intl_regexes[$month].')\\b/';
-	}
-}
 
 function get_posted_on_date_regex() {
 	global $intl_data;

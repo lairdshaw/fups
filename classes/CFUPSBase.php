@@ -390,7 +390,7 @@ abstract class FUPSBase {
 			$ts = $this->strtotime_intl($ts_raw);
 			if ($ts === false) {
 				$err_msg = "Error: strtotime_intl failed for '$ts_raw'.";
-				if ($ret === false && !isset($this->settings['non_us_date_format']) && strpos($time_str, '/') !== false) {
+				if (!isset($this->settings['non_us_date_format']) && strpos($ts_raw, '/') !== false) {
 					$err_msg .= ' Hint: Perhaps you need to check the "Non-US date format" box on the previous page.';
 				}
 				$this->write_err($err_msg);
@@ -1007,11 +1007,6 @@ abstract class FUPSBase {
 	}
 
 	protected function strtotime_intl($time_str) {
-		static $days_of_week_full_intl;
-		static $days_of_week_abbr_intl;
-		static $months_full_intl;
-		static $months_abbr_intl;
-
 		$time_str_org = $time_str;
 		$non_us_date_format = isset($this->settings['non_us_date_format']);
 		if ($non_us_date_format) {
@@ -1027,22 +1022,22 @@ abstract class FUPSBase {
 		if ($ret === false) {
 			// This is necessary for translated phpBB forums
 			if ($this->dbg) $this->write_err('strtotime() failed on "'.$time_str.'". Trying again after replacing international tokens.');
-			if (empty($days_of_week_full_intl)) {
-				get_day_and_month_name_intl_regexes($days_of_week_full_intl_regexes, $days_of_week_abbr_intl_regexes, $months_full_intl_regexes, $months_abbr_intl_regexes);
+			// This is necessary for translated phpBB forums
+
+			global $intl_data;
+
+			$comps = preg_split('/\\b/', $time_str);
+			foreach ($intl_data as $intl_arr) {
+				$repls = $comps;
+				foreach ($comps as $i => $comp) {
+					$repls[$i] = str_replace('May_short', 'May', array_merge((array)$repls[$i], array_unique(array_keys($intl_arr, $comp))));
+				}
+				foreach (arrays_combos($repls) as $combo) {
+					$ret = strtotime(implode('', $combo));
+					if ($ret) break;
+				}
+				if ($ret) break;
 			}
-			foreach ($days_of_week_abbr_intl_regexes as $day_en => $days_intl_regex) {
-				$time_str = preg_replace($days_intl_regex, $day_en, $time_str);
-			}
-			foreach ($days_of_week_full_intl_regexes as $day_en => $days_intl_regex) {
-				$time_str = preg_replace($days_intl_regex, $day_en, $time_str);
-			}
-			foreach ($months_abbr_intl_regexes as $month_en => $months_intl_regex) {
-				$time_str = preg_replace($months_intl_regex, $month_en, $time_str);
-			}
-			foreach ($months_full_intl_regexes as $month_en => $months_intl_regex) {
-				$time_str = preg_replace($months_intl_regex, $month_en, $time_str);
-			}
-			$ret = strtotime($time_str);
 		}
 		
 		return $ret;
