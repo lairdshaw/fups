@@ -257,7 +257,7 @@ abstract class FUPSBase {
 		}
 	}
 
-	function do_send() {
+	function do_send(&$redirect = false) {
 		static $retry_delays = array(0, 5, 5);
 		static $first_so_no_wait = true;
 
@@ -296,6 +296,10 @@ abstract class FUPSBase {
 						// certain older versions of cURL or receiving webservers.
 						$tmp = explode('#', $url, 2);
 						$url = $tmp[0];
+						if ($redirect !== false) {
+							$redirect = $url;
+							return '';
+						}
 						$this->validate_url($url, 'the redirected-to location', true);
 						$this->set_url($url);
 						if ($this->dbg) $this->write_err('In '.__METHOD__.'(): Found a "Location" header; following to <'.$url.'>.');

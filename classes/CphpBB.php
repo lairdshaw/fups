@@ -100,8 +100,12 @@ class phpBBFUPS extends FUPSBase {
 					'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
 				),
 				'prosilver.2' => array(
-					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
+					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">(?:(?!</dl>).)*<dd>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
 					'search_results_page_data_order' => array('title' => 1, 'ts' => 2, 'forum' => 3, 'topic' => 4, 'forumid' => 5, 'topicid' => 6, 'postid' => 7),
+				),
+				'prosilver.3' => array(
+					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^>]+)</a>#Us',
+					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
 				),
 				'subsilver.2' => array(
 					/* 'sid'                      => ? (not constructed yet), */
@@ -201,10 +205,13 @@ class phpBBFUPS extends FUPSBase {
 				$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 			}
 
-			$html = $this->do_send();
-			if (!$this->skins_preg_match('login_success', $html, $dummy)) {
+			# A successful login either redirects via HTTP or returns a page with a message matching the 'login_success' regex.
+			$html = $this->do_send($redirect);
+			if ((!$html && $redirect) || $this->skins_preg_match('login_success', $html, $dummy)) {
+				if ($this->dbg) $this->write_err('Logged in successfully.');
+			} else {
 				$this->exit_err('Login was unsuccessful (did not find success message). This could be due to a wrong username/password combination. The URL is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__,  $html);
-			} else if ($this->dbg) $this->write_err('Logged in successfully.');
+			}
 
 			# Set cURL method back to GET because this class and especially its ancestor rely on the default method being GET
 			if (!curl_setopt($this->ch, CURLOPT_POST, false)) {
