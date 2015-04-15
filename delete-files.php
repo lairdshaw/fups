@@ -48,6 +48,8 @@ else {
 }
 
 function try_delete_file($filename, $name, $sensitive, &$err, &$num_files_deleted, $add_err_if_file_not_present = true) {
+	global $fups_url_homepage;
+
 	if (!is_file($filename)) {
 		if ($add_err_if_file_not_present) {
 			$err .= ($err ? ' Another' : 'An');
@@ -63,7 +65,7 @@ $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
 fups_output_page_start($page, 'FUPS: file deletion page', 'Permanently remove from the web server all files used to scrape your posts.');
 ?>
 			<ul class="fups_listmin">
-				<li><a href=".">&lt;&lt; Back to the FUPS homepage</a></li>
+				<li><a href="<?php echo $fups_url_homepage; ?>">&lt;&lt; Back to the FUPS homepage</a></li>
 			</ul>
 
 			<h2>FUPS: file deletion page</h2>

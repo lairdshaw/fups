@@ -113,7 +113,7 @@ if (!$err) {
 $head_extra = '';
 
 if (!$err) {
-	global $fups_url_run;
+	global $fups_url_run, $fups_url_homepage;
 
 	get_failed_done_cancelled($status, $done, $cancelled, $failed);
 
@@ -126,7 +126,7 @@ $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
 fups_output_page_start($page, 'FUPS progress', 'Monitor the progress of the scraping script.', $head_extra);
 ?>
 			<ul class="fups_listmin">
-				<li><a href=".">&lt;&lt; Back to the FUPS homepage</a></li>
+				<li><a href="<?php echo $fups_url_homepage; ?>">&lt;&lt; Back to the FUPS homepage</a></li>
 			</ul>
 
 			<h2>FUPS progress</h2>

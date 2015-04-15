@@ -37,6 +37,7 @@ if (isset($_SERVER['REQUEST_URI'])) {
 		$fups_url_base .= '/';
 	}
 } else	$fups_url_base = '';
+$fups_url_homepage             = $fups_url_base;
 $fups_url_ajax_get_status      = $fups_url_base.'ajax-get-status.php';
 $fups_url_cancel               = $fups_url_base.'cancel.php';
 $fups_url_delete_files         = $fups_url_base.'delete-files.php';
