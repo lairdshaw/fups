@@ -50,7 +50,7 @@ class XenForoFUPS extends FUPSBase {
 			// $matches ends up with the following matches in the order specified in
 			// search_results_page_data_order.
 			// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<span class="DateTime" title="([^"]+)">[^<]*</span>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
+			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<span class="DateTime" title="([^"]+)">[^<]*</span>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
 			// an array specifying the order in which the following matches occur
 			// in the matches returned by the previous array.
 			// = array(
@@ -61,7 +61,7 @@ class XenForoFUPS extends FUPSBase {
 			//	'postid'  => the match index of the post id,
 			//	'postsorthreads' => the match index of the text which is either "posts" or "threads"
 			// )
-			'search_results_page_data_order' => array('topic' => 3, 'ts' => 4, 'forum' => 6, 'forumid' => 5, 'postid' => 2, 'postsorthreads' => 1),
+			'search_results_page_data_order' => array('topic' => 4, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
 			// a regexp to match post id (first match) and post contents (second match)
 			// on a thread page; it is called with match_all so it will return all
 			// post ids and contents on the page
@@ -72,8 +72,9 @@ class XenForoFUPS extends FUPSBase {
 		),
 		'cwt_default2' => array(
 			'user_name'                => '#<h1 itemprop="name" class="username">([^<]*)</h1>#', // Sometimes the inner span is missing.
-			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<(span|abbr) class="DateTime"[^>]*>([^<]*)</\\4>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us', // Sometimes the DateTime <span> is actually an <abbr>.
-			'search_results_page_data_order' => array('topic' => 3, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
+			// Sometimes the DateTime <span> is actually an <abbr>.
+			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<abbr class="DateTime"[^>]*>([^<]*)</abbr>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
+			'search_results_page_data_order' => array('topic' => 4, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
 		),
 	);
 
@@ -223,6 +224,7 @@ class XenForoFUPS extends FUPSBase {
 		// 	$this->exit_err('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 		// }
 
+		if ($this->dbg) $this->write_err("Got search ID of '$search_id'.");
 		return $search_id;
 	}
 
