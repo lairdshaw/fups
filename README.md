@@ -1,7 +1,7 @@
 FUPS: Forum user-post scraper
 =============================
 
-FUPS is an extensible PHP framework for scraping and outputting the posts of a specified user from a specified forum/board running supported forum software. Currently supported forum software is phpBB (well supported) and XenForo (minimally supported, possibly works on a single site only). FUPS can be run as either a web app or as a commandline script.
+FUPS is an extensible PHP framework for scraping and outputting the posts of a specified user from a specified forum/board running supported forum software. Currently supported forum software is phpBB and XenForo. FUPS can be run as either a web app or as a commandline script.
 
 Installation-free use
 ---------------------
@@ -33,7 +33,7 @@ Create an options file. Type:
 
     php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/outputfile.html
 
-Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than your PHP max_execution_time ini setting, because in that case, it will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you that it is still running.
+Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than your PHP max_execution_time ini setting, because in that case, FUPS will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you that it is still running.
 
 Depending on which forum software the forum you wish to scrape from runs, different options are available for your options file. Here are sample options files for both currently supported forum types - adjust these options as required. The meaning of each option is described further below.
 
@@ -144,4 +144,4 @@ The steps to add support for a new type of forum software are:
 
 3. Implement in your new class all abstract methods of FUPSBase. At time of writing, these are: `get_post_url()`, `get_search_url()`, `get_topic_url()` and `get_user_page_url()`. Also implement the static methods `get_qanda()`, `get_forum_software_homepage()` and `get_msg_how_to_detect_forum()`. If your class is to support logging in, then also override `check_do_login()` and `supports_feature()`. Also, set the `$required_settings`, `$optional_settings`, and `$regexps` properties appropriately. Your biggest task will probably be working out appropriate regexes.
 
-4. If necessary, you can implement overrides of any of the provided hooks. Hook methods at time of writing are: `find_author_posts_via_search_page__ts_raw_hook()`, `find_author_posts_via_search_page__match_hook()`, `find_author_posts_via_search_page__end_hook()`, `get_post_contents__end_hook()`, `hook_after__init_user_post_search()`, `hook_after__user_post_search()`, ``hook_after__topic_post_sort()`, hook_after__posts_retrieval()`, `hook_after__extract_per_thread_info()`, `hook_after__handle_missing_posts()`, and `hook_after__write_output()`. Finally, if necessary you can override the `validate_settings()` method.
+4. If necessary, you can implement overrides of any of the provided hooks. Hook methods at time of writing are: `find_author_posts_via_search_page__ts_raw_hook()`, `find_author_posts_via_search_page__match_hook()`, `find_author_posts_via_search_page__end_hook()`, `get_post_contents__end_hook()`, `hook_after__init_user_post_search()`, `hook_after__user_post_search()`, `hook_after__topic_post_sort()`, hook_after__posts_retrieval()`, `hook_after__extract_per_thread_info()`, `hook_after__handle_missing_posts()`, and `hook_after__write_output()`. Finally, if necessary you can override the `validate_settings()` method.

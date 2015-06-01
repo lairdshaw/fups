@@ -274,6 +274,7 @@ abstract class FUPSBase {
 				sleep($delay);
 			}
 
+			if ($this->dbg) $this->write_err("In do_send(), retrieving URL <{$this->last_url}>");
 			// We emulate CURLOPT_FOLLOWLOCATION by grabbing headers and matching a "Location:"
 			// header because some hosts (Hostgator!) currently have a version of cURL older
 			// than that in which this bug was fixed: <http://sourceforge.net/p/curl/bugs/1159/>.
@@ -1024,8 +1025,8 @@ abstract class FUPSBase {
 		if ($this->dbg) $this->write_err('Running strtotime() on "'.$time_str.'".'.($non_us_date_format ? 'This was derived from "'.$time_str_org.'" due to the "Non-US date format" setting being in effect.' : ''));
 		$ret = strtotime($time_str);
 		if ($ret === false) {
-			// This is necessary for translated phpBB forums
 			if ($this->dbg) $this->write_err('strtotime() failed on "'.$time_str.'". Trying again after replacing international tokens.');
+
 			// This is necessary for translated phpBB forums
 
 			global $intl_data;

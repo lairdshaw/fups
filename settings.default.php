@@ -20,10 +20,10 @@
  * FUPS_CMDLINE_PHP_PATH to an absolute path.
  */
 
-// Where to store any status, error, cookie, and (web) settings files associated
-// with each FUPS process. This directory, and FUPS_OUTPUTDIR below, must be
-// writable by your web server if running FUPS as a web app, or by the user you
-// run FUPS as from the commandline. It also MUST end in whichever path separator
+// Where to store any status, error, cookie, serialisation and (web) settings
+// files associated with each FUPS process. This directory, and FUPS_OUTPUTDIR below,
+// must be writable by your web server if running FUPS as a web app, or by the user
+// you run FUPS as from the commandline. It also MUST end in whichever path separator
 // character is valid for your operating system - i.e. a forward slash, "/",
 // for UNIX-like OSes, and an escaped backslash, "\\" for Windows-based OSes.
 //
@@ -118,11 +118,11 @@ define('FUPS_SHOW_CHANGELOG'   ,                                true);
 define('FUPS_ROUTINE_DELETION_POLICY', '' /*' If not manually deleted, FUPS session files will be deleted by a routine scheduled task, which runs once a day and deletes all files more than two days old.'*/);
 
 // The maximum number of bytes to include from the ordinary errors file
-//in an admin error email.
+// in an admin error email.
 define('FUPS_MAX_ERROR_FILE_EMAIL_LENGTH',                    300000);
 
 // The maximum number of bytes to include from the admin errors file
-//in an admin error email.
+// in an admin error email.
 define('FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH',                    300000);
 
 // Any additional questions and answers to be shown at the bottom of every
