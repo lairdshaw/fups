@@ -92,6 +92,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-07-06
+					<ul>
+						<li>Added support for the mobile skin for phpBB.</li>
+						<li>Fixed a bug: the wrong URL was being constructed for next and previous pages on phpBB post pages (used when the post for an unknown reason isn't on the page it is supposed to be on).</li>
+					</ul>
+				</li>
 				<li>2015-02-12
 					<ul>
 						<li>Fixed a bug: the "Extract User Username" setting for phpBB forums was being ignored.</li>

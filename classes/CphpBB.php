@@ -84,9 +84,21 @@ class phpBBFUPS extends FUPSBase {
 								view page
 				),
 				*/
+				'mobile' => array(
+					'board_title'              => '#<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile.*&bull;[ ]((?:(?!&bull;).)*)</title>#Us',
+					'login_success'            => '#<table cellspacing="0">\\s*<tr class="row1">\\s*<td align="center"><p class="gen">#Us',
+					'login_required'           => '#<table cellspacing="0">\\s*<tr class="row2">\\s*<td>#',
+					'user_name'                => '#<b class="genmed">([^<]*)</b>#',
+					'thread_author'            => '#<strong class="postauthor"[^>]*>[ ]([^<]*)</strong>#',
+					'search_results_not_found' => '#<h2>[^0<]*0[^<]*</h2>#',
+					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+					'search_results_page_data' => '#<span class="topictitle"><a name="p(\d+?)".*viewforum\.php\?f=(\d+?)[^>]*>([^<]*)</a>.*viewtopic\.php\?f=\d+?&amp;t=(\d+?)[^>]*>([^<]*)</a>.*viewtopic\.php\?[^>]*>([^<]*)</a>.*</b>[ ]([^<]*)</p>#Us',
+					'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
+					'post_contents'            => '#<tr class="row1">\\s*<td class="gensmall"><a href="\\./viewtopic\\.php\\?p=(\\d+?).*<tr class="row1">\\s*<td>\\s*<div class="postbody">(.*)</div>\\s*</td>\\s*</tr>\\s*</table>#Us',
+				),
 				'prosilver.1' => array(
 					'sid'                      => '/name="sid" value="([^"]*)"/',
-					'board_title'              => '#<title>(.*) &bull;#Us',
+					'board_title'              => '#<h1>(.*)</h1>#',
 					'login_success'            => '/<div class="panel" id="message">/',
 					'login_required'           => '/class="panel"/',
 					'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>([^<]+)</span>#Us',
@@ -104,7 +116,7 @@ class phpBBFUPS extends FUPSBase {
 					'search_results_page_data_order' => array('title' => 1, 'ts' => 2, 'forum' => 3, 'topic' => 4, 'forumid' => 5, 'topicid' => 6, 'postid' => 7),
 				),
 				'prosilver.3' => array(
-					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^>]+)</a>#Us',
+					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^<]+)</a>#Us',
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
 				),
 				'subsilver.2' => array(
@@ -263,7 +275,7 @@ class phpBBFUPS extends FUPSBase {
 			if (!$this->skins_preg_match('prev_page', $html, $matches__prev_page)) {
 				$this->write_and_record_err_admin('Warning: could not extract the details of the previous thread page from the current page. The URL of the current page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
-				$this->set_url($this->get_post_url($matches__prev_page[1], $matches__prev_page[2], $matches__prev_page[3]));
+				$this->set_url($this->get_topic_url($matches__prev_page[1], $matches__prev_page[2], $matches__prev_page[3]));
 				$html__prev_page = $this->do_send();
 				if (!$this->skins_preg_match_all('post_contents', $html__prev_page, $matches__prev_posts)) {
 					if ($err || $this->dbg) $this->write_and_record_err_admin('Warning: could not find any post contents on the previous page in the thread. The URL of that previous page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__prev_page);
@@ -285,7 +297,7 @@ class phpBBFUPS extends FUPSBase {
 			if (!$this->skins_preg_match('next_page', $html, $matches__next_page)) {
 				$this->write_and_record_err_admin('Warning: could not extract the details of the next thread page from the current page. The URL of that page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
-				$this->set_url($this->get_post_url($matches__next_page[1], $matches__next_page[2], $matches__next_page[3]));
+				$this->set_url($this->get_topic_url($matches__next_page[1], $matches__next_page[2], $matches__next_page[3]));
 				$html__next_page = $this->do_send();
 				if (!$this->skins_preg_match_all('post_contents', $html__next_page, $matches__next_posts)) {
 					if ($err || $this->dbg) $this->write_and_record_err_admin('Warning: could not find any post contents on the next page in the thread. The URL of that next page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__next_page);
@@ -395,8 +407,8 @@ class phpBBFUPS extends FUPSBase {
 		return $new_settings_arr;
 	}
 
-	protected function get_topic_url($forumid, $topicid) {
-		return $this->settings['base_url'].'/viewtopic.php?f='.urlencode($forumid).'&t='.urlencode($topicid);
+	protected function get_topic_url($forumid, $topicid, $start = null) {
+		return $this->settings['base_url'].'/viewtopic.php?f='.urlencode($forumid).'&t='.urlencode($topicid).($start === null ? '' : '&start='.urlencode($start));
 	}
 
 	protected function get_user_page_url() {

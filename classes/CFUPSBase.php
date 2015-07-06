@@ -854,7 +854,7 @@ abstract class FUPSBase {
 					$this->set_url($url);
 					$html = $this->do_send();
 					if (!$this->skins_preg_match('thread_author', $html, $matches)) {
-						$this->write_err("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+						$this->write_and_record_err_admin("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 						$topic['startedby'] = '???';
 					} else {
 						$topic['startedby'] = $matches[1];
