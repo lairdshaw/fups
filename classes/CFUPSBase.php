@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2015 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -257,7 +257,7 @@ abstract class FUPSBase {
 		}
 	}
 
-	function do_send(&$redirect = false) {
+	function do_send(&$redirect = false, $quit_on_error = true, &$err = false) {
 		static $retry_delays = array(0, 5, 5);
 		static $first_so_no_wait = true;
 
@@ -317,7 +317,7 @@ abstract class FUPSBase {
 			if ($err) break;
 		}
 		if ($err) {
-			$this->write_err('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
+			if ($quit_on_error) $this->exit_err('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
 		} else {
 			$this->check_get_board_title($html);
 		}
@@ -375,7 +375,7 @@ abstract class FUPSBase {
 		}
 
 		if (!$this->skins_preg_match_all('search_results_page_data', $html, $matches, 'search_results_page_data_order', $combine = true)) {
-			$this->write_err('Error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			$this->write_and_record_err_admin('Error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
 			$this->progress_level++;
 			return 0;
 		}
@@ -514,7 +514,7 @@ abstract class FUPSBase {
 				if ($this->dbg) $this->write_err('Retrieved post contents of post ID "'.$postid.'"');
 				$ret = true;
 				$count--;
-			} else if ($this->dbg) $this->write_err('FAILED to retrieve post contents of post ID "'.$postid.'". The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+			} else	$this->write_and_record_err_admin('FAILED to retrieve post contents of post ID "'.$postid.'". The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
 
 			if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts.');
 		}

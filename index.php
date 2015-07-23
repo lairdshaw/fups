@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2015 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -92,6 +92,13 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-07-22
+					<ul>
+						<li>Added support for an older version of the subsilver skin for phpBB.</li>
+						<li>Fixed a bug: the older phpBB variant was not being detected when login credentials weren't supplied.</li>
+						<li>Improved error and diagnostic output.</li>
+					</ul>
+				</li>
 				<li>2015-07-06
 					<ul>
 						<li>Added support for the mobile skin for phpBB.</li>

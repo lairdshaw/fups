@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2015 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -31,7 +31,7 @@ require_once __DIR__.'/../phpBB-days-and-months-intl.php';
 
 class phpBBFUPS extends FUPSBase {
 	protected $regexps = null;
-	protected $old_version   = false;
+	protected $old_version = false;
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		if (!$do_not_init) {
@@ -154,6 +154,13 @@ class phpBBFUPS extends FUPSBase {
 					'prev_page'                 => '#<a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+)">[^<]+</a>&nbsp;&nbsp;<a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=\\d+[^"]*">\\d+</a><span class="page-sep">,#',
 					/* 'next_page'                => ? (not constructed yet), */
 				),
+				'subsilver.2005' => array(
+					'login_success'            => '#<a href="privmsg\\.php\\?folder=inbox"#',
+					'user_name'                => '#alt="[^\\[]*\\[ (.*) \\]"#',
+					'search_results_page_data' => '#<span class="topictitle">.*&nbsp;<a href="viewtopic\\.php\\?t=(\\d+?).*class="topictitle">([^<]*)</a></span></td>.*<span class="postdetails">[^:]*:&nbsp;<b><a href="viewforum\\.php\\?f=(\\d+?)"[^>]*>([^<]*)</a></b>&nbsp; &nbsp;[^:]*: ([^&]*?)&nbsp;.*viewtopic\\.php\\?p=(\\d+?)[^>]*>([^<]*)</a></b></span>#Us',
+					'search_results_page_data_order' => array('topicid' => 1, 'topic' => 2, 'forumid' => 3, 'forum' => 4, 'ts' => 5, 'postid' => 6, 'title' => 7),
+					'post_contents'            => '#<td class="row1".*<a href="viewtopic\\.php\\?p=(\\d+?).*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2">(.*)</td>\\s*</tr>\\s*</table></td>\\s*</tr>#Us',
+				),
 				'subsilver.0' => array(
 					'sid'                      => '#href="\\./index\\.php\\?sid=([^"]*)"#',
 					/** @todo Remove English-specific components of this regex ("Log in" and potentially the double-colon). */
@@ -168,8 +175,8 @@ class phpBBFUPS extends FUPSBase {
 					'search_id'                => '#\\?search_id=(\\d+)&#',
 					'post_contents'            => '#<tr>\\s*<td width="100%"><a href="viewtopic\\.php\\?p=(\\d+?)[^\\#]*\\#\\d+"><img[^>]*></a><span class="postdetails">[^<]*<span class="gen">&nbsp;</span>[^<]*</span></td>\\s*<td valign="top" nowrap="nowrap"><a href="posting\\.php\\?[^"]*"><img[^>]*></a>\\s*</td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><span class="postbody">(.*)</span><span class="gensmall">(<br /><br />|)[^<]*</span></td>\\s*</tr>#Us',
 					'thread_author'            => '#<b>(.*?)</b></span><br /><span class="postdetails">#',
-					'prev_page'                => '#()<span class="gensmall"><b>[^<]+<a href="viewtopic\\.php\\?t=(\\d+).*start=(\\d+)[^"]*">#',
-					/* 'next_page'                => ? (not constructed yet), */
+					'prev_page'                => '#()<span class="gensmall"><b>.*?<a href="viewtopic\\.php\\?t=(\\d+?).*start=(\\d+?)[^>]*>[^<]*</a>, <b>#U',
+					'next_page'                => '#()<span class="gensmall"><b>[^<]+<a href="viewtopic\\.php\\?t=(\\d+).*start=(\\d+)[^"]*">#',
 				),
 				'forexfactory' => array(
 					'sid'                      => '#SSIONURL = \'?(s\=)(.*&)|(.*)\';#',
@@ -180,14 +187,21 @@ class phpBBFUPS extends FUPSBase {
 	}
 
 	protected function check_do_login() {
+		# Do this first bit so that we set old_version if necessary regardless of whether or not the user supplied credentials.
+
+		# Discover the SID
+		$this->set_url($this->settings['base_url'].'/ucp.php?mode=login');
+		$redirect = false;
+		$html = $this->do_send($redirect, /*$quit_on_error*/false, $err);
+		
+		if ($err) {
+			# Earlier versions of phpBB need a different URL
+			$this->old_version = true;
+		}
+
+		# Do the rest conditionally on the user having supplied credentials.
 		if (!empty($this->settings['login_user']) || !empty($this->settings['login_password'])) {
-			# Discover the SID
-			$this->set_url($this->settings['base_url'].'/ucp.php?mode=login');
-			$html = $this->do_send();
-			
-			if ($html === false) {
-				# Earlier versions of phpBB need a different URL
-				$this->old_version = true;
+			if ($this->old_version) {
 				$this->set_url($this->settings['base_url'].'/login.php');
 				$html = $this->do_send();
 			}
@@ -271,20 +285,20 @@ class phpBBFUPS extends FUPSBase {
 		# and instead appear on the previous or next page in the thread. Here, we deal with those scenarios.
 		$org_url = $this->last_url;
 		if (!$found) {
-			if ($err || $this->dbg) $this->write_err('Trying to find post ID '.$postid.' on previous page of thread, if that page exists.');
+			$this->write_err('Trying to find post ID '.$postid.' on previous page of thread, if that page exists.');
 			if (!$this->skins_preg_match('prev_page', $html, $matches__prev_page)) {
 				$this->write_and_record_err_admin('Warning: could not extract the details of the previous thread page from the current page. The URL of the current page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
 				$this->set_url($this->get_topic_url($matches__prev_page[1], $matches__prev_page[2], $matches__prev_page[3]));
 				$html__prev_page = $this->do_send();
 				if (!$this->skins_preg_match_all('post_contents', $html__prev_page, $matches__prev_posts)) {
-					if ($err || $this->dbg) $this->write_and_record_err_admin('Warning: could not find any post contents on the previous page in the thread. The URL of that previous page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__prev_page);
+					$this->write_and_record_err_admin('Warning: could not find any post contents on the previous page in the thread. The URL of that previous page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__prev_page);
 				} else {
 					list($found, $count) = $this->get_post_contents_from_matches($matches__prev_posts, $postid, $topicid);
 					if ($found) {
-						if ($err || $this->dbg) $this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
+						$this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
 						$ret = true;
-					} else if ($err || $this->dbg) {
+					} else {
 						$this->write_and_record_err_admin("Warning: post ID '$postid' not found on previous page. The URL of that previous page is <".$this->last_url.'>.', __FILE__, __METHOD__, __LINE__, $html__prev_page);
 					}
 					if ($found) $count--;
@@ -293,18 +307,18 @@ class phpBBFUPS extends FUPSBase {
 			}
 		}
 		if (!$found) {
-			if ($err || $this->dbg) $this->write_err('Trying to find post ID '.$postid.' on next page of thread, if that page exists.');
+			$this->write_err('Trying to find post ID '.$postid.' on next page of thread, if that page exists.');
 			if (!$this->skins_preg_match('next_page', $html, $matches__next_page)) {
 				$this->write_and_record_err_admin('Warning: could not extract the details of the next thread page from the current page. The URL of that page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
 			} else {
 				$this->set_url($this->get_topic_url($matches__next_page[1], $matches__next_page[2], $matches__next_page[3]));
 				$html__next_page = $this->do_send();
 				if (!$this->skins_preg_match_all('post_contents', $html__next_page, $matches__next_posts)) {
-					if ($err || $this->dbg) $this->write_and_record_err_admin('Warning: could not find any post contents on the next page in the thread. The URL of that next page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__next_page);
+					$this->write_and_record_err_admin('Warning: could not find any post contents on the next page in the thread. The URL of that next page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__next_page);
 				} else {
 					list($found, $count) = $this->get_post_contents_from_matches($matches__next_posts, $postid, $topicid);
 					if ($found) {
-						if ($err || $this->dbg) $this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
+						$this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
 						$ret = true;
 					} else if ($err || $this->dbg) {
 						$this->write_and_record_err_admin("Warning: post ID '$postid' not found on next page. The URL of that next page is <".$this->last_url.'>.', __FILE__, __METHOD__, __LINE__, $html__next_page);
