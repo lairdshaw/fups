@@ -54,7 +54,7 @@ if (!isset($argv[1])) {
 	$chained = false;
 	$web_initiated = null;
 	$settings_filename = false;
-	$output_filename = false;
+	$output_dirname = false;
 	$quiet = false;
 	static $errmsg_mixed_cmdline_args = 'Fatal error: web-initiated (-t) and commandline (-i, -o and -q) arguments specified simultaneously.';
 	$i = 1;
@@ -76,8 +76,8 @@ if (!isset($argv[1])) {
 			}
 			$web_initiated = false;
 			if ($argc < $i + 1) {
-				FUPSBase::exit_err_s('Fatal error: no output file specified after "-o" in commandline arguments.', __FILE__, __METHOD__, __LINE__);
-			} else	$output_filename = $argv[$i + 1];
+				FUPSBase::exit_err_s('Fatal error: no output directory specified after "-o" in commandline arguments.', __FILE__, __METHOD__, __LINE__);
+			} else	$output_dirname = $argv[$i + 1];
 			$i += 2;
 			break;
 		case '-q':
@@ -110,7 +110,7 @@ if (!isset($argv[1])) {
 	if ($web_initiated) {
 		$settings_filename = make_settings_filename($token);
 	} else if ($web_initiated === false) {
-		if (!$settings_filename || !$output_filename) {
+		if (!$settings_filename || !$output_dirname) {
 			FUPSBase::exit_err_s('Fatal error: no '.(!$settings_filename ? 'settings' : 'output').' filename specified in commandline arguments.', __FILE__, __METHOD__, __LINE__);
 		}
 	} else {
@@ -135,7 +135,7 @@ if ($chained) {
 	} else {
 		$params = array(
 			'settings_filename' => $settings_filename,
-			'output_filename'   => $output_filename,
+			'output_dirname'    => $output_dirname,
 			'quiet'             => $quiet
 		);
 	}
