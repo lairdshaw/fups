@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2015 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -35,12 +35,24 @@ $num_files_deleted = 0;
 if (!isset($_GET['token'])) $err = 'Fatal error: I did not detect a URL query parameter "token".';
 else {
 	$token = $_GET['token'];
+	$op_info_filename = make_output_info_filename($token);
+	if (is_file($op_info_filename)) {
+		$output_info = json_decode(file_get_contents($op_info_filename), true);
+		if (is_array($output_info)) {
+			$output_dir = null;
+			foreach ($output_info as $opv) {
+				try_delete_file($opv['filepath'], '"'.$opv['filepath'].'"', false, $err, $num_files_deleted, false);
+				$output_dir = dirname($opv['filepath']);
+			}
+			@rmdir($output_dir);
+		}
+	}
 	if (validate_token($token, $err)) {
 		try_delete_file(make_settings_filename    ($token), 'settings'      , true , $err, $num_files_deleted);
 		try_delete_file(make_status_filename      ($token), 'status'        , false, $err, $num_files_deleted);
 		try_delete_file(make_errs_filename        ($token), 'error'         , false, $err, $num_files_deleted);
 		try_delete_file(make_errs_admin_filename  ($token), 'errors (admin)', false, $err, $num_files_deleted, false);
-		try_delete_file(make_output_filename      ($token), 'output'        , false, $err, $num_files_deleted, false);
+		try_delete_file(make_output_info_filename ($token), 'output info'   , false, $err, $num_files_deleted, false);
 		try_delete_file(make_serialize_filename   ($token), 'serialisation' , true , $err, $num_files_deleted);
 		try_delete_file(make_cookie_filename      ($token), 'cookie'        , true , $err, $num_files_deleted, false);
 		try_delete_file(make_cancellation_filename($token), 'cancellation'  , true , $err, $num_files_deleted, false);

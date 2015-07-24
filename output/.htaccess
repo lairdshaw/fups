@@ -1,1 +1,18 @@
 Options -Indexes
+
+# For some versions/configurations, this will prevent Apache
+# from executing .php files; instead it will output them, as we desire.
+<IfModule mod_php5.c>
+    php_flag engine off
+</IfModule>
+
+# One of these will do the same for other versions/configurations.
+RemoveType .php
+RemoveHandler .php
+
+# Add mime types for downloadable files.
+AddType application/x-php .php
+AddType application/vnd.php.serialized .php_serialised
+AddType application/json .json
+
+AddDefaultCharset UTF-8

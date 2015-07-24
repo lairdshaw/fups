@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2015 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -42,7 +42,6 @@ if (validate_token($token, $err)) {
 	$status_filename     = make_status_filename    ($token);
 	$errs_filename       = make_errs_filename      ($token);
 	$errs_admin_filename = make_errs_admin_filename($token);
-	$output_filename     = make_output_filename    ($token);
 }
 
 $org_errs = @file_get_contents($errs_filename);

@@ -90,7 +90,8 @@ abstract class FUPSBase {
 	protected $web_initiated     =    null;
 	protected $token             =   false;
 	protected $settings_filename =   false;
-	protected $output_filename   =   false;
+	protected $output_dirname    =   false;
+	protected $output_dirname_web =   null;
 	protected $errs_filename     =   false;
 	protected $cookie_filename   =   false;
 	protected $ch                =    null;
@@ -132,18 +133,26 @@ abstract class FUPSBase {
 				}
 				$this->token = $params['token'];
 				$this->settings_filename = make_settings_filename($this->token);
-				$this->output_filename   = make_output_filename  ($this->token);
+				$this->output_dirname    = make_output_dirname   ($this->token);
 				$this->errs_filename     = make_errs_filename    ($this->token);
 			} else {
 				if (!isset($params['settings_filename'])) {
 					$this->exit_err('Fatal error: $web_initiated was false but $params did not contain a "settings_filename" key.', __FILE__, __METHOD__, __LINE__);
 				}
 				$this->settings_filename = $params['settings_filename'];
-				if (!isset($params['output_filename'])) {
-					$this->exit_err('Fatal error: $web_initiated was false but $params did not contain a "output_filename" key.', __FILE__, __METHOD__, __LINE__);
+				if (!isset($params['output_dirname'])) {
+					$this->exit_err('Fatal error: $web_initiated was false but $params did not contain a "output_dirname" key.', __FILE__, __METHOD__, __LINE__);
 				}
-				$this->output_filename = $params['output_filename'];
-				$this->quiet           = $params['quiet'          ];
+				$this->output_dirname = $params['output_dirname'];
+				$len = strlen($this->output_dirname);
+				// Make sure user-supplied (commandline interface) output directories end in a slash,
+				// because when we generate them (web interface) we make sure they end in a slash,
+				// and this way we can rely on them ending in a slash in all contexts. Note that here
+				// we assume an empty output directory to refer to the root directory.
+				if ($len <= 0 || $this->output_dirname[$len-1] != '/') {
+					$this->output_dirname .= '/';
+				}
+				$this->quiet          = $params['quiet'         ];
 			}
 
 			if (FUPS_CHAIN_DURATION == -1) {
@@ -183,6 +192,24 @@ abstract class FUPSBase {
 			$this->write_status('Finished reading settings.');
 
 			$this->validate_settings();
+
+			// Create output directory, appending .1 or .2 etc if necessary.
+			// Do this last so we don't create it if settings validation fails.
+			$max_attempts = 10000;
+			$appendix = 0;
+			// Strip off the trailing slash
+			$dirname = substr($this->output_dirname, 0, strlen($this->output_dirname) - 1);
+			while (file_exists($dirname) && $appendix <= $max_attempts) $dirname = $this->output_dirname.'.'.(++$appendix);
+			if ($appendix > $max_attempts) {
+				$this->exit_err('Output directory "'.$this->output_dirname.'" already exists. Exceeded maximum attempts ('.$max_attempts.') in finding an alternative that does not exist. Tried "'.$this->output_dirname.'.1", "'.$this->output_dirname.'.2", "'.$this->output_dirname.'.3", etc.', __FILE__, __METHOD__, __LINE__);
+			}
+			if (!mkdir($dirname, 0775, true)) {
+				$this->exit_err('Failed to create output directory "'.$dirname.'".', __FILE__, __METHOD__, __LINE__);			
+			}
+			$this->output_dirname = $dirname.'/';
+			if ($this->web_initiated) {
+				$this->output_dirname_web = make_output_dirname($this->token, /*$for_web*/true, $appendix == 0 ? '' : $appendix);
+			}
 		}
 	}
 
@@ -191,6 +218,38 @@ abstract class FUPSBase {
 		date_default_timezone_set($this->settings['php_timezone']);
 		$this->was_chained = true;
 		$this->write_status('Woke up in chained process.');
+	}
+
+	protected function archive_output($dirname, $zip_filename) {
+		$ret = false;
+
+		if (!class_exists('ZipArchive')) {
+			$this->write_err('Unable to create output archive: the "ZipArchive" class does not exist. You can install it using these online instructions: <http://php.net/manual/en/zip.installation.php>.', __FILE__, __METHOD__, __LINE__);
+		} else {
+			$zip = new ZipArchive();
+			if ($zip->open($zip_filename, ZipArchive::CREATE) !== true) {
+				$this->write_err('Unable to create zip archive "'.$zip_filename.'".', __FILE__, __METHOD__, __LINE__);
+			} else {
+				$local_dirname = basename($dirname);
+				$handle = opendir($dirname);
+				if ($handle === false) {
+					$this->write_err('Unable to open directory "'.$dirname.'"  for reading.', __FILE__, __METHOD__, __LINE__);
+				} else {
+					while (($f = readdir($handle)) !== false) {
+						if ($f != '.' && $f != '..') { 
+							$zip->addFile($dirname.$f, $local_dirname.'/'.$f);
+						}
+					}
+					closedir($handle);
+
+					if (!$zip->close()) {
+						$this->write_err('Failed to close the zip archive "'.$zip_filename.'".', __FILE__, __METHOD__, __LINE__);
+					} else	$ret = true;
+				}
+			}
+		}
+
+		return $ret;
 	}
 
 	protected function check_do_chain() {
@@ -210,7 +269,7 @@ abstract class FUPSBase {
 				$args['token'] = $this->token;
 			} else {
 				$args['settings_filename'] = $this->settings_filename;
-				$args['output_filename'] = $this->output_filename;
+				$args['output_dirname'] = $this->output_dirname;
 				$args['quiet'] = $this->quiet;
 			}
 
@@ -469,6 +528,21 @@ abstract class FUPSBase {
 		return '';
 	}
 
+	protected function get_final_output_array() {
+		static $ret = null;
+		if ($ret === null) {
+			$ret = array(
+				'board_title'       => $this->settings['board_title'],
+				'user_name'         => $this->settings['extract_user'],
+				'board_base_url'    => $this->settings['base_url'],
+				'start_from_date'   => $this->settings['start_from_date'],
+				'threads_and_posts' => $this->posts_data,
+			);
+		}
+
+		return $ret;
+	}
+
 	static protected function get_formatted_err($method, $line, $file, $msg) {
 		$ret = '';
 		if ($method) $ret = "In $method";
@@ -489,6 +563,56 @@ abstract class FUPSBase {
 
 	static function get_msg_how_to_detect_forum() {
 		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	}
+
+	protected function get_output_variants() {
+		return array(
+			array(
+				'filename_appendix' => '.threadasc.dateasc.html',
+				'method'            => 'write_output_html_threadasc_dateasc',
+				'description'       => 'HTML, sorting posts first by ascending thread title (i.e. alphabetical order) then ascending post date (i.e. earliest first)',
+			),
+			array(
+				'filename_appendix' => '.threadasc.datedesc.html',
+				'method'            => 'write_output_html_threadasc_datedesc',
+				'description'       => 'HTML, sorting posts first by ascending thread title (i.e. alphabetical order) then descending post date (i.e. latest first)',
+			),
+			array(
+				'filename_appendix' => '.threaddesc.dateasc.html',
+				'method'            => 'write_output_html_threaddesc_dateasc',
+				'description'       => 'HTML, sorting posts first by descending thread title (i.e. reverse alphabetical order) then ascending post date (i.e. earliest first)',
+			),
+			array(
+				'filename_appendix' => '.threaddesc.datedesc.html',
+				'method'            => 'write_output_html_threaddesc_datedesc',
+				'description'       => 'HTML, sorting posts first by descending thread title (i.e. reverse alphabetical order) then descending post date (i.e. latest first)',
+			),
+			array(
+				'filename_appendix' => '.dateasc.html',
+				'method'            => 'write_output_html_dateasc',
+				'description'       => 'HTML, sorting posts by ascending date (i.e. earliest first) regardless of which thread they are in',
+			),
+			array(
+				'filename_appendix' => '.datedesc.html',
+				'method'            => 'write_output_html_datedesc',
+				'description'       => 'HTML, sorting posts by descending date (i.e. latest first) regardless of which thread they are in',
+			),
+			array(
+				'filename_appendix' => '.php_serialised',
+				'method'            => 'write_output_php_serialised',
+				'description'       => 'Serialised PHP',
+			),
+			array(
+				'filename_appendix' => '.php',
+				'method'            => 'write_output_php',
+				'description'       => 'PHP (unserialised array)',
+			),
+			array(
+				'filename_appendix' => '.json',
+				'method'            => 'write_output_json',
+				'description'       => 'JSON',
+			),
+		);
 	}
 
 	protected function get_post_contents($forumid, $topicid, $postid) {
@@ -895,7 +1019,7 @@ abstract class FUPSBase {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			$this->write_status('Writing output.');
 
-			# Write the HTML output
+			# Write all output variants
 			$this->write_output();
 
 			# Signal that we are done
@@ -1139,11 +1263,113 @@ abstract class FUPSBase {
 	}
 
 	protected function write_output() {
+		$output_info = array();
+		foreach ($this->get_output_variants() as $opv) {
+			$op_filename =  make_output_filename($this->output_dirname, $opv['filename_appendix']);
+			if ($this->$opv['method']($op_filename)) {
+				$output_info[] = array(
+					'url'         => make_output_filename($this->output_dirname_web, $opv['filename_appendix']),
+					'filepath'    => $op_filename,
+					'description' => $opv['description'],
+					'size'        => stat($op_filename)['size'],
+				);
+			}
+		}
+
+		$zip_ext = '.all.zip';
+		$zip_filename = make_output_filename($this->output_dirname, $zip_ext);
+		if ($this->archive_output($this->output_dirname, $zip_filename)) {
+			array_unshift($output_info, array(
+				'url'         => make_output_filename($this->output_dirname_web, $zip_ext),
+				'filepath'    => $zip_filename,
+				'description' => 'A ZIP archive of all of the below files.',
+				'size'        => stat($zip_filename)['size'],
+			));
+		}
+
+		if ($this->web_initiated) {
+			$output_info_filename = make_output_info_filename($this->token);
+			$json = json_encode($output_info, JSON_PRETTY_PRINT);
+			if ($json === false) {
+				$this->write_err('Failed to encode output information as JSON.', __FILE__, __METHOD__, __LINE__);
+			} else if (file_put_contents($output_info_filename, $json) === false) {
+				$this->write_err('Failed to write output information to "'.$output_info_filename.'".', __FILE__, __METHOD__, __LINE__);
+			}
+		}
+	}
+
+	protected function write_output_html_dateasc($filename) {
+		return $this->write_output_html(/*$thread_sort*/false, /*$post_sort*/'asc', $filename);
+	}
+
+	protected function write_output_html_datedesc($filename) {
+		return $this->write_output_html(/*$thread_sort*/false, /*$post_sort*/'desc', $filename);
+	}
+
+	protected function write_output_html_threadasc_dateasc($filename) {
+		return $this->write_output_html(/*$thread_sort*/'asc', /*$post_sort*/'asc', $filename);
+	}
+
+	protected function write_output_html_threadasc_datedesc($filename) {
+		return $this->write_output_html(/*$thread_sort*/'asc', /*$post_sort*/'desc', $filename);
+	}
+
+	protected function write_output_html_threaddesc_dateasc($filename) {
+		return $this->write_output_html(/*$thread_sort*/'desc', /*$post_sort*/'asc', $filename);
+	}
+
+	protected function write_output_html_threaddesc_datedesc($filename) {
+		return $this->write_output_html(/*$thread_sort*/'desc', /*$post_sort*/'desc', $filename);
+	}
+
+	protected function write_output_json($filename) {
+		$ret = false;
+		$op_arr = $this->get_final_output_array();
+		$json = json_encode($op_arr, JSON_PRETTY_PRINT);
+		if ($json === false) {
+			$this->write_err('Failed to encode final output array for "'.$filename.'" as JSON.', __FILE__, __METHOD__, __LINE__);
+		} else if (file_put_contents($filename, $json) === false) {
+			$this->write_err('Failed to write final output array as JSON to "'.$filename.'".', __FILE__, __METHOD__, __LINE__);
+		} else	$ret = true;
+
+		return $ret;
+	}
+
+	protected function write_output_php($filename) {
+		$ret = false;
+		$op_arr = $this->get_final_output_array();
+		$php = var_export($op_arr, true);
+		if (file_put_contents($filename, '<?php return '.$php.'; ?>'."\n") === false) {
+			$this->write_err('Failed to write final output array as PHP to "'.$filename.'".', __FILE__, __METHOD__, __LINE__);
+		} else	$ret = true;
+
+		return $ret;
+	}
+
+	protected function write_output_php_serialised($filename) {
+		$ret = false;
+		$op_arr = $this->get_final_output_array();
+		if (file_put_contents($filename, serialize($op_arr)) === false) {
+			$this->write_err('Failed to write final output array as serialised PHP to "'.$filename.'".', __FILE__, __METHOD__, __LINE__);
+		} else	$ret = true;
+
+		return $ret;
+	}
+
+	protected function write_output_html($thread_sort, $post_sort, $filename) {
+		// Normalise $thread_sort to one of 'asc', 'desc' and false,
+		// the latter meaning "don't sort by threads, only by post dates".
+		if (!in_array($thread_sort, array('asc', 'desc'))) $thread_sort = false;
+
+		// Normalise $post_sort to one of 'asc' and 'desc', defaulting to 'desc'
+		if ($post_sort !== 'asc') $post_sort = 'desc';
+
 		$heading = 'Postings of '.htmlspecialchars($this->settings['extract_user']).' to <a href="'.htmlspecialchars($this->settings['base_url']).'">'.(isset($this->settings['board_title']) ? htmlspecialchars($this->settings['board_title']) : '[unknown]').'</a>';
 		if (!empty($this->settings['start_from_date'])) $heading .= ' starting from '.htmlspecialchars($this->settings['start_from_date']);
 
 		if (!ob_start(null, 0, PHP_OUTPUT_HANDLER_CLEANABLE|PHP_OUTPUT_HANDLER_FLUSHABLE|PHP_OUTPUT_HANDLER_REMOVABLE)) {
-			$this->exit_err('Fatal error: unable to start output buffering.', __FILE__, __METHOD__, __LINE__);
+			$this->write_err('Fatal error: unable to start output buffering.', __FILE__, __METHOD__, __LINE__);
+			return false;
 		}
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -1189,19 +1415,37 @@ abstract class FUPSBase {
 	<br />
 	<br />
 <?php
-		foreach ($this->posts_data as $topicid => $t) {
-			foreach ($t['posts'] as $postid => $p) {
-				echo '	<div style="border-bottom: solid gray 2px;">'."\n";
-				echo '		<span>'.$p['ts'].'</span>'."\n";
-				echo '		<a href="'.htmlspecialchars($this->get_post_url($t['forumid'], $topicid, $postid, true)).'">'.$t['topic'].'</a>'."\n";
-				echo '	</div>'."\n";
-				echo '	<div style="border-bottom: solid gray 2px;">'."\n";
-				echo '		<span>'.$p['posttitle'].'<span>'."\n";
-				echo '	</div>'."\n";
-				echo '	<div>'.$p['content']."\n";
-				echo '	</div>'."\n\n";
-
-				echo '	<br />'."\n\n";
+		if ($thread_sort !== false) {
+			$posts_data = $this->posts_data;
+			if ($thread_sort === 'desc') {
+				$posts_data = array_reverse($posts_data, true);
+			}
+			foreach ($posts_data as $topicid => $topic_data) {
+				$posts = $topic_data['posts'];
+				if ($post_sort === 'desc') {
+					$posts = array_reverse($topic_data['posts'], true);
+				}
+				foreach ($posts as $postid => $post_data) {
+					$this->write_post_output_html($topicid, $topic_data, $postid, $post_data);
+				}
+			}
+		} else {
+			$flat_posts = array();
+			foreach ($this->posts_data as $topicid => $topic_data) {
+				foreach ($topic_data['posts'] as $postid => $post_data) {
+					$flat_posts[$post_data['timestamp']] = array(
+						'topicid'    => $topicid   ,
+						'topic_data' => $topic_data,
+						'postid'     => $postid     ,
+						'post_data'  => $post_data ,
+					);
+				}
+			}
+			if ($post_sort === 'asc') {
+				ksort($flat_posts, SORT_NUMERIC);
+			} else	krsort($flat_posts, SORT_NUMERIC);
+			foreach ($flat_posts as $flat_post) {
+				$this->write_post_output_html($flat_post['topicid'], $flat_post['topic_data'], $flat_post['postid'], $flat_post['post_data']);
 			}
 		}
 ?>
@@ -1209,7 +1453,25 @@ abstract class FUPSBase {
 </body>
 </html>
 <?php
-		file_put_contents($this->output_filename, ob_get_clean());
+		if (file_put_contents($filename, ob_get_clean()) === false) {
+			$this->write_err('Failed to write to output file "'.$filename.'".', __FILE__, __METHOD__, __LINE__);
+			return false;
+		} else	return true;
+	}
+
+	// Output buffering should be on when this function is called, so we can just write to standard output.
+	protected function write_post_output_html($topicid, $topic_data, $postid, $post_data) {
+		echo '	<div style="border-bottom: solid gray 2px;">'."\n";
+		echo '		<span>'.$post_data['ts'].'</span>'."\n";
+		echo '		<a href="'.htmlspecialchars($this->get_post_url($topic_data['forumid'], $topicid, $postid, true)).'">'.$topic_data['topic'].'</a>'."\n";
+		echo '	</div>'."\n";
+		echo '	<div style="border-bottom: solid gray 2px;">'."\n";
+		echo '		<span>'.$post_data['posttitle'].'</span>'."\n";
+		echo '	</div>'."\n";
+		echo '	<div>'.$post_data['content']."\n";
+		echo '	</div>'."\n\n";
+
+		echo '	<br />'."\n\n";
 	}
 
 	protected function write_status($msg) {

@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2015 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -86,8 +86,17 @@ function make_errs_admin_filename($token) {
 	return FUPS_DATADIR.$token.'.errs.admin.txt';
 }
 
-function make_output_filename($token, $for_web = false) {
-	return ($for_web ? FUPS_OUTPUTDIR_WEB : FUPS_OUTPUTDIR).$token.'.html';
+function make_output_dirname($token, $for_web = false, $appendix = '') {
+	return ($for_web ? FUPS_OUTPUTDIR_WEB : FUPS_OUTPUTDIR).$token.$appendix.'/';
+}
+
+// $output_dirname must end in a slash
+function make_output_filename($output_dirname, $appendix) {
+	return $output_dirname.'fups.output'.$appendix;
+}
+
+function make_output_info_filename($token) {
+	return FUPS_DATADIR.$token.'.output-info.json';
 }
 
 function make_php_exec_cmd($params) {
@@ -214,17 +223,34 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 
 <?php
 	if ($done) {
-		$output_filename = make_output_filename($token, true);
+		$output_info = json_decode(file_get_contents(make_output_info_filename($token)), true);
+		if ($output_info == null) {
 ?>
-			<p>Success! Your posts were retrieved and the output is ready: <a target="_blank" href="<?php echo $output_filename; ?>">View result</a> (opens in a new window)</p>
+			<p>We are sorry, but an unexpected error occurred. The scraping process completed, and the output was created, however we were unable to decode the list of output files. Please feel free to <a href="<?php echo FUPS_CONTACT_URL; ?>">contact me</a> for help with accessing your output files, quoting token "<?php echo $token; ?>".</p>
+<?php
+		} else {
+?>
+			<p>Success! Your posts were retrieved and the output is ready. The following output files are available:</p>
+
+			<table style="border-collapse: collapse;">
+				<tr><th style="border: 1px solid black;">Description</th><th style="border: 1px solid black;">View/download file (opens in a new window)</th><th style="border: 1px solid black;">File size</th></tr>
+<?php
+			foreach ($output_info as $opv) {
+?>
+				<tr><td style="border: 1px solid black;"><?php echo $opv['description']; ?></td><td style="border: 1px solid black;"><a target="_blank" href="<?php echo $opv['url']; ?>">View/download file</a></td><td style="border: 1px solid black;"><?php echo number_format($opv['size']).' bytes'; ?></td></tr>
+<?php
+			}
+?>
+			</table>
 
 			<p>If you're wondering what to do next, here are some possible steps:</p>
 			<ol>
-				<li>Switch to the window/tab that opened up when you clicked "View result", and save the page, e.g. in Firefox click the "File" menu option and under that click "Save Page As". Select the directory/folder and filename you wish to save this output as (remember this location for the next step).</li>
-				<li>Start up a word processor such as OpenOffice or Microsoft word. Open up in that word processor the HTML file that you saved in the previous step, e.g. click the "File" menu option and under that click "Open". You are now free to edit the file as you like. You can now (if you so desire) save the file in a friendlier format than HTML, a format such as your editor's default format, e.g. in OpenOffice, click the "File" menu option and then click "Save As" or "Export", and choose the format you desire.</li>
+				<li>Click on the "View/download file" link beside the HTML file which is sorted according to your preference. This will open up a new window/tab for that file. Switch to this window/tab if necessary, and then save the page, e.g. in Firefox click the "File" menu option and under that click "Save Page As". Select the directory/folder and filename you wish to save this output as (remember this location for the next step).</li>
+				<li>Start up a word processor such as LibreOffice/OpenOffice or Microsoft Word. Open up in that word processor the HTML file that you saved in the previous step, e.g. click the "File" menu option and under that click "Open", then select the file you saved in the previous step. You are now free to edit the file as you like. You can now (if you so desire) save the file in a friendlier format than HTML, a format such as your editor's default format, e.g. in LibreOffice, click the "File" menu option and then click "Save As" or "Export", and choose the format you desire.</li>
 			</ol>
 <?php
-		show_delete($token, true);
+			show_delete($token, true);
+		}
 	} else if ($cancelled) {
 ?>
 			<p>Cancelled by your request.</p>

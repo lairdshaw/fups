@@ -31,9 +31,11 @@ Simply navigate to `index.php`. The rest should be self-explanatory. (In some of
 
 Create an options file. Type:
 
-    php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/outputfile.html
+    php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/output-directory
 
-Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than your PHP max_execution_time ini setting, because in that case, FUPS will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you that it is still running.
+The output directory should not exist. If it does, then FUPS will append ".1" to the directory name that you supply. If that directory exists too, then FUPS will try instead appending ".2", etc.
+
+Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than, or close to, your PHP max_execution_time ini setting, because in that case, FUPS will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you that it is still running (other than checking the contents of the status file in the directory you defined against `FUPS_DATADIR` in `settings.php`, or checking your operating system's process listing).
 
 Depending on which forum software the forum you wish to scrape from runs, different options are available for your options file. Here are sample options files for both currently supported forum types - adjust these options as required. The meaning of each option is described further below.
 

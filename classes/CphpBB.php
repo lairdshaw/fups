@@ -90,7 +90,7 @@ class phpBBFUPS extends FUPSBase {
 					'login_required'           => '#<table cellspacing="0">\\s*<tr class="row2">\\s*<td>#',
 					'user_name'                => '#<b class="genmed">([^<]*)</b>#',
 					'thread_author'            => '#<strong class="postauthor"[^>]*>[ ]([^<]*)</strong>#',
-					'search_results_not_found' => '#<h2>[^0<]*0[^<]*</h2>#',
+					'search_results_not_found' => '#<h2>[^0-9<]*0[^0-9<]*</h2>#',
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
 					'search_results_page_data' => '#<span class="topictitle"><a name="p(\d+?)".*viewforum\.php\?f=(\d+?)[^>]*>([^<]*)</a>.*viewtopic\.php\?f=\d+?&amp;t=(\d+?)[^>]*>([^<]*)</a>.*viewtopic\.php\?[^>]*>([^<]*)</a>.*</b>[ ]([^<]*)</p>#Us',
 					'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),

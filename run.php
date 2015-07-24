@@ -71,7 +71,6 @@ if (!isset($_GET['token'])) {
 				$status_filename = make_status_filename($token);
 				$errs_filename = make_errs_filename($token);
 				$serialize_filename = make_serialize_filename($token);
-				$output_filename = make_output_filename($token);
 				if (file_put_contents($status_filename   , 'Starting up.') === false) {
 					if ($file_errs) $file_errs .= ' ';
 					$file_errs .= 'Error: unable to write to the status file.';
@@ -97,7 +96,6 @@ if (!isset($_GET['token'])) {
 		$status_filename     = make_status_filename    ($token);
 		$errs_filename       = make_errs_filename      ($token);
 		$errs_admin_filename = make_errs_admin_filename($token);
-		$output_filename     = make_output_filename    ($token);
 	}
 }
 if (!$err) {
