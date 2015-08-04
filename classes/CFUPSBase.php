@@ -36,6 +36,7 @@ abstract class FUPSBase {
 	# The maximum time in seconds before the script chains a new instance of itself and then exits,
 	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
 	public    $FUPS_CHAIN_DURATION =  null;
+	protected $charset             =  null;
 	protected $have_written_to_admin_err_file = false;
 	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
 	protected $optional_settings = array('start_from_date', 'non_us_date_format', 'debug');
@@ -252,6 +253,20 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
+	protected function array_to_utf8(&$arr) {
+		if ($this->charset !== null) {
+			if (is_string($arr)) {
+				$arr_new = iconv($this->charset, 'UTF-8', $arr);
+				if ($arr_new !== false)
+					$arr = $arr_new;
+			} else if (is_array($arr)) {
+				foreach ($arr as &$entry) {
+					$this->array_to_utf8($entry);
+				}
+			}
+		}
+	}
+
 	protected function check_do_chain() {
 		if (time() - $this->start_time > $this->FUPS_CHAIN_DURATION) {
 			$serialize_filename = make_serialize_filename($this->web_initiated ? $this->token : $this->settings_filename);
@@ -296,6 +311,14 @@ abstract class FUPSBase {
 			}
 			$this->settings['board_title'] = $matches[1];
 			if ($this->dbg) $this->write_err("Site title: {$this->settings['board_title']}");
+		}
+	}
+
+
+	protected function check_get_charset($html) {
+		if ($this->charset === null && preg_match('#\\<meta\\s+http-equiv\\s*=\\s*"Content-Type"\\s+content\\s*=\\s*"text/html;\\s+charset=([^"]+)">#', $html, $matches)) {
+			$this->charset = $matches[1];
+			if ($this->dbg) $this->write_err('Set charset to "'.$this->charset.'".');
 		}
 	}
 
@@ -536,6 +559,7 @@ abstract class FUPSBase {
 				'user_name'         => $this->settings['extract_user'],
 				'board_base_url'    => $this->settings['base_url'],
 				'start_from_date'   => $this->settings['start_from_date'],
+				'character_set'     => $this->charset,
 				'threads_and_posts' => $this->posts_data,
 			);
 		}
@@ -626,6 +650,8 @@ abstract class FUPSBase {
 		$url = $this->get_post_url($forumid, $topicid, $postid);
 		$this->set_url($url);
 		$html = $this->do_send();
+
+		$this->check_get_charset($html);
 
 		$err = false;
 		$count = 0;
@@ -1325,6 +1351,8 @@ abstract class FUPSBase {
 	protected function write_output_json($filename) {
 		$ret = false;
 		$op_arr = $this->get_final_output_array();
+		$this->array_to_utf8($op_arr);
+		$op_arr['character_set'] = 'UTF-8';
 		$json = json_encode($op_arr, JSON_PRETTY_PRINT);
 		if ($json === false) {
 			$this->write_err('Failed to encode final output array for "'.$filename.'" as JSON.', __FILE__, __METHOD__, __LINE__);
@@ -1375,7 +1403,7 @@ abstract class FUPSBase {
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en" xml:lang="en">
 <head>
-<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<meta http-equiv="content-type" content="text/html; charset=<?php echo $this->charset !== null ? $this->charset : 'UTF-8'; ?>" />
 <title><?php echo $heading; ?></title>
 <?php echo $this->get_extra_head_lines(); ?>
 </head>

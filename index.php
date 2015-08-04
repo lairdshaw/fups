@@ -92,6 +92,18 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-08-04
+					<ul>
+						<li>Added support for forum character sets other than UTF-8.</li>
+						<li>Fixed a bug in a regular expression for detecting phpBB search results for the subSilver skin 2005 vintage.</li>
+					</ul>
+				</li>
+				<li>2015-07-25
+					<ul>
+						<li>Added different download options, including various different sorting options for HTML output, as well as JSON, PHP and serialised PHP formats.</li>
+						<li>Fixed a bug: sometimes phpBB search results weren't being detected due to a faulty regular expression ('search_results_not_found') for the newly-added "mobile" skin.</li>
+					</ul>
+				</li>
 				<li>2015-07-22
 					<ul>
 						<li>Added support for an older version of the subsilver skin for phpBB.</li>

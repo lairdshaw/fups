@@ -1,3 +1,5 @@
+deny from none
+
 Options -Indexes
 
 # For some versions/configurations, this will prevent Apache
@@ -15,4 +17,6 @@ AddType application/x-php .php
 AddType application/vnd.php.serialized .php_serialised
 AddType application/json .json
 
-AddDefaultCharset UTF-8
+# We don't want to set the character set in HTTP because it differs between forums.
+# Instead, we set it in HTML via the content-type meta head element.
+RemoveCharset .html

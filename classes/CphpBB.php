@@ -157,7 +157,7 @@ class phpBBFUPS extends FUPSBase {
 				'subsilver.2005' => array(
 					'login_success'            => '#<a href="privmsg\\.php\\?folder=inbox"#',
 					'user_name'                => '#alt="[^\\[]*\\[ (.*) \\]"#',
-					'search_results_page_data' => '#<span class="topictitle">.*&nbsp;<a href="viewtopic\\.php\\?t=(\\d+?).*class="topictitle">([^<]*)</a></span></td>.*<span class="postdetails">[^:]*:&nbsp;<b><a href="viewforum\\.php\\?f=(\\d+?)"[^>]*>([^<]*)</a></b>&nbsp; &nbsp;[^:]*: ([^&]*?)&nbsp;.*viewtopic\\.php\\?p=(\\d+?)[^>]*>([^<]*)</a></b></span>#Us',
+					'search_results_page_data' => '#<span class="topictitle">.*&nbsp;<a href="viewtopic\\.php\\?t=(\\d+?).*class="topictitle">([^<]*)</a></span></td>.*<span class="postdetails">[^:]*:&nbsp;<b><a href="viewforum\\.php\\?f=(\\d+?)[^>]*>([^<]*)</a></b>&nbsp; &nbsp;[^:]*: ([^&]*?)&nbsp;.*viewtopic\\.php\\?p=(\\d+?)[^>]*>([^<]*)</a></b></span>#Us',
 					'search_results_page_data_order' => array('topicid' => 1, 'topic' => 2, 'forumid' => 3, 'forum' => 4, 'ts' => 5, 'postid' => 6, 'title' => 7),
 					'post_contents'            => '#<td class="row1".*<a href="viewtopic\\.php\\?p=(\\d+?).*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2">(.*)</td>\\s*</tr>\\s*</table></td>\\s*</tr>#Us',
 				),
