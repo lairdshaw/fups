@@ -1,3 +1,3 @@
 /settings.php
-output/*.html
+output/**/
 /.htaccess

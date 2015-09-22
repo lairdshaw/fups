@@ -44,6 +44,7 @@ $fups_url_delete_files         = $fups_url_base.'delete-files.php';
 $fups_url_enter_options        = $fups_url_base.'enter-options.php';
 $fups_url_notify_email_address = $fups_url_base.'notify-email-address.php';
 $fups_url_run                  = $fups_url_base.'run.php';
+$fups_url_ajax_test            = $fups_url_base.'ajax-test.txt';
 
 require_once __DIR__.'/settings.php';
 

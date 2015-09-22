@@ -27,6 +27,8 @@ If running FUPS as a web app, also make sure that the "output" sub-directory is 
 
 Simply navigate to `index.php`. The rest should be self-explanatory. (In some of its backlinks, FUPS assumes that your web server is set up so that `index.php` is processed when the directory itself is accessed, but the core functionality will work fine even if this assumption, and those backlinks, fail).
 
+If you are setting FUPS up on a publicly accessible web server, then you might want to create a cron job to run fups/scheduled-output-file-removal.php daily, and to then update the FUPS_ROUTINE_DELETION_POLICY message in settings.php: an appropriate default message is provided, commented out, so all that you need to do in the minimal case is to delete the preceding empty string and then uncomment that default message.
+
 ### Using from the commandline ###
 
 Create an options file. Type:

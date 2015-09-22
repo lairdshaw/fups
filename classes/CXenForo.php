@@ -76,6 +76,9 @@ class XenForoFUPS extends FUPSBase {
 			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<abbr class="DateTime"[^>]*>([^<]*)</abbr>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
 			'search_results_page_data_order' => array('topic' => 4, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
 		),
+		'cwt_default3' => array(
+			'thread_author'            => '#data-author="([^"]*)"#',
+		),
 	);
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {

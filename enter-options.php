@@ -90,7 +90,7 @@ $script = '';
 if ($errmsg) {
 	echo '<p style="border: thin solid black; background-color: red;">Error: '.$errmsg.'. Redirecting you to <a href=".">forum selection page</a> in 5 seconds.</p>';
 } else {
-	global $fups_url_run;
+	global $fups_url_run, $fups_url_ajax_test;
 
 	require_once __DIR__.'/classes/C'.$valid_forum_types[$forum_type].'.php';
 
@@ -146,7 +146,7 @@ if ($errmsg) {
 		}
 		if (xhr) {
 			try {
-				var url = 'ajax-test.txt';
+				var url = '<?php echo $fups_url_ajax_test; ?>';
 				xhr.open('GET', url, true);
 				xhr.onreadystatechange = function () {
 					try {
