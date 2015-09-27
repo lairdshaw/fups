@@ -32,6 +32,10 @@
 require_once __DIR__.'/../common.php';
 require_once __DIR__.'/../phpBB-days-and-months-intl.php';
 
+define('FUPS_EMAIL_TYPE_NONFATAL' , 0);
+define('FUPS_EMAIL_TYPE_FATAL'    , 1);
+define('FUPS_EMAIL_TYPE_RESUMABLE', 2);
+
 abstract class FUPSBase {
 	# The maximum time in seconds before the script chains a new instance of itself and then exits,
 	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
@@ -199,10 +203,11 @@ abstract class FUPSBase {
 			$max_attempts = 10000;
 			$appendix = 0;
 			// Strip off the trailing slash
-			$dirname = substr($this->output_dirname, 0, strlen($this->output_dirname) - 1);
-			while (file_exists($dirname) && $appendix <= $max_attempts) $dirname = $this->output_dirname.'.'.(++$appendix);
+			$dirname_org = substr($this->output_dirname, 0, strlen($this->output_dirname) - 1);
+			$dirname = $dirname_org;
+			while (file_exists($dirname) && $appendix <= $max_attempts) $dirname = $dirname.'.'.(++$appendix);
 			if ($appendix > $max_attempts) {
-				$this->exit_err('Output directory "'.$this->output_dirname.'" already exists. Exceeded maximum attempts ('.$max_attempts.') in finding an alternative that does not exist. Tried "'.$this->output_dirname.'.1", "'.$this->output_dirname.'.2", "'.$this->output_dirname.'.3", etc.', __FILE__, __METHOD__, __LINE__);
+				$this->exit_err('Output directory "'.$this->output_dirname.'" already exists. Exceeded maximum attempts ('.$max_attempts.') in finding an alternative that does not exist. Tried "'.$dirname_org.'.1", "'.$dirname_org.'.2", "'.$dirname_org.'.3", etc.', __FILE__, __METHOD__, __LINE__);
 			}
 			if (!mkdir($dirname, 0775, true)) {
 				$this->exit_err('Failed to create output directory "'.$dirname.'".', __FILE__, __METHOD__, __LINE__);			
@@ -218,7 +223,7 @@ abstract class FUPSBase {
 		$this->start_time = time();
 		date_default_timezone_set($this->settings['php_timezone']);
 		$this->was_chained = true;
-		$this->write_status('Woke up in chained process.');
+		$this->write_status('Woke up in chained/resumed process.');
 	}
 
 	protected function archive_output($dirname, $zip_filename) {
@@ -274,7 +279,7 @@ abstract class FUPSBase {
 			if ($this->dbg) $this->write_err('Set $serialize_filename to "'.$serialize_filename.'".');
 
 			if (!file_put_contents($serialize_filename, serialize($this))) {
-				$this->exit_err('file_put_contents returned false.', __FILE__, __METHOD__, __LINE__);
+				$this->exit_err('file_put_contents returned false for the serialisation file.', __FILE__, __METHOD__, __LINE__);
 			}
 
 			$args = array(
@@ -294,7 +299,7 @@ abstract class FUPSBase {
 			$this->write_status('Chaining next process.');
 			if ($this->dbg) $this->write_err('Chaining process: about to run command: '.$cmd);
 			if (!try_run_bg_proc($cmd)) {
-				$this->exit_err('Apologies, the server encountered a technical error: it was unable to initiate a chained background process to continue the task of scraping, sorting and finally presenting your posts. The command used was:'.PHP_EOL.PHP_EOL.$cmd.PHP_EOL.PHP_EOL.'Any output was:'.PHP_EOL.implode(PHP_EOL, $output).PHP_EOL.PHP_EOL.'You might like to try again.', __FILE__, __METHOD__, __LINE__);
+				$this->exit_err_resumable('Apologies, the server encountered a technical error: it was unable to initiate a chained background process to continue the task of scraping, sorting and finally presenting your posts. The command used was:'.PHP_EOL.PHP_EOL.$cmd.PHP_EOL.PHP_EOL.'Any output was:'.PHP_EOL.implode(PHP_EOL, $output).PHP_EOL.PHP_EOL.'You might like to try again.', __FILE__, __METHOD__, __LINE__);
 			}
 			if ($this->dbg) $this->write_err('Exiting parent chaining process.');
 			exit;
@@ -399,7 +404,7 @@ abstract class FUPSBase {
 			if ($err) break;
 		}
 		if ($err) {
-			if ($quit_on_error) $this->exit_err('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
+			if ($quit_on_error) $this->exit_err_resumable('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
 		} else {
 			$this->check_get_board_title($html);
 		}
@@ -407,32 +412,57 @@ abstract class FUPSBase {
 		return $html;
 	}
 
-	# Non-static variant of the static variant below
-	protected function exit_err($msg, $file, $method, $line, $html = false, $send_mail = true) {
+	# Non-static variant of the static variant below with additional functionality including resumability
+	protected function exit_err($msg, $file, $method, $line, $html = false, $send_mail = true, $resumable = false) {
 		$token = $this->web_initiated ? $this->token : false;
 		$dbg   = $this->dbg;
 		$this->write_err($msg, $file, $method, $line);
 		$settings_str = $this->get_settings_str();
 
-		static::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, get_class($this), $html, $settings_str, $send_mail, $token, $dbg);
+		if ($resumable) {
+			$serialize_filename = make_serialize_filename($this->web_initiated ? $token : $this->settings_filename);
+
+			if ($this->dbg) $this->write_err('Set $serialize_filename to "'.$serialize_filename.'".');
+
+			if (!file_put_contents($serialize_filename, serialize($this))) {
+				$this->write_err('Error: unable to serialise session data to disk. Resumability may not be possible, or, if it is, FUPS may resume from an earlier point.');
+			}
+
+			if ($this->web_initiated) {
+				$resumability_filename = make_resumability_filename($this->web_initiated ? $token : $this->settings_filename);
+				if (!touch($resumability_filename)) {
+					$this->write_err('Error: unable to create the resumability file on disk. Resumability may not be possible.');
+				}
+			}
+
+			curl_close($this->ch); // So we save the cookie file to disk for the resumed process.
+		}
+
+		$existing_errs = $this->get_err_msgs_from_files_for_email(/*$skip_settings_and_classname*/true);
+
+		static::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, $existing_errs, get_class($this), $html, $settings_str, $send_mail && $this->web_initiated /*don't send mail for commandline runs*/, $token, $dbg, $resumable, $resumable && !$this->web_initiated);
+	}
+
+	protected function exit_err_resumable($msg, $file, $method, $line, $html = false, $send_mail = true) {
+		$this->exit_err($msg, $file, $method, $line, $html, $send_mail, /*resumable*/true);
 	}
 
 	static public function exit_err_s($msg, $file, $method, $line, $html = false, $send_mail = true, $token = false, $dbg = false) {
 		$ferr = fopen('php://stderr', 'a');
 		static::write_err_s($ferr, $msg, $file, $method, $line);
-		static::exit_err_common_s($msg, $file, $method, $line, false, null, $html, false, $send_mail, $token, $dbg);
+		static::exit_err_common_s($msg, $file, $method, $line, false, '', null, $html, false, $send_mail, $token, $dbg, /*$resumable*/false, /*$add_cmdline_resume_note*/false);
 	}
 
-	static public function exit_err_common_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $classname = null, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false) {
-		$full_admin_msg = static::record_err_admin_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $classname, $html, $settings_str, $token, $dbg);
+	static public function exit_err_common_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $existing_errs, $classname = null, $html = false, $settings_str = false, $send_mail = true, $token = false, $dbg = false, $resumable = false, $add_cmdline_resume_note = false) {
+		$full_admin_msg = static::record_err_admin_s($msg, $file, $method, $line, $have_written_to_admin_err_file, $classname, $html, $settings_str, $token, $dbg, $resumable);
+
+		if ($existing_errs) $full_admin_msg .= PHP_EOL.PHP_EOL.PHP_EOL.$existing_errs;
 
 		if ($send_mail) {
-			static::send_err_mail_to_admin_s($full_admin_msg, $token, true);
+			static::send_err_mail_to_admin_s($full_admin_msg, $token, $resumable ? FUPS_EMAIL_TYPE_RESUMABLE : FUPS_EMAIL_TYPE_FATAL);
 		}
 
-		if ($token) {
-			static::write_status_s('A fatal error occurred. EXITING', $token);
-		}
+		static::write_status_s('A fatal '.($resumable ? 'but resumable' : '').' error occurred. '.($add_cmdline_resume_note ? 'To resume this FUPS job, simply rerun the same command you just ran but with a -c argument. ' : '').($resumable ? 'EXITING BUT RESUMABLE' : 'EXITING'), $token);
 
 		exit(1);
 	}
@@ -545,6 +575,48 @@ abstract class FUPSBase {
 			'delay' => 5,
 			'debug' => false
 		);
+	}
+
+	protected function get_err_msgs_from_files_for_email($skip_settings_and_classname = false) {
+		$err_msg    = '';
+		if ($this->web_initiated) {
+			$errs       = file_get_contents(make_errs_filename      ($this->token));
+			// Disable error messages because if there are no errors then this file
+			// won't exist - we want to avoid an error message telling us as much.
+			$errs_admin = @file_get_contents(make_errs_admin_filename($this->token));
+			if ($errs || $errs_admin) {
+				$err_msg = '';
+				if ($errs) {
+					$len = strlen($errs);
+					$trunc_msg = '';
+					if ($len > FUPS_MAX_ERROR_FILE_EMAIL_LENGTH) {
+						$errs = substr($errs, 0, FUPS_MAX_ERROR_FILE_EMAIL_LENGTH);
+						$trunc_msg = ' (truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ERROR_FILE_EMAIL_LENGTH).' bytes)';
+					}
+					// No need to include the settings and classname if admin error info exists too,
+					// because settings and classname are already included each time the admin error
+					// file is appended to.
+					if (!$errs_admin && !$skip_settings_and_classname) {
+						$settings_msg = static::get_settings_msg_s(static::get_settings_str());
+						$classname_msg = static::get_classname_msg_s(get_class($this));
+						$err_msg .= $settings_msg.PHP_EOL.PHP_EOL.$classname_msg.PHP_EOL.PHP_EOL;
+					}
+					$err_msg .= 'The following non-fatal errors were recorded in the error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs.PHP_EOL;
+				}
+				if ($errs_admin) {
+					if ($errs) $err_msg .= PHP_EOL.PHP_EOL;
+					$len = strlen($errs_admin);
+					$trunc_msg = '';
+					if ($len > FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH) {
+						$errs_admin = substr($errs_admin, 0, FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH);
+						$trunc_msg = ' (truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH).' bytes)';
+					}
+					$err_msg .= 'The following extended non-fatal error messages were recorded in the admin error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs_admin.PHP_EOL;
+				}
+			}
+		}
+
+		return $err_msg;
 	}
 
 	protected function get_extra_head_lines() {
@@ -838,12 +910,12 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	static protected function record_err_admin_s($msg, $file, $method, $line, &$have_written_to_admin_err_file, $classname = null, $html = false, $settings_str = false, $token = false, $dbg = false) {
+	static protected function record_err_admin_s($msg, $file, $method, $line, &$have_written_to_admin_err_file, $classname = null, $html = false, $settings_str = false, $token = false, $dbg = false, $resumable = false) {
 		$ferr = fopen('php://stderr', 'a');
 		$html_msg = $html !== false ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL : '';
 		$settings_msg = (!$have_written_to_admin_err_file && $settings_str) ? static::get_settings_msg_s($settings_str) : '';
 		$classname_msg = (!$have_written_to_admin_err_file && $classname) ? static::get_classname_msg_s($classname).PHP_EOL.PHP_EOL : '';
-		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.static::get_formatted_err($method, $line, $file, $msg).PHP_EOL.PHP_EOL.$html_msg;
+		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.static::get_formatted_err($method, $line, $file, $msg).($resumable ? ' N.B. This error is RESUMABLE.' : '').PHP_EOL.PHP_EOL.$html_msg;
 
 		if ($token) {
 			$filename = make_errs_admin_filename($token);
@@ -1061,41 +1133,9 @@ abstract class FUPSBase {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 
 			if ($this->web_initiated) {
-				$errs       = file_get_contents(make_errs_filename      ($this->token));
-				// Disable error messages because if there are no errors then this file
-				// won't exist - we want to avoid an error message telling us as much.
-				$errs_admin = @file_get_contents(make_errs_admin_filename($this->token));
-				if ($errs || $errs_admin) {
-					$err_msg = '';
-					if ($errs) {
-						$len = strlen($errs);
-						$trunc_msg = '';
-						if ($len > FUPS_MAX_ERROR_FILE_EMAIL_LENGTH) {
-							$errs = substr($errs, 0, FUPS_MAX_ERROR_FILE_EMAIL_LENGTH);
-							$trunc_msg = ' (truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ERROR_FILE_EMAIL_LENGTH).' bytes)';
-						}
-						// No need to include the settings and classname if admin error info exists too,
-						// because settings and classname are already included each time the admin error
-						// file is appended to.
-						if (!$errs_admin) {
-							$settings_msg = static::get_settings_msg_s(static::get_settings_str());
-							$classname_msg = static::get_classname_msg_s(get_class($this));
-							$err_msg .= $settings_msg.PHP_EOL.PHP_EOL.$classname_msg.PHP_EOL;
-						}
-						$err_msg .= 'The following non-fatal errors were recorded in the error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs.PHP_EOL;
-					}
-					if ($errs_admin) {
-						if ($errs) $err_msg .= PHP_EOL.PHP_EOL;
-						$len = strlen($errs_admin);
-						$trunc_msg = '';
-						if ($len > FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH) {
-							$errs_admin = substr($errs_admin, 0, FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH);
-							$trunc_msg = ' (truncated from '.number_format($len).' bytes to '.number_format(FUPS_MAX_ADMIN_FILE_EMAIL_LENGTH).' bytes)';
-						}
-						$err_msg .= 'The following extended non-fatal error messages were recorded in the admin error file'.$trunc_msg.':'.PHP_EOL.PHP_EOL.$errs_admin.PHP_EOL;
-					}
-					static::send_err_mail_to_admin_s($err_msg, $this->token, false);
-				}
+				$err_msg = $this->get_err_msgs_from_files_for_email();
+				if ($err_msg) static::send_err_mail_to_admin_s($err_msg, $this->token, FUPS_EMAIL_TYPE_NONFATAL);
+
 			}
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
@@ -1104,12 +1144,24 @@ abstract class FUPSBase {
 		}
 	}
 
-	static protected function send_err_mail_to_admin_s($full_admin_msg, $token = false, $is_fatal = true) {
+	static protected function send_err_mail_to_admin_s($full_admin_msg, $token = false, $type = FUPS_EMAIL_TYPE_NONFATAL) {
 		global $argv;
 
-		$body  = ($is_fatal ? 'F' : 'Non-f').'atal error'.($is_fatal ? '' : '(s)').' occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
+		switch ($type) {
+		case FUPS_EMAIL_TYPE_FATAL:
+			$body = 'Fatal error';
+			$subject = 'Fatal error in FUPS process';
+			break;
+		case FUPS_EMAIL_TYPE_RESUMABLE:
+			$body = 'Resumable error';
+			$subject = 'Resumable error in FUPS process';
+			break;
+		default: /* should only be FUPS_EMAIL_TYPE_NONFATAL */
+			$body = 'Non-fatal error (s)';
+			$subject = 'Non-fatal error(s) in FUPS process';
+		}
+		$body .= ' occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
 		$body .= $full_admin_msg;
-		$subject = ($is_fatal ? 'F' : 'Non-f').'atal error'.($is_fatal ? '' : '(s)').' in FUPS process';
 		if ($token) $subject .= ' '.$token;
 		$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
 				"MIME-Version: 1.0\r\n" .
@@ -1119,7 +1171,7 @@ abstract class FUPSBase {
 
 	protected function set_url($url) {
 		if (!curl_setopt($this->ch, CURLOPT_URL, $url)) {
-			$this->exit_err('Failed to set cURL URL: <'.$url.'>.', __FILE__, __METHOD__, __LINE__);
+			$this->exit_err_resumable('Failed to set cURL URL: <'.$url.'>.', __FILE__, __METHOD__, __LINE__);
 		} else	$this->last_url = $url;
 	}
 
@@ -1224,7 +1276,7 @@ abstract class FUPSBase {
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 			}
 			$ip = gethostbyname($parsed['host']);
-			if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE)) {
+			if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
 				$err = 'The host ("'.$parsed['host'].'") in '.$url_label.' ("'.$url.'") maps to the IP address "'.$ip.'", which is a private or reserved IP address, or is unmapped.';
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 			}

@@ -92,6 +92,14 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-09-28
+					<ul>
+						<li>Added resumability functionality - now if a page retrieval times out, and the script exits, you can resume it from the point it left off (within two days).</li>
+						<li>Fixed a bug: when appending a prefix to create a new output directory when the specified one (via the commandline) already existed, instead a new subdirectory named as the prefix was being created.</li>
+						<li>Fixed a bug: prior non-fatal errors weren't being included in the admin emails for fatal errors.</li>
+						<li>Fixed a bug: sometimes a preceding "on " interfered with the detection of post dates in phpBB search results.</li>
+					</ul>
+				</li>
 				<li>2015-08-04
 					<ul>
 						<li>Added support for forum character sets other than UTF-8.</li>

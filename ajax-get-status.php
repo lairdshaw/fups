@@ -54,10 +54,10 @@ while ($i++ < MAX_WAIT_SECONDS) {
 	$errs       = @file_get_contents($errs_filename      );
 	$errs_admin = @file_get_contents($errs_admin_filename);
 	if ($filesize != $old_filesize || $ts != $old_ts || $errs != $org_errs) {
-		get_failed_done_cancelled($status, $done, $cancelled, $failed);
+		get_failed_done_cancelled($status, $done, $cancelled, $failed, $resumable_failure);
 		echo $filesize."\n";
 		echo $ts."\n";
-		output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin, true);
+		output_update_html($token, $status, $done, $cancelled, $failed, $resumable_failure, $err, $errs, $errs_admin, true);
 		exit;
 	}
 	sleep(1);

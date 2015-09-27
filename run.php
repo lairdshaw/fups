@@ -36,6 +36,7 @@
 require_once __DIR__.'/common.php';
 $err = false;
 $file_errs = '';
+$ajax = isset($_GET['ajax']) && $_GET['ajax'] == 'yes';
 if (!isset($_GET['token'])) {
 	if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
 		exec('ps -e | grep php | wc -l', $output, $res);
@@ -96,6 +97,18 @@ if (!isset($_GET['token'])) {
 		$status_filename     = make_status_filename    ($token);
 		$errs_filename       = make_errs_filename      ($token);
 		$errs_admin_filename = make_errs_admin_filename($token);
+
+		if (isset($_GET['action']) && $_GET['action'] == 'resume') {
+			$resumability_filename = make_resumability_filename($token);
+			if (!file_exists($resumability_filename)) {
+				$err = 'You have specified an action of "resume", however your task is not resumable (resumability file not found). This might be because you have already resumed it and it is currently running.';
+			} else {
+				$cmd = make_php_exec_cmd(array('token' => $token, 'chained' => true));
+				if (!try_run_bg_proc($cmd)) {
+					$err = 'Apologies, the server encountered a technical error: it was unable to resume the background process to perform the task of scraping, sorting and finally presenting your posts. The command used was:<br />'.PHP_EOL.'<br />'.PHP_EOL.$cmd.'<br />'.PHP_EOL.'<br />'.PHP_EOL.'You might like to <a href="'.make_resume_url_encoded($ajax, $token).'">try again or contact me about this error using the form below.'.PHP_EOL.PHP_EOL.make_error_contact_form($token);
+				} else	unlink($resumability_filename);
+			}
+		}
 	}
 }
 if (!$err) {
@@ -113,9 +126,9 @@ $head_extra = '';
 if (!$err) {
 	global $fups_url_run, $fups_url_homepage;
 
-	get_failed_done_cancelled($status, $done, $cancelled, $failed);
+	get_failed_done_cancelled($status, $done, $cancelled, $failed, $resumable_failure);
 
-	if (!isset($_GET['ajax']) && ((!isset($_GET['last_status']) || $status != $_GET['last_status']) && !$done && !$failed && !$err)) {
+	if (!$ajax && ((!isset($_GET['last_status']) || $status != $_GET['last_status']) && !$done && !$failed && !$err)) {
 		$head_extra = '<meta http-equiv="refresh" content="'.FUPS_META_REDIRECT_DELAY.'; URL='.$fups_url_run.'?token='.htmlspecialchars(urlencode($token)).'&amp;last_status='.htmlspecialchars(urlencode($status)).'" />';
 	}
 }
@@ -153,12 +166,12 @@ if ($err) {
 			</script>
 
 <?php
-	if (isset($_GET['ajax']) && !$done && !$cancelled && !$failed) {
+	if ($ajax && !$done && !$cancelled && !$failed) {
 		global $fups_url_ajax_get_status;
 ?>
 			<div id="ajax.fill">
 <?php
-		output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin, true);
+		output_update_html($token, $status, $done, $cancelled, $failed, $resumable_failure, $err, $errs, $errs_admin, true);
 ?>
 			</div>
 			<script type="text/javascript">
@@ -185,16 +198,17 @@ if ($err) {
 									var p2 = xhr.responseText.indexOf("\n", p + 1);
 									ts = xhr.responseText.substr(p + 1, p2);
 									document.getElementById('ajax.fill').innerHTML = xhr.responseText.substr(p2 + 1);
-
 									var len = xhr.responseText.length;
 									var FUPS_FAILED_STR = '<?php echo FUPS_FAILED_STR; ?>';
 									var FUPS_DONE_STR = '<?php echo FUPS_DONE_STR; ?>';
 									var FUPS_CANCELLED_STR = '<?php echo FUPS_CANCELLED_STR; ?>';
+									var FUPS_RESUMABLE_STR = '<?php echo FUPS_RESUMABLE_STR; ?>';
 									var failed = (xhr.responseText.indexOf(FUPS_FAILED_STR) != -1);
 									var done = (xhr.responseText.indexOf(FUPS_DONE_STR) != -1);
 									var cancelled = (xhr.responseText.indexOf(FUPS_CANCELLED_STR) != -1);
+									var resumable = (xhr.responseText.indexOf(FUPS_RESUMABLE_STR) != -1);
 
-									if (!failed && !done && !cancelled) {
+									if (!failed && !done && !cancelled && !resumable) {
 										xhr.open('GET', base_url + '&filesize=' + filesize + '&ts=' + ts, true);
 										xhr.onreadystatechange = fups_xhr_state_change_function;
 										xhr.send(null);
@@ -214,7 +228,7 @@ if ($err) {
 				//]]>
 			</script>
 <?php
-	} else	output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin);
+	} else	output_update_html($token, $status, $done, $cancelled, $failed, $resumable_failure, $err, $errs, $errs_admin);
 }
 
 fups_output_page_end($page);

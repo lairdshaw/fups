@@ -60,15 +60,34 @@ if ($res !== 0) {
 	exit('Fatal error: The value defined in settings.php for FUPS_CMDLINE_PHP_PATH, "'.FUPS_CMDLINE_PHP_PATH.'", does not appear to be runnable given the current working directory and your path. Exiting.');
 }
 
-define('FUPS_DONE_STR'               , 'DONE'     );
-define('FUPS_FAILED_STR'             , 'EXITING'  );
-define('FUPS_CANCELLED_STR'          , 'CANCELLED');
-define('FUPS_MAX_TOKEN_ATTEMPTS'     ,          10);
-define('FUPS_FALLBACK_FUPS_CHAIN_DURATION',   1200);
+define('FUPS_DONE_STR'               , 'DONE'                 );
+define('FUPS_FAILED_STR'             , 'EXITING'              );
+define('FUPS_RESUMABLE_STR'          , 'EXITING BUT RESUMABLE');
+define('FUPS_CANCELLED_STR'          , 'CANCELLED'            );
+define('FUPS_MAX_TOKEN_ATTEMPTS'     ,                      10);
+define('FUPS_FALLBACK_FUPS_CHAIN_DURATION',               1200);
+
+// Returns an array of all array combinations generated
+// by taking a single element from each of the arrays
+// in $arrays.
+function arrays_combos($arrays) {
+	$ret = array();
+	$combo = array_fill(0, count($arrays), null);
+	get_arrays_combos_r($arrays, 0, $combo, $ret);
+
+	return $ret;
+}
 
 function format_html($html) {
 	$flags = defined('ENT_SUBSTITUTE') ? ENT_SUBSTITUTE : (ENT_COMPAT | ENT_HTML401);
 	return str_replace("\n", "<br />\n", htmlspecialchars($html, $flags));
+}
+
+function get_failed_done_cancelled($status, &$done, &$cancelled, &$failed, &$resumable_failure) {
+	$resumable_failure = (substr($status, -strlen(FUPS_RESUMABLE_STR)) == FUPS_RESUMABLE_STR);
+	$failed = (substr($status, -strlen(FUPS_FAILED_STR)) == FUPS_FAILED_STR);
+	$done = (substr($status, -strlen(FUPS_DONE_STR)) == FUPS_DONE_STR);
+	$cancelled = (substr($status, -strlen(FUPS_CANCELLED_STR)) == FUPS_CANCELLED_STR);
 }
 
 function make_cancellation_filename($token) {
@@ -77,6 +96,23 @@ function make_cancellation_filename($token) {
 
 function make_cookie_filename($token_or_settings_filename) {
 	return FUPS_DATADIR.sanitise_filename($token_or_settings_filename).'.cookies.txt';
+}
+
+function make_error_contact_form($token, $indent = "\t\t\t") {
+	global $fups_url_notify_email_address;
+
+	return <<<EOF
+$indent<div>
+$indent	<form method="post" action="$fups_url_notify_email_address">
+$indent		<input type="hidden" name="token" value="$token" />
+$indent		<label for="email_address.id">Your contact email address:</label><br />
+$indent		<input type="text" name="email_address" id="email_address.id" /><br />
+$indent		<label for="message.id">Any message you'd like to include (leaving this blank is fine):</label><br />
+$indent		<textarea rows="5" cols="80" name="message" id="message.id"></textarea><br />
+$indent		<input type="submit" value="Notify the FUPS maintainer" />
+$indent	</form>
+$indent</div>
+EOF;
 }
 
 function make_errs_filename($token) {
@@ -141,19 +177,14 @@ function make_php_exec_cmd($params) {
 	return $prefix.FUPS_CMDLINE_PHP_PATH.' -d max_execution_time=0 '.$fups_path.' '.$args.' '.$redirect.' '.$bg_token;
 }
 
-function try_run_bg_proc($cmd) {
-	$res = popen($cmd, 'r');
-	$ret = $res !== false;
-	pclose($res);
-	return $ret;
+function make_resumability_filename($token) {
+	return FUPS_DATADIR.$token.'.resumable.txt';
 }
 
-function sanitise_filename($filename) {
-	$tmp = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
-	$sanitised = ($tmp !== null ? $tmp : $filename);
-	$sanitised2 = str_replace('..', '__', $sanitised);
+function make_resume_url_encoded($ajax, $token) {
+	global $fups_url_run;
 
-	return $sanitised2;
+	return $fups_url_run.'?'.($ajax ? 'ajax=yes&amp;' : '').'action=resume&amp;token='.urlencode($token);
 }
 
 function make_serialize_filename($token_or_settings_filename) {
@@ -168,46 +199,8 @@ function make_status_filename($token) {
 	return FUPS_DATADIR.$token.'.status.txt';
 }
 
-function validate_token($token, &$err) {
-	$err = '';
-	if (strlen($token) <> 32) {
-		$err = 'A fatal error occurred: token is malformed (length).';
-	} else {
-		$malformed_char = false;
-		for ($i = 0; $i < strlen($token); $i++) {
-			$ch = $token[$i];
-			if (!($ch >= '0' && $ch <= '9') && !($ch >= 'a' && $ch <= 'z')) {
-				$malformed_char = true;
-				break;
-			}
-		}
-		if ($malformed_char) {
-			$err = 'A fatal error occurred: token is malformed (character).';
-		}
-	}
-
-	return $err == '';
-}
-
-function get_failed_done_cancelled($status, &$done, &$cancelled, &$failed) {
-	$failed = (substr($status, -strlen(FUPS_FAILED_STR)) == FUPS_FAILED_STR);
-	$done = (substr($status, -strlen(FUPS_DONE_STR)) == FUPS_DONE_STR);
-	$cancelled = (substr($status, -strlen(FUPS_CANCELLED_STR)) == FUPS_CANCELLED_STR);
-}
-
-function show_delete($token, $had_success = false) {
-	global $fups_url_delete_files;
-?>
-			<p>For your privacy, you might wish to delete from this web server all session and output files associated with this request, especially if you have supplied a login username and password (files that store your username and password details are not publicly visible, but it is wise to delete them anyway).<?php echo FUPS_ROUTINE_DELETION_POLICY; ?></p>
-<?php	if ($had_success) { ?>
-			<p>Be sure to do this only <strong>after</strong> you have clicked the above "View result" link, and saved the contents at that page, because they will no longer be accessible after clicking the following link.</p>
-<?php	} ?>
-			<p><a href="<?php echo $fups_url_delete_files; ?>?token=<?php echo htmlspecialchars(urlencode($token)); ?>">Delete all files</a> associated with your scrape from my web server - this includes your settings, including your password if you entered one.</p>
-<?php
-}
-
-function output_update_html($token, $status, $done, $cancelled, $failed, $err, $errs, $errs_admin = false, $ajax = false) {
-	global $fups_url_cancel, $fups_url_notify_email_address, $fups_url_run;
+function output_update_html($token, $status, $done, $cancelled, $failed, $resumable_failure, $err, $errs, $errs_admin = false, $ajax = false) {
+	global $fups_url_cancel, $fups_url_run;
 
 	if ($err) {
 ?>
@@ -257,20 +250,11 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 			<p>Cancelled by your request.</p>
 <?php
 		show_delete($token, false);
-	} else if ($failed) {
+	} else if ($failed || $resumable_failure) {
 ?>
-			<p>The script appears to have exited due to an error; the error message is shown below. I have been notified of this error by email; if you would like me to get back to you if/when I have fixed the error, then please enter your email address into the following box and press the button to notify me of it.</p>
+			<p>The script appears to have exited due to an error; the error message is shown below. <?php if ($resumable_failure) echo '<b>Note that this is a resumable error - the progress FUPS has made on your job up to this point has been saved, and you are free to try by clicking on this link to <a href="'.make_resume_url_encoded($ajax, $token).'">resume the script</a> from the point at which it left off if you so wish. '.(FUPS_ROUTINE_DELETION_POLICY != '' ? '<i>Also note, however, that the script will be resumable for at least '.FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS.' day(s) and no more than '.(FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS + FUPS_SCHEDULED_DELETION_TASK_INTERVAL_IN_DAYS).' day(s). After that period you will have to restart it from scratch. ' : '').'</i></b>' ?>I have been notified of this error by email; if you would like me to get back to you if/when I have fixed the error, then please enter your email address into the following box and press the button to notify me of it.</p>
 
-			<div>
-				<form method="post" action="<?php echo $fups_url_notify_email_address; ?>">
-					<input type="hidden" name="token" value="<?php echo $token; ?>" />
-					<label for="email_address.id">Your contact email address:</label><br />
-					<input type="text" name="email_address" id="email_address.id" /><br />
-					<label for="message.id">Any message you'd like to include (leaving this blank is fine):</label><br />
-					<textarea rows="5" cols="80" name="message" id="message.id"></textarea><br />
-					<input type="submit" value="Notify the FUPS maintainer" />
-				</form>
-			</div>
+<?php		echo make_error_contact_form($token); ?>
 
 			<p>Alternatively, feel free to retry or to <a href="<?php echo FUPS_CONTACT_URL; ?>">contact me</a> manually about this error, quoting your run token of "<?php echo $token; ?>".</p>
 
@@ -293,8 +277,8 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $err, $
 <?php
 	}
 
-	$paren_msg_will_be_emailed = '(Unless a mailing error occurs, these will be emailed to me as-is if/when FUPS finishes running, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
-	$paren_msg_emailed = '(Unless a mailing error occurred, these have been emailed to me as-is, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
+	$paren_msg_will_be_emailed = '(Unless a mailing error occurs, these will be emailed to me if/when FUPS finishes running, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
+	$paren_msg_emailed = '(Unless a mailing error occurred, these have been emailed to me, with your token, "'.htmlspecialchars($token).'", included in the email\'s subject)';
 	if ($errs) {
 ?>
 
@@ -356,13 +340,49 @@ function get_arrays_combos_r($arrays, $depth, $combo, &$combos) {
 	}
 }
 
-// Returns an array of all array combinations generated
-// by taking a single element from each of the arrays
-// in $arrays.
-function arrays_combos($arrays) {
-	$ret = array();
-	$combo = array_fill(0, count($arrays), null);
-	get_arrays_combos_r($arrays, 0, $combo, $ret);
+function sanitise_filename($filename) {
+	$tmp = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $filename);
+	$sanitised = ($tmp !== null ? $tmp : $filename);
+	$sanitised2 = str_replace('..', '__', $sanitised);
 
+	return $sanitised2;
+}
+
+function show_delete($token, $had_success = false) {
+	global $fups_url_delete_files;
+?>
+			<p>For your privacy, you might wish to delete from this web server all session and output files associated with this request, especially if you have supplied a login username and password (files that store your username and password details are not publicly visible, but it is wise to delete them anyway).<?php echo FUPS_ROUTINE_DELETION_POLICY; ?></p>
+<?php	if ($had_success) { ?>
+			<p>Be sure to do this only <strong>after</strong> you have clicked the above "View result" link, and saved the contents at that page, because they will no longer be accessible after clicking the following link.</p>
+<?php	} ?>
+			<p><a href="<?php echo $fups_url_delete_files; ?>?token=<?php echo htmlspecialchars(urlencode($token)); ?>">Delete all files</a> associated with your scrape from my web server - this includes your settings, including your password if you entered one.</p>
+<?php
+}
+
+function try_run_bg_proc($cmd) {
+	$res = popen($cmd, 'r');
+	$ret = $res !== false;
+	pclose($res);
 	return $ret;
+}
+
+function validate_token($token, &$err) {
+	$err = '';
+	if (strlen($token) <> 32) {
+		$err = 'A fatal error occurred: token is malformed (length).';
+	} else {
+		$malformed_char = false;
+		for ($i = 0; $i < strlen($token); $i++) {
+			$ch = $token[$i];
+			if (!($ch >= '0' && $ch <= '9') && !($ch >= 'a' && $ch <= 'z')) {
+				$malformed_char = true;
+				break;
+			}
+		}
+		if ($malformed_char) {
+			$err = 'A fatal error occurred: token is malformed (character).';
+		}
+	}
+
+	return $err == '';
 }

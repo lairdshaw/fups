@@ -111,11 +111,19 @@ define('FUPS_META_REDIRECT_DELAY',                                30);
 // (index.php). Iff this evaluates to true, then the changelog will be shown.
 define('FUPS_SHOW_CHANGELOG'   ,                                true);
 
+// The minimum age in days of FUPS session files after which they will be deleted by
+// the supplied script for this scheduled task, scheduled-output-file-removal.php.
+define('FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS',                 2);
+
+// The interval in days at which your cron job (if any) to delete FUPS session files runs.
+// Only used for the default (commented-out) FUPS_ROUTINE_DELETION_POLICY message below.
+define('FUPS_SCHEDULED_DELETION_TASK_INTERVAL_IN_DAYS',           1);
+
 // The routine deletion policy to be displayed to the user as part of the
 // general information displayed when the FUPS process ends successfully with
 // output. Ideally, you will set up a cron job so that you can set this to the
 // commented-out string.
-define('FUPS_ROUTINE_DELETION_POLICY', '' /*' If not manually deleted, FUPS session files will be deleted by a routine scheduled task, which runs once a day and deletes all files more than two days old.'*/);
+define('FUPS_ROUTINE_DELETION_POLICY', '' /*' If not manually deleted, FUPS session files will be deleted by a routine scheduled task, which runs every '.FUPS_SCHEDULED_DELETION_TASK_INTERVAL_IN_DAYS.' day(s) and deletes all files more than '.FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS.' day(s) old.'*/);
 
 // The maximum number of bytes to include from the ordinary errors file
 // in an admin error email.

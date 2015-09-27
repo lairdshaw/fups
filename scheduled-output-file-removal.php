@@ -3,7 +3,7 @@
 require_once __DIR__.'/common.php';
 
 $prefix = 'fups.output.';
-$min_delete_age = 2 * 24 * 60 * 60; // in seconds
+$min_delete_age = FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS * 24 * 60 * 60; // in seconds
 $excluded_dirs = array('.', '..');
 
 if ($dh = opendir(FUPS_OUTPUTDIR)) {

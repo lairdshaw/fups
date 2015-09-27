@@ -241,7 +241,7 @@ class phpBBFUPS extends FUPSBase {
 
 			# Set cURL method back to GET because this class and especially its ancestor rely on the default method being GET
 			if (!curl_setopt($this->ch, CURLOPT_POST, false)) {
-				$this->exit_err('Failed to set cURL option CURLOPT_POST back to false.',__FILE__, __METHOD__, __LINE__);
+				$this->exit_err_resumable('Failed to set cURL option CURLOPT_POST back to false.',__FILE__, __METHOD__, __LINE__);
 			}
 		}
 	}
@@ -253,6 +253,27 @@ class phpBBFUPS extends FUPSBase {
 			}
 		}
 		parent::find_author_posts_via_search_page__end_hook($do_inc_progress_level, $html, $found_earliest, $matches);
+	}
+
+	# Strip any preceding text in the timestamp such as "on" e.g. [posted] "on Mon 28 September 2015 6:05am".
+	protected function find_author_posts_via_search_page__ts_raw_hook(&$ts_raw) {
+		global $intl_data;
+		static $posted_on_date_arr = null;
+
+		if (is_null($posted_on_date_arr)) {
+			$posted_on_date_arr = array('on');
+			foreach ($intl_data as $arr) {
+				if (isset($arr['POSTED_ON_DATE']) && $arr['POSTED_ON_DATE'] != '') {
+					$posted_on_date_arr[] = $arr['POSTED_ON_DATE'];
+				}
+			}
+		}
+
+		foreach ($posted_on_date_arr as $on) {
+			if (substr($ts_raw, 0, strlen($on)) == $on) {
+				$ts_raw = substr($ts_raw, strlen($on));
+			}
+		}
 	}
 
 	# For quotes rendered by the subsilver skin
