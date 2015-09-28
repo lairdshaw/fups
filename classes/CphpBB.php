@@ -105,17 +105,13 @@ class phpBBFUPS extends FUPSBase {
 					'thread_author'            => '#<p class="author">.*memberlist\.php.*>(.+)<#Us',
 					'search_results_not_found' => '#<div class="panel" id="message">\\s*<div class="inner"><span class="corners-top"><span></span></span>\\s*<h2>#Us',
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">.*<dd>'.get_posted_on_date_regex().' (.+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
-					'search_results_page_data_order' => array('title' => 1, 'ts' => 3, 'forum' => 4, 'topic' => 5, 'forumid' => 6, 'topicid' => 7, 'postid' => 8),
+					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">(?:(?!</dl>).)*<dd>('.get_posted_on_date_regex().' )?([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
+					'search_results_page_data_order' => array('title' => 1, 'ts' => 4, 'forum' => 5, 'topic' => 6, 'forumid' => 7, 'topicid' => 8, 'postid' => 9),
 					'post_contents'            => '#<div id="p(\d+)".*<div class="content">(.*)</div>[\r\n]+#Us',
 					'prev_page'                => '#<strong>\\d+</strong>[^<]+<strong>\\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">\\d+</a><span class="page-sep">, </span><strong>\\d+</strong>#Us',
 					'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
 				),
 				'prosilver.2' => array(
-					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">(?:(?!</dl>).)*<dd>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
-					'search_results_page_data_order' => array('title' => 1, 'ts' => 2, 'forum' => 3, 'topic' => 4, 'forumid' => 5, 'topicid' => 6, 'postid' => 7),
-				),
-				'prosilver.3' => array(
 					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^<]+)</a>#Us',
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
 				),

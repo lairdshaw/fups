@@ -92,6 +92,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-09-29
+					<ul>
+						<li>Added support for rebasing img/anchor URLs: relative image and anchor URLs in posts are now converted into the correct absolute URLs, so images should now always display (assuming an internet connection) and links in posts should now always direct to the correct place.</li>
+						<li>Fixed a bug: post counts were sometimes doubled on phpBB forums due to the similarity of the prosilver.1 and prosilver.2 'search_results_page_data' regexes. Combining these into a single regex fixed the problem.</li>
+					</ul>
+				</li>
 				<li>2015-09-28
 					<ul>
 						<li>Added resumability functionality - now if a page retrieval times out, and the script exits, you can resume it from the point it left off (within two days).</li>

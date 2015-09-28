@@ -123,6 +123,7 @@ abstract class FUPSBase {
 		7 => 'check_send_non_fatal_err_email',
 	);
 	protected $was_chained       =   false;
+	protected $img_urls          = array();
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		if (!$do_not_init) {
@@ -731,7 +732,8 @@ abstract class FUPSBase {
 			$err = true;
 			$this->write_err('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
 		} else {
-			list($found, $count) = $this->get_post_contents_from_matches($matches, $postid, $topicid);
+			list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
+			list($found, $count) = $this->get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
 			if ($found) {
 				if ($this->dbg) $this->write_err('Retrieved post contents of post ID "'.$postid.'"');
 				$ret = true;
@@ -751,13 +753,53 @@ abstract class FUPSBase {
 
 	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {}
 
-	protected function get_post_contents_from_matches($matches, $postid, $topicid) {
+	static protected function get_base_urls_s($url, $html) {
+		$root_rel_url_base = '';
+		$path_rel_url_base = '';
+		$current_protocol = '';
+
+		$parsed = parse_url($url);
+		if ($parsed) {
+			$current_protocol = $parsed['scheme'];
+			$server_base = $current_protocol.'://'.(isset($parsed['username']) ? $parsed['username'].(isset($parsed['password']) ? ':'.$parsed['password'] : '').'@' : '').$parsed['host'].(isset($parsed['port']) ? ':'.$parsed['port'] : '').'/';
+			$dir = isset($parsed['path']) ? $parsed['path'] : '';
+			if ($dir[strlen($dir)-1] != '/') {
+				$dir = dirname($dir).'/';
+			}
+			$current_dir_url = $server_base.substr($dir, 1);
+			$root_rel_url_base = $server_base;
+			$path_rel_url_base = $current_dir_url;
+		}
+
+		if (preg_match_all('(<head(?:>|\\s).*<base\\s+([^>]*)>.*</head>)Us', $html, $matches, PREG_PATTERN_ORDER)) {
+			for ($i = count($matches[1]) - 1; $i >= 0; $i--) {
+				$attrs = static::split_attrs_s($matches[1][$i]);
+				if (isset($attrs['href'])) {
+					$path_rel_url_base = $attrs['href'];
+					break;
+				}
+			}
+		}
+		$parsed = parse_url($path_rel_url_base);
+		if (!$parsed || !isset($parsed['scheme'])) {
+			if (!isset($parsed['scheme']) && substr($path_rel_url_base, 0, 2) == '//') {
+				$path_rel_url_base = $current_protocol.':'.$path_rel_url_base;
+			} else	$path_rel_url_base = ($path_rel_url_base[0] == '/' ? substr($server_base, 0, -1) : $current_dir_url).$path_rel_url_base;
+		}
+
+		return array($root_rel_url_base, $path_rel_url_base, $current_protocol);
+	}
+
+	protected function get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url) {
 		$found = false;
 		$count = 0;
 		$posts =& $this->posts_data[$topicid]['posts'];
+
 		foreach ($matches as $match) {
 			if (isset($posts[$match[1]])) {
-				$posts[$match[1]]['content'] = $match[2];
+				$post_html = static::replace_contextual_urls_s($match[2], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, $img_urls);
+				$this->img_urls = array_merge($this->img_urls, $img_urls);
+				$posts[$match[1]]['content'] = $post_html;
 				if ($postid == $match[1]) $found = true;
 				$count++;
 			}
@@ -935,6 +977,52 @@ abstract class FUPSBase {
 
 		fclose($ferr);
 		return $full_admin_msg;
+	}
+
+	static protected function replace_contextual_urls_s($html, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, &$img_urls_abs) {
+		$ret = $html;
+
+		if (!is_array($img_urls_abs)) $img_urls_abs = array();
+
+		if (preg_match_all('(<(img|a) [^>]*>)', $html, $matches, PREG_SET_ORDER)) {
+			$search = array();
+			$replace = array();
+			foreach ($matches as $arr) {
+				$tag = $arr[1];
+				$tag_match = $arr[0];
+				if ($attrs = static::split_attrs_s($tag_match, $full_attr_matches)) {
+					$search2 = array();
+					$replace2 = array();
+					foreach ($attrs as $attr => $value) {
+						if (($tag == 'img' && $attr == 'src') || ($tag == 'a' && $attr = 'href')) {
+							$url = $value;
+							$parsed = parse_url($url);
+							if (!$parsed || !isset($parsed['scheme'])) {
+								if ($tag == 'a' && $url[0] == '#') {
+									$new_url = $current_url.$url;
+								} else {
+									if (!isset($parsed['scheme']) && substr($url, 0, 2) == '//') {
+										$new_url = $current_protocol.':'.$url;
+									} else	$new_url = ($url[0] == '/' ? $root_rel_url_base : $path_rel_url_base).$url;
+									if ($tag == 'img') $img_urls_abs[] = $new_url;
+								}
+								$search2[] = $full_attr_matches[$attr];
+								$replace2[] = $attr.'="'.$new_url.'"';
+							}
+						}
+					}
+					if ($search2) {
+						$search[] = $tag_match;
+						$replace[] = str_replace($search2, $replace2, $tag_match);
+					}
+				}
+			}
+			if ($search) {
+				$ret = str_replace($search, $replace, $html);
+			}
+		}
+
+		return $ret;
 	}
 
 	public function run() {
@@ -1211,6 +1299,19 @@ abstract class FUPSBase {
 
 	protected function skins_preg_match_all($regexp_id, $text, &$matches, $match_indexes_id = false, $combine = false) {
 		return $this->skins_preg_match_base($regexp_id, $text, $matches, true, $match_indexes_id, $combine);
+	}
+
+	static protected function split_attrs_s($tag, &$full_matches = array()) {
+		$ret = array();
+
+		if (preg_match_all('(\\b(\\w+)\\s*=\\s*"([^"]*)")', $tag, $attrs, PREG_SET_ORDER)) {
+			foreach ($attrs as $attr) {
+				$full_matches[$attr[1]] = $attr[0];
+				$ret[$attr[1]] = $attr[2];
+			}
+		}
+
+		return $ret;
 	}
 
 	protected function strtotime_intl($time_str) {

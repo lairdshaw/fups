@@ -95,6 +95,7 @@ class XenForoFUPS extends FUPSBase {
 		# Messy workaround: posts which start a thread are displayed as a "thread" result in XenForo search results,
 		# so we need to convert the threadid into a postid.
 		if (isset($match['match_indexes']['postsorthreads']) && $match[$match['match_indexes']['postsorthreads']] == 'threads') {
+			$this->write_status('Resolving first post in thread "'.$topic.'".');
 			$url = $this->settings['base_url'].'/'.$this->settings['thread_url_prefix'].$postid; # really a threadid
 			$this->set_url($url);
 			$html = $this->do_send();
@@ -177,7 +178,7 @@ class XenForoFUPS extends FUPSBase {
 				);
 				$qanda_new['q_which_skins_supported'] = array(
 					'q' => 'Which skins are supported?',
-					'a' => 'Whichever skin(s) is/are default for the <a href="http://civilwartalk.com">CivilWarTalk</a> and <a href="http://ecigssa.co.za/">ECIGS SA</a> forums. FUPS\' XenForo scraping functionality was originally developed as a paid job to extract posts from the CivilWarTalk forum; the XenForo software is otherwise unknown to the author of the FUPS software, who has not even registered for an account on CivilWarTalk, nor on any other XenForo forum, and who doesn\'t otherwise have access to the XenForo software, having not purchased it. If you need support for another XenForo skin, feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a>.',
+					'a' => 'Whichever skin(s) is/are default for the <a href="http://civilwartalk.com">CivilWarTalk</a>, <a href="http://ecigssa.co.za/">ECIGS SA</a> and <a href="http://www.skeptiko-forum.com/">Skeptiko</a> forums. FUPS\' XenForo scraping functionality was originally developed as a paid job to extract posts from the CivilWarTalk forum; since then it has been tested on the other two forums and seems to function fine. If you need support for another XenForo skin, feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a>.',
 				);
 			}
 		}
