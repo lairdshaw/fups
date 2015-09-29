@@ -35,8 +35,7 @@ $forum_type = isset($_GET['forum_type']) ? $_GET['forum_type'] : '';
 $errmsg = '';
 if (!$forum_type) $errmsg = 'Forum type not provided';
 else {
-	$valid_forum_types = FUPSBase::get_valid_forum_types();
-	if (!isset($valid_forum_types[$forum_type])) {
+	if (!($canonical_forum_type = FUPSBase::get_canonical_forum_type($forum_type))) {
 		$errmsg = 'Unsupported forum type: "'.$forum_type.'"';
 	}
 }
@@ -77,7 +76,7 @@ EOF;
 }
 
 $page = substr(__FILE__, strlen(FUPS_INC_ROOT));
-fups_output_page_start($page, $errmsg ? $errmsg : 'FUPS options entry for '.$valid_forum_types[$forum_type].' forums', $errmsg ? $errmsg : 'Scrape posts made under a particular username from a '.$valid_forum_types[$forum_type].' forum.', $head_extra);
+fups_output_page_start($page, $errmsg ? $errmsg : 'FUPS options entry for '.$canonical_forum_type.' forums', $errmsg ? $errmsg : 'Scrape posts made under a particular username from a '.$canonical_forum_type.' forum.', $head_extra);
 ?>
 			<ul class="fups_listmin">
 				<li><a href="<?php echo $fups_url_homepage; ?>">&lt;&lt; Back to the FUPS homepage</a></li>
@@ -92,23 +91,25 @@ if ($errmsg) {
 } else {
 	global $fups_url_run, $fups_url_ajax_test;
 
-	require_once __DIR__.'/classes/C'.$valid_forum_types[$forum_type].'.php';
+	require_once __DIR__.'/classes/C'.$canonical_forum_type.'.php';
 
-	$forum_class = $valid_forum_types[$forum_type].'FUPS';
+	$forum_class = $canonical_forum_type.'FUPS';
 	$forum_obj = new $forum_class(null, null, true);
 	$settings_arr = $forum_obj->get_settings_array();
 ?>
-			<h3>Enter settings</h3>
+			<h3>Enter settings for your <?php echo $canonical_forum_type; ?> forum</h3>
 
 			<p>To retrieve your posts: fill in the settings below, optionally after reading the questions and answers below the settings form, then click "Retrieve posts!". A status page will appear, updating progress automatically in a status box. When scraping is complete, a link to the results (a single, self-contained HTML page) will appear.</p>
 
 			<form id="mainform" method="post" action="<?php echo $fups_url_run; ?>">
 			<table id="table_fups_enter_options">
-				<tr><td class="fups_opt_label"><label>Forum type</label></td><td class="fups_opt_input"><input type="hidden" name="forum_type" id="type" value="<?php echo $forum_type; ?>" /><?php echo $forum_type; ?></td><td class="fups_opt_desc"></td></tr>
 <?php
 	foreach ($settings_arr as $key => $settings) {
+		if (isset($settings['hidden']) && $settings['hidden']) continue;
+
+		$is_checkbox = isset($settings['type']) && $settings['type'] == 'checkbox';
 ?>
-				<tr><td class="fups_opt_label"><label for="<?php echo $key; ?>"><?php echo $settings['label']; ?></label></td><td class="fups_opt_input"><input type="<?php echo isset($settings['type']) ? $settings['type'] : 'text'; ?>" name="<?php echo $key; ?>" id="<?php echo $key; ?>" value="<?php echo $settings['default']; ?>" <?php if (isset($settings['style'])) echo 'style="'.$settings['style'].'" ' ?>/></td><td class="fups_opt_desc"><?php echo $settings['description']; ?></td></tr>
+				<tr><td class="fups_opt_label"><label for="<?php echo $key; ?>"><?php echo $settings['label']; ?></label></td><td class="fups_opt_input"><input type="<?php echo isset($settings['type']) ? $settings['type'] : 'text'; ?>" name="<?php echo $key; ?>" id="<?php echo $key; ?>" <?php echo $is_checkbox ? ($settings['default'] == true ? 'checked="checked"' : '') : "value=\"{$settings['default']}\""; if (isset($settings['style'])) echo ' style="'.$settings['style'].'" '; if (isset($settings['readonly']) && $settings['readonly']) echo ' readonly="readonly"'; ?>/></td><td class="fups_opt_desc"><?php echo $settings['description']; ?></td></tr>
 
 <?php
 	}

@@ -42,8 +42,6 @@ abstract class FUPSBase {
 	public    $FUPS_CHAIN_DURATION =  null;
 	protected $charset             =  null;
 	protected $have_written_to_admin_err_file = false;
-	protected $required_settings = array('base_url', 'extract_user_id', 'php_timezone');
-	protected $optional_settings = array('start_from_date', 'non_us_date_format', 'debug');
 	protected $private_settings  = array('login_user', 'login_password');
 	/* Different skins sometimes output html different enough that
 	 * a different regex is required for each skin to match the values that
@@ -119,19 +117,19 @@ abstract class FUPSBase {
 		3 => 'posts_retrieval',
 		4 => 'extract_per_thread_info',
 		5 => 'handle_missing_posts',
-		6 => 'write_output',
-		7 => 'check_send_non_fatal_err_email',
+		6 => 'download_images',
+		7 => 'write_output',
+		8 => 'check_send_non_fatal_err_email',
 	);
 	protected $was_chained       =   false;
 	protected $img_urls          = array();
+	protected $img_urls_downloaded      = array();
+	protected $img_urls_failed_download = array();
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		if (!$do_not_init) {
 			$this->org_start_time = time();
 			$this->start_time = $this->org_start_time;
-			if ($this->supports_feature('login')) {
-				$this->optional_settings = array_merge($this->optional_settings, array('login_user', 'login_password'));
-			}
 			$this->web_initiated = $web_initiated;
 			if ($this->web_initiated) {
 				if (!isset($params['token'])) {
@@ -169,19 +167,9 @@ abstract class FUPSBase {
 			} else $this->FUPS_CHAIN_DURATION = FUPS_CHAIN_DURATION;
 
 			$this->write_status('Reading settings.');
-			$default_settings = $this->get_default_settings();
-			$raw_settings = $this->read_settings_raw_s($this->settings_filename);
-			foreach ($raw_settings as $setting => $value) {
-				if (in_array($setting, $this->required_settings) || in_array($setting, $this->optional_settings)) {
-					$this->settings[$setting] = $value;
-				}
-			}
-			$missing = array_diff($this->required_settings, array_keys($this->settings));
+			$missing = $this->read_settings();
 			if ($missing) {
 				$this->exit_err("The following settings were missing: ".implode(', ', $missing).'.', __FILE__, __METHOD__, __LINE__);
-			}
-			foreach ($default_settings as $setting => $default) {
-				if (empty($this->settings[$setting])) $this->settings[$setting] = $default;
 			}
 			date_default_timezone_set($this->settings['php_timezone']); // This timezone only matters when converting the earliest time setting.
 			if (!empty($this->settings['start_from_date'])) {
@@ -189,7 +177,7 @@ abstract class FUPSBase {
 				if ($this->settings['earliest'] === false) $this->write_err("Error: failed to convert 'start_from_date' ({$this->settings['start_from_date']}) into a UNIX timestamp.");
 			}
 
-			$this->dbg = in_array($this->settings['debug'], array('true', '1')) ? true : false;
+			$this->dbg = $this->settings['debug'];
 
 			if ($this->dbg) {
 				$this->write_err('SETTINGS:');
@@ -206,13 +194,16 @@ abstract class FUPSBase {
 			// Strip off the trailing slash
 			$dirname_org = substr($this->output_dirname, 0, strlen($this->output_dirname) - 1);
 			$dirname = $dirname_org;
-			while (file_exists($dirname) && $appendix <= $max_attempts) $dirname = $dirname.'.'.(++$appendix);
-			if ($appendix > $max_attempts) {
-				$this->exit_err('Output directory "'.$this->output_dirname.'" already exists. Exceeded maximum attempts ('.$max_attempts.') in finding an alternative that does not exist. Tried "'.$dirname_org.'.1", "'.$dirname_org.'.2", "'.$dirname_org.'.3", etc.', __FILE__, __METHOD__, __LINE__);
+			if (file_exists($dirname) && !is_dir_empty($dirname)) {
+				$this->write_err('Warning: Output directory "'.$this->output_dirname.'" already exists and is not empty. Attempting to generate a new one.');
+				while (file_exists($dirname) && $appendix <= $max_attempts) $dirname = $dirname_org.'.'.(++$appendix);
+				if ($appendix > $max_attempts) {
+					$this->exit_err('Output directory "'.$this->output_dirname.'" already exists. Exceeded maximum attempts ('.$max_attempts.') in finding an alternative that does not exist. Tried "'.$dirname_org.'.1", "'.$dirname_org.'.2", "'.$dirname_org.'.3", etc.', __FILE__, __METHOD__, __LINE__);
+				}
 			}
-			if (!mkdir($dirname, 0775, true)) {
-				$this->exit_err('Failed to create output directory "'.$dirname.'".', __FILE__, __METHOD__, __LINE__);			
-			}
+			if (!file_exists($dirname) && !mkdir($dirname, 0775, true)) {
+				$this->exit_err('Failed to create output directory "'.$dirname.'".', __FILE__, __METHOD__, __LINE__);
+			} else if ($dirname != $dirname_org) $this->write_err('Info: Generated new output directory "'.$dirname.'".');
 			$this->output_dirname = $dirname.'/';
 			if ($this->web_initiated) {
 				$this->output_dirname_web = make_output_dirname($this->token, /*$for_web*/true, $appendix == 0 ? '' : $appendix);
@@ -227,32 +218,93 @@ abstract class FUPSBase {
 		$this->write_status('Woke up in chained/resumed process.');
 	}
 
-	protected function archive_output($dirname, $zip_filename) {
+	protected function add_img_failed_dnlds_output_file($eol, $eol_desc, $eol_prefix, &$output_info, $have_images) {
+		$img_failed_dlds_filename = 'failed-image-downloads.'.$eol_prefix.'.txt';
+		$img_failed_dlds_filepath = $this->output_dirname.$img_failed_dlds_filename;
+		if (file_put_contents($img_failed_dlds_filepath, implode($eol, array_keys($this->img_urls_failed_download))) === false) {
+			$this->write_err('Failed to write failed to "'.$img_failed_dlds_filename.'".', __FILE__, __METHOD__, __LINE__);
+		}
+		$opts = array(
+			'filename'    => $img_failed_dlds_filename,
+			'description' => 'A list of URLs of images that could not be downloaded, one per line. Plain text file with '.$eol_desc.' line endings. (These URLs have been left unmodified in the posts).',
+			'size'        => stat($img_failed_dlds_filepath)['size'],
+		);
+		if (!$have_images) {
+			$opts['url'] = $this->output_dirname_web.$img_failed_dlds_filename;
+		}
+		$output_info[] = $opts;
+	}
+
+	protected function add_img_map_output_file($eol, $eol_desc, $eol_prefix, &$output_info) {
+		$img_map_filename = 'image-sources.'.$eol_prefix.'.txt';
+		$img_map_filepath = $this->output_dirname.$img_map_filename;
+		$contents = '';
+		foreach ($this->img_urls_downloaded as $org_url => $new_name) {
+			$contents .= "$new_name$eol\t$org_url$eol";
+		}
+		if (file_put_contents($img_map_filepath, $contents) === false) {
+			$this->write_err('Failed to write output information to "'.$img_map_filename.'".', __FILE__, __METHOD__, __LINE__);
+		}
+		$output_info[] = array(
+			'filename'    => $img_map_filename,
+			'description' => 'A mapping of downloaded image filenames to the original URLs from which they were downloaded. Plain text with '.$eol_desc.' line endings.',
+			'size'        => stat($img_map_filepath)['size'],
+		);
+	}
+
+	protected function archive_output($sourcepath, $zip_filename) {
 		$ret = false;
 
 		if (!class_exists('ZipArchive')) {
 			$this->write_err('Unable to create output archive: the "ZipArchive" class does not exist. You can install it using these online instructions: <http://php.net/manual/en/zip.installation.php>.', __FILE__, __METHOD__, __LINE__);
+		} else if (!chdir($sourcepath)) {
+			$this->write_err('Failed to change to directory "'.$sourcepath.'". Files from this directory will not be included in the zip archive.', __FILE__, __METHOD__, __LINE__);
 		} else {
 			$zip = new ZipArchive();
 			if ($zip->open($zip_filename, ZipArchive::CREATE) !== true) {
 				$this->write_err('Unable to create zip archive "'.$zip_filename.'".', __FILE__, __METHOD__, __LINE__);
 			} else {
-				$local_dirname = basename($dirname);
-				$handle = opendir($dirname);
-				if ($handle === false) {
-					$this->write_err('Unable to open directory "'.$dirname.'"  for reading.', __FILE__, __METHOD__, __LINE__);
-				} else {
-					while (($f = readdir($handle)) !== false) {
-						if ($f != '.' && $f != '..') { 
-							$zip->addFile($dirname.$f, $local_dirname.'/'.$f);
+				$sourcepath = str_replace('\\', '/', realpath($sourcepath));
+
+				if (is_dir($sourcepath) === true) {
+					if ($zip->addPattern('(.*)', '.') === false) {
+						$this->write_err('Failed to add contents of directory "'.$sourcepath.'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
+					}
+
+ 					$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($sourcepath), RecursiveIteratorIterator::SELF_FIRST);
+
+					foreach ($files as $filepath) {
+						// Ignore files; we only want directories
+						if (!is_dir($filepath)) continue;
+
+						$filepath = str_replace('\\', '/', $filepath);
+
+						// Ignore "." and ".." directories
+						if (in_array(substr($filepath, strrpos($filepath, '/')+1), array('.', '..'))) {
+							continue;
+						}
+
+						$filepath = realpath($filepath);
+						$local_filepath = str_replace($sourcepath.'/', '', $filepath);
+
+						if ($zip->addEmptyDir($local_filepath) === false) {
+							$this->write_err('Failed to add directory "'.$local_filepath.'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
+						}
+						if (!chdir($filepath)) {
+							$this->write_err('Failed to change to directory "'.$local_filepath.'". Files from this directory will not be included in the zip archive.', __FILE__, __METHOD__, __LINE__);
+						} else if ($zip->addPattern('(.*)', '.', array('add_path' => $local_filepath.'/', 'remove_all_path' => true)) === false) {
+							$this->write_err('Failed to add contents of directory "'.$local_filepath.'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
 						}
 					}
-					closedir($handle);
-
-					if (!$zip->close()) {
-						$this->write_err('Failed to close the zip archive "'.$zip_filename.'".', __FILE__, __METHOD__, __LINE__);
-					} else	$ret = true;
+				} else if (is_file($sourcepath) === true) {
+					$local_filepath = basename($sourcepath);
+					if ($zip->addFile($sourcepath, $local_filepath) === false) {
+						$this->write_err('Failed to add singular file "'.$local_filepath.'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
+					}
 				}
+				if (!$zip->close()) {
+					$this->write_err('Failed to close the zip archive "'.$zip_filename.'".', __FILE__, __METHOD__, __LINE__);
+				} else	$ret = true;
 			}
 		}
 
@@ -345,7 +397,15 @@ abstract class FUPSBase {
 		}
 	}
 
-	function do_send(&$redirect = false, $quit_on_error = true, &$err = false) {
+	static public function class_file_to_forum_type($class_file) {
+		return substr($class_file, 1, -4); # Omit initial "C" and trailing ".php"
+	}
+
+	static public function class_to_forum_type($class) {
+		return substr($class, 0, -4); # Omit trailing "FUPS"
+	}
+
+	function do_send(&$redirect = false, $quit_on_error = true, &$err = false, $check_get_board_title = true) {
 		static $retry_delays = array(0, 5, 5);
 		static $first_so_no_wait = true;
 
@@ -402,11 +462,11 @@ abstract class FUPSBase {
 					break;
 				}
 			}
-			if ($err) break;
+			//if ($err) break;
 		}
 		if ($err) {
 			if ($quit_on_error) $this->exit_err_resumable('Too many errors with request; abandoning page and quitting. Request URL is <'.$this->last_url.'>. Last error was: '.$err, __FILE__, __METHOD__, __LINE__);
-		} else {
+		} else if ($check_get_board_title) {
 			$this->check_get_board_title($html);
 		}
 
@@ -508,7 +568,7 @@ abstract class FUPSBase {
 			$ts = $this->strtotime_intl($ts_raw);
 			if ($ts === false) {
 				$err_msg = "Error: strtotime_intl failed for '$ts_raw'.";
-				if (!isset($this->settings['non_us_date_format']) && strpos($ts_raw, '/') !== false) {
+				if ((!isset($this->settings['non_us_date_format']) || !$this->settings['non_us_date_format']) && strpos($ts_raw, '/') !== false) {
 					$err_msg .= ' Hint: Perhaps you need to check the "Non-US date format" box on the previous page.';
 				}
 				$this->write_err($err_msg);
@@ -571,11 +631,18 @@ abstract class FUPSBase {
 		return 'The active FUPS class is: '.$classname;
 	}
 
-	protected function get_default_settings() {
-		return array(
-			'delay' => 5,
-			'debug' => false
-		);
+	static public function get_canonical_forum_type($forum_type) {
+		$ret = false;
+
+		$valid_forum_types = FUPSBase::get_valid_forum_types();
+		foreach ($valid_forum_types as $valid_forum_type) {
+			if (strcasecmp($forum_type, $valid_forum_type) == 0) {
+				$ret = $valid_forum_type;
+				break;
+			}
+		}
+
+		return $ret;
 	}
 
 	protected function get_err_msgs_from_files_for_email($skip_settings_and_classname = false) {
@@ -658,6 +725,10 @@ abstract class FUPSBase {
 		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}
 
+	static protected function get_img_filename_from_url($url) {
+		return urldecode(explode('?', basename($url))[0]);
+	}
+
 	static function get_msg_how_to_detect_forum() {
 		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}
@@ -667,47 +738,47 @@ abstract class FUPSBase {
 			array(
 				'filename_appendix' => '.threadasc.dateasc.html',
 				'method'            => 'write_output_html_threadasc_dateasc',
-				'description'       => 'HTML, sorting posts first by ascending thread title (i.e. alphabetical order) then ascending post date (i.e. earliest first)',
+				'description'       => 'HTML, sorting posts first by ascending thread title (i.e. alphabetical order) then ascending post date (i.e. earliest first).',
 			),
 			array(
 				'filename_appendix' => '.threadasc.datedesc.html',
 				'method'            => 'write_output_html_threadasc_datedesc',
-				'description'       => 'HTML, sorting posts first by ascending thread title (i.e. alphabetical order) then descending post date (i.e. latest first)',
+				'description'       => 'HTML, sorting posts first by ascending thread title (i.e. alphabetical order) then descending post date (i.e. latest first).',
 			),
 			array(
 				'filename_appendix' => '.threaddesc.dateasc.html',
 				'method'            => 'write_output_html_threaddesc_dateasc',
-				'description'       => 'HTML, sorting posts first by descending thread title (i.e. reverse alphabetical order) then ascending post date (i.e. earliest first)',
+				'description'       => 'HTML, sorting posts first by descending thread title (i.e. reverse alphabetical order) then ascending post date (i.e. earliest first).',
 			),
 			array(
 				'filename_appendix' => '.threaddesc.datedesc.html',
 				'method'            => 'write_output_html_threaddesc_datedesc',
-				'description'       => 'HTML, sorting posts first by descending thread title (i.e. reverse alphabetical order) then descending post date (i.e. latest first)',
+				'description'       => 'HTML, sorting posts first by descending thread title (i.e. reverse alphabetical order) then descending post date (i.e. latest first).',
 			),
 			array(
 				'filename_appendix' => '.dateasc.html',
 				'method'            => 'write_output_html_dateasc',
-				'description'       => 'HTML, sorting posts by ascending date (i.e. earliest first) regardless of which thread they are in',
+				'description'       => 'HTML, sorting posts by ascending date (i.e. earliest first) regardless of which thread they are in.',
 			),
 			array(
 				'filename_appendix' => '.datedesc.html',
 				'method'            => 'write_output_html_datedesc',
-				'description'       => 'HTML, sorting posts by descending date (i.e. latest first) regardless of which thread they are in',
+				'description'       => 'HTML, sorting posts by descending date (i.e. latest first) regardless of which thread they are in.',
 			),
 			array(
 				'filename_appendix' => '.php_serialised',
 				'method'            => 'write_output_php_serialised',
-				'description'       => 'Serialised PHP',
+				'description'       => 'Serialised PHP.',
 			),
 			array(
 				'filename_appendix' => '.php',
 				'method'            => 'write_output_php',
-				'description'       => 'PHP (unserialised array)',
+				'description'       => 'PHP (unserialised array).',
 			),
 			array(
 				'filename_appendix' => '.json',
 				'method'            => 'write_output_json',
-				'description'       => 'JSON',
+				'description'       => 'JSON.',
 			),
 		);
 	}
@@ -775,7 +846,7 @@ abstract class FUPSBase {
 			for ($i = count($matches[1]) - 1; $i >= 0; $i--) {
 				$attrs = static::split_attrs_s($matches[1][$i]);
 				if (isset($attrs['href'])) {
-					$path_rel_url_base = $attrs['href'];
+					$path_rel_url_base = htmlspecialchars_decode($attrs['href']);
 					break;
 				}
 			}
@@ -798,6 +869,11 @@ abstract class FUPSBase {
 		foreach ($matches as $match) {
 			if (isset($posts[$match[1]])) {
 				$post_html = static::replace_contextual_urls_s($match[2], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, $img_urls);
+				if ($this->dbg) {
+					if ($img_urls) {
+						$this->write_err('Merging the following image URLs into $this->img_urls: <'.implode('>, <', $img_urls).'>.');
+					} else	$this->write_err('No image URLs to merge.');
+				}
 				$this->img_urls = array_merge($this->img_urls, $img_urls);
 				$posts[$match[1]]['content'] = $post_html;
 				if ($postid == $match[1]) $found = true;
@@ -820,6 +896,10 @@ abstract class FUPSBase {
 				'q' => 'How long will the process take?',
 				'a' => 'It depends on how many posts are to be retrieved, and how many pages they are spread across. You can expect to wait roughly one hour to extract and output 1,000 posts.',
 			),
+			'q_images_supported' => array(
+				'q' => 'Are images supported?',
+				'a' => 'Yes. If you check "Scrape images" (checked by default), then images are downloaded along with the posts. If not, then all relative image URLs are converted to absolute URLs, so images will display in the HTML output files so long as you are online at the time of viewing those files.',
+			),
 			'q_why_slow' => array(
 				'q' => 'Why is this script so slow?',
 				'a' => 'So as to avoid hammering other people\'s web servers, the script pauses for five seconds between each page retrieval.',
@@ -831,16 +911,26 @@ abstract class FUPSBase {
 
 	public function get_settings_array() {
 		$default_settings = array(
+			'forum_type' => array(
+				'label'       => 'Forum type'                            ,
+				'default'     => static::class_to_forum_type(get_class($this)),
+				'description' => 'Specifies the forum type (e.g. "phpBB" or "XenForo").',
+				'required'    => true                                    ,
+				'hidden'      => false                                   ,
+				'readonly'    => true                                    ,
+			),
 			'base_url' => array(
 				'label'       => 'Base forum URL'                        ,
 				'default'     => ''                                      ,
 				'description' => 'Set this to the base URL of the forum.',
 				'style'       => 'min-width: 300px;'                     ,
+				'required'    => true                                    ,
 			),
 			'extract_user_id' => array(
 				'label'       => 'Extract User ID'                       ,
 				'default'     => ''                                      ,
 				'description' => 'Set this to the user ID of the user whose posts are to be extracted.',
+				'required'    => true                                    ,
 			)
 		);
 
@@ -850,12 +940,14 @@ abstract class FUPSBase {
 					'label' => 'Login User Username',
 					'default' => '',
 					'description' => 'Set this to the username of the user whom you wish to log in as, or leave it blank if you do not wish FUPS to log in.',
+					'required'    => false,
 				),
 				'login_password' => array(
 					'label' => 'Login User Password',
 					'default' => '',
 					'description' => 'Set this to the password associated with the Login User Username (or leave it blank if you do not require login).',
 					'type' => 'password',
+					'required'    => false,
 				),
 			));
 		}
@@ -865,18 +957,43 @@ abstract class FUPSBase {
 				'label' => 'Start From Date+Time',
 				'default' => '',
 				'description' => 'Set this to the datetime of the earliest post to be extracted i.e. only posts of this datetime and later will be extracted. If you do not set this (i.e. if you leave it blank) then all posts will be extracted. This value is parsed with PHP\'s <a href="http://www.php.net/strtotime">strtotime()</a> function, so check that link for details on what it should look like. An example of something that will work is: 2013-04-30 15:30.',
+				'required' => false,
 			),
 			'php_timezone' => array(
 				'label' => 'PHP Timezone',
 				'default' => 'Australia/Hobart',
-				'description' => 'Set this to the time zone in which the user\'s posts were made. Valid time zone values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>. This is a required setting, because PHP requires the time zone to be set when using date/time functions, however it only applies when "Start From Date+Time" is set above, in which case the value that you supply for "Start From Date+Time" will be assumed to be in the time zone you supply here, as will the date+times for posts retrieved from the forum. It is safe to leave this value set to the default if you are not supplying a value for the "Start From Date+Time" setting.',
+				'description' => 'Set this to the time zone in which the user\'s posts were made. Valid time zone values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>. This only applies when "Start From Date+Time" is set above, in which case the value that you supply for "Start From Date+Time" will be assumed to be in the time zone you supply here, as will the date+times for posts retrieved from the forum. It is safe to leave this value set to the default if you are not supplying a value for the "Start From Date+Time" setting.',
+				'required' => false,
+			),
+			'download_images' => array(
+				'label' => 'Scrape images',
+				'default' => true,
+				'description' => 'Check this box if you want FUPS to scrape all images in posts too, and to adjust image URLs to refer the local, downloaded images.',
+				'type' => 'checkbox',
+				'required' => false,
 			),
 			'non_us_date_format' => array(
 				'label' => 'Non-US date format',
-				'default' => '',
+				'default' => false,
 				'description' => 'Check this box if the forum from which you\'re scraping outputs dates in the non-US ordering dd/mm rather than the US ordering mm/dd. Applies only if day and month are specified by digits and separated by forward slashes.',
 				'type' => 'checkbox',
+				'required' => false,
 			),
+			'debug' => array(
+				'label' => 'Output debug messages',
+				'default' => false,
+				'description' => 'Check this box if you want FUPS to output debug messages (they will appear in the error output).',
+				'type' => 'checkbox',
+				'hidden' => true,
+				'required' => false,
+			),
+			'delay' => array(
+				'label' => 'Consecutive request delay (seconds)',
+				'default' => '5',
+				'min'     => 5,
+				'description' => 'Enter the number of seconds you wish for FUPS to delay between consecutive requests to the same web host (the minimum is five). This is required so as to avoid hammering other people\'s web servers.',
+				'required' => false,
+			)
 		));
 
 		return $default_settings;
@@ -908,8 +1025,8 @@ abstract class FUPSBase {
 		$class_files = scandir(__DIR__);
 		if ($class_files) foreach ($class_files as $class_file) {
 			if (!in_array($class_file, $ignored_files)) {
-				$class = substr($class_file, 1, -4); # Omit initial "C" and trailing ".php"
-				$ret[strtolower($class)] = $class;
+				$class = self::class_file_to_forum_type($class_file);
+				$ret[] = $class;
 			}
 		}
 
@@ -922,8 +1039,9 @@ abstract class FUPSBase {
 	protected function hook_after__posts_retrieval        () {} // Run after progress level 3
 	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
 	protected function hook_after__handle_missing_posts   () {} // Run after progress level 5
-	protected function hook_after__write_output           () {} // Run after progress level 6
-	protected function hook_after__check_send_non_fatal_err_email() {} // Run after progress level 7
+	protected function hook_after__download_images        () {} // Run after progress level 6
+	protected function hook_after__write_output           () {} // Run after progress level 7
+	protected function hook_after__check_send_non_fatal_err_email() {} // Run after progress level 8
 
 	protected function init_post_search_counter() {
 		$this->post_search_counter = 0;
@@ -934,6 +1052,36 @@ abstract class FUPSBase {
 	static public function read_forum_type_from_settings_file_s($settings_filename) {
 		$settings_raw = static::read_settings_raw_s($settings_filename);
 		return isset($settings_raw['forum_type']) ? $settings_raw['forum_type'] : false;
+	}
+
+	protected function read_settings() {
+		$raw_settings = $this->read_settings_raw_s($this->settings_filename);
+		$settings_arr = $this->get_settings_array();
+		$optional_settings = array();
+		$required_settings = array();
+		foreach ($settings_arr as $setting => $opts) {
+			if ($opts['required']) $required_settings[] = $setting;
+			else                   $optional_settings[] = $setting;
+		}
+		foreach ($raw_settings as $setting => $value) {
+			if (isset($settings_arr[$setting])) {
+				if (isset($settings_arr[$setting]['type']) && $settings_arr[$setting]['type'] == 'checkbox') {
+					$value = !in_array($value, array('0', 'off', 'false', 'no'));
+				}
+				if (isset($settings_arr[$setting]['min']) && $value < $settings_arr[$setting]['min']) {
+					$this->write_err('Invalid value for setting "'.$setting.'": specified value "'.$value.'" is less than the minimum, '.$settings_arr[$setting]['min'].'. Resetting this value to that minimum.');
+					$value = $settings_arr[$setting]['min'];
+				}
+				$this->settings[$setting] = $value;
+			} else	$this->write_err('Invalid setting: "'.$setting.'".', __FILE__, __METHOD__, __LINE__);
+		}
+		foreach ($optional_settings as $setting) {
+			if (isset($settings_arr[$setting]['type']) && $settings_arr[$setting]['type'] == 'checkbox') {
+				if (!isset($this->settings[$setting])) $this->settings[$setting] = false;
+			} else if (!isset($this->settings[$setting]) && isset($settings_arr[$setting]['default'])) $this->settings[$setting] = $settings_arr[$setting]['default'];
+
+		}
+		$missing = array_diff($required_settings, array_keys($this->settings));
 	}
 
 	static public function read_settings_raw_s($settings_filename) {
@@ -995,7 +1143,7 @@ abstract class FUPSBase {
 					$replace2 = array();
 					foreach ($attrs as $attr => $value) {
 						if (($tag == 'img' && $attr == 'src') || ($tag == 'a' && $attr = 'href')) {
-							$url = $value;
+							$url = htmlspecialchars_decode($value);
 							$parsed = parse_url($url);
 							if (!$parsed || !isset($parsed['scheme'])) {
 								if ($tag == 'a' && $url[0] == '#') {
@@ -1004,16 +1152,49 @@ abstract class FUPSBase {
 									if (!isset($parsed['scheme']) && substr($url, 0, 2) == '//') {
 										$new_url = $current_protocol.':'.$url;
 									} else	$new_url = ($url[0] == '/' ? $root_rel_url_base : $path_rel_url_base).$url;
-									if ($tag == 'img') $img_urls_abs[] = $new_url;
+									if ($tag == 'img') $img_urls_abs[$new_url] = $new_url;
 								}
 								$search2[] = $full_attr_matches[$attr];
-								$replace2[] = $attr.'="'.$new_url.'"';
-							}
+								$replace2[] = $attr.'="'.htmlspecialchars($new_url).'"';
+							} else	if ($tag == 'img') $img_urls_abs[$url] = $url;
 						}
 					}
 					if ($search2) {
 						$search[] = $tag_match;
 						$replace[] = str_replace($search2, $replace2, $tag_match);
+					}
+				}
+			}
+			if ($search) {
+				$ret = str_replace($search, $replace, $html);
+			}
+		}
+
+		return $ret;
+	}
+
+	static protected function replace_img_urls($html, $urls) {
+		$ret = $html;
+
+		if (preg_match_all('(<img [^>]*>)', $html, $matches, PREG_PATTERN_ORDER)) {
+			$search = array();
+			$replace = array();
+			foreach ($matches[0] as $match) {
+				if ($attrs = static::split_attrs_s($match, $full_attr_matches)) {
+					$search2 = array();
+					$replace2 = array();
+					foreach ($attrs as $attr => $value) {
+						if ($attr == 'src') {
+							$url = htmlspecialchars_decode($value);
+							if (isset($urls[$url])) {
+								$search2[] = $full_attr_matches[$attr];
+								$replace2[] = $attr.'="'.htmlspecialchars($urls[$url]).'"';
+							}
+						}
+					}
+					if ($search2) {
+						$search[] = $match;
+						$replace[] = str_replace($search2, $replace2, $match);
 					}
 				}
 			}
@@ -1200,8 +1381,83 @@ abstract class FUPSBase {
 			$this->$hook_method(); // hook_after__handle_missing_posts();
 		}
 
-		# Write output
+		# Download images if necessary
 		if ($this->progress_level == 6) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+
+			if (isset($this->settings['download_images']) && $this->settings['download_images'] && $this->img_urls) {
+				$this->write_status('Downloading images.');
+				$output_img_dirname = 'images';
+				$output_img_path = $this->output_dirname.$output_img_dirname;
+				if (!file_exists($output_img_path) && !mkdir($output_img_path, 0775, true)) {
+					$this->exit_err_resumable('Failed to create image output directory "'.$output_img_path.'".', __FILE__, __METHOD__, __LINE__);
+				}
+
+				ksort($this->img_urls);
+				$img_server = '';
+				foreach ($this->img_urls as $download_url => &$url) {
+					# Don't redownload if we chained during this loop.
+					if (isset($this->img_urls_downloaded[$download_url]) || isset($this->img_urls_failed_download[$download_url])) continue;
+
+					$parsed = parse_url($download_url);
+					if ($img_server == $parsed['host']) {
+						$this->wait_courteously();
+					} else	$img_server = $parsed['host'];
+					$img_filename_org = static::get_img_filename_from_url($download_url);
+
+					# Handle duplicate image filenames
+					$img_filename = ensure_unique_filename($output_img_path, $img_filename_org);
+					$img_path = $output_img_path.'/'.$img_filename;
+
+					$fp = fopen($img_path, 'wb');
+					if ($fp === false) {
+						$this->exit_err_resumable('Failed to create image file "'.$img_filename.'" for writing in image output directory.', __FILE__, __METHOD__, __LINE__);
+					}
+
+					$this->set_url($download_url);
+					$opts = array(
+						CURLOPT_FILE   => $fp,
+						CURLOPT_HEADER =>   0,
+					);
+					if (!curl_setopt_array($this->ch, $opts)) {
+						$this->exit_err_resumable('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
+					}
+					$this->write_status('Downloading image from URL <'.$download_url.'>.');
+					$this->do_send($redirect, /*$quit_on_error*/false, $err, /*$check_get_board_title*/false);
+					if ($err) {
+						$this->img_urls_failed_download[$download_url] = true;
+						if ($this->dbg) $this->write_err('Failed to download image from URL <'.$download_url.'>.', __FILE__, __METHOD__, __LINE__);
+					} else	$this->img_urls_downloaded[$download_url] = $output_img_dirname.'/'.$img_filename;
+					fclose($fp);
+					if ($err) unlink($img_path);
+					else {
+						$url = $output_img_dirname.'/'.rawurlencode($img_filename);
+						if ($this->dbg) $this->write_err('Successfully downloaded image from URL <'.$download_url.'> to "'.$img_path.'".');
+					}
+
+					$this->check_do_chain();
+				}
+
+				if (!$this->img_urls_downloaded) {
+					rmdir($output_img_path);
+				} else {
+					$this->write_status('Replacing image URLs in posts with local URLs for downloaded images.');
+
+					foreach ($this->posts_data as $topicid => &$topic_data) {
+						foreach ($topic_data['posts'] as $postid => &$post_data) {
+							$post_data['content'] = static::replace_img_urls($post_data['content'], $this->img_urls);
+						}
+					}
+				}
+			}
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->progress_level++;
+			$this->$hook_method(); // hook_after__download_images();
+		}
+
+		# Write output
+		if ($this->progress_level == 7) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			$this->write_status('Writing output.');
 
@@ -1217,7 +1473,7 @@ abstract class FUPSBase {
 		}
 
 		# Potentially send an admin email re non-fatal errors.
-		if ($this->progress_level == 7) {
+		if ($this->progress_level == 8) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 
 			if ($this->web_initiated) {
@@ -1316,7 +1572,7 @@ abstract class FUPSBase {
 
 	protected function strtotime_intl($time_str) {
 		$time_str_org = $time_str;
-		$non_us_date_format = isset($this->settings['non_us_date_format']);
+		$non_us_date_format = isset($this->settings['non_us_date_format']) && $this->settings['non_us_date_format'];
 		if ($non_us_date_format) {
 			// Switch month and day in that part of the date formatted as either m/d/y or m/d/y,
 			// where m and d are either one or two digits, and y is either two or four digits.
@@ -1443,36 +1699,77 @@ abstract class FUPSBase {
 
 	protected function write_output() {
 		$output_info = array();
+		$wanted_images = count($this->img_urls) > 0;
+		$have_images = $wanted_images && $this->img_urls_downloaded;
+
 		foreach ($this->get_output_variants() as $opv) {
 			$op_filename =  make_output_filename($this->output_dirname, $opv['filename_appendix']);
 			if ($this->$opv['method']($op_filename)) {
-				$output_info[] = array(
-					'url'         => make_output_filename($this->output_dirname_web, $opv['filename_appendix']),
+				$opts = array(
+					'filename'    => make_output_filename('', $opv['filename_appendix']),
 					'filepath'    => $op_filename,
-					'description' => $opv['description'],
+					'description' => ($wanted_images ? 'The post output listing as: ' : '').$opv['description'],
 					'size'        => stat($op_filename)['size'],
 				);
+				if (!$have_images) {
+					$opts['url'] = make_output_filename($this->output_dirname_web, $opv['filename_appendix']);
+				}
+				$output_info[] = $opts;
 			}
 		}
 
-		$zip_ext = '.all.zip';
-		$zip_filename = make_output_filename($this->output_dirname, $zip_ext);
-		if ($this->archive_output($this->output_dirname, $zip_filename)) {
-			array_unshift($output_info, array(
-				'url'         => make_output_filename($this->output_dirname_web, $zip_ext),
-				'filepath'    => $zip_filename,
-				'description' => 'A ZIP archive of all of the below files.',
-				'size'        => stat($zip_filename)['size'],
-			));
-		}
-
 		if ($this->web_initiated) {
-			$output_info_filename = make_output_info_filename($this->token);
+			if ($wanted_images) {
+				if ($have_images) {
+					$img_dir_size = 0;
+					$img_dir = $this->output_dirname.'images';
+					$handle = opendir($img_dir);
+					if ($handle === false) {
+						$this->write_err('Unable to open directory "'.$img_dir.'" for reading.', __FILE__, __METHOD__, __LINE__);
+					} else {
+						while (($f = readdir($handle)) !== false) {
+							if (!in_array($f, array('.', '..'))) {
+								$img_dir_size += stat($img_dir.'/'.$f)['size'];
+							}
+						}
+						closedir($handle);
+					}
+					$output_info[] = array(
+						'filename'    => 'images/*',
+						'description' => 'A directory containing all downloaded images.',
+						'size'        => $img_dir_size,
+					);
+					$this->add_img_map_output_file("\n", 'UNIX/Linux/Mac', 'unix-linux-mac', $output_info);
+					$this->add_img_map_output_file("\r\n", 'MS-DOS/Windows', 'dos-win', $output_info);
+				}
+				if ($this->img_urls_failed_download) {
+					$this->add_img_failed_dnlds_output_file("\n", 'UNIX/Linux/Mac', 'unix-linux-mac', $output_info, $have_images);
+					$this->add_img_failed_dnlds_output_file("\r\n", 'MS-DOS/Windows', 'dos-win', $output_info, $have_images);
+				}
+			}
+			$zip_ext = '.all.zip';
+			$zip_filename = make_output_filename($this->output_dirname, $zip_ext);
+			$tmp_zip_path = FUPS_OUTPUTDIR.$this->token.$zip_ext;
+			if ($this->archive_output($this->output_dirname, $tmp_zip_path)) {
+				if (!rename($tmp_zip_path, $zip_filename)) {
+					$this->write_err('Failed to move the temporary zip file to its end location.', __FILE__, __METHOD__, __LINE__);
+				} else {
+					array_unshift($output_info, array(
+						'filename'    => make_output_filename('', $zip_ext),
+						'url'         => make_output_filename($this->output_dirname_web, $zip_ext),
+						'filepath'    => $zip_filename,
+						'description' => 'A ZIP archive of all of the below files.',
+						'size'        => stat($zip_filename)['size'],
+					));
+				}
+			}
+
+			$output_info_filepath = make_output_info_filename($this->token);
 			$json = json_encode($output_info, JSON_PRETTY_PRINT);
 			if ($json === false) {
 				$this->write_err('Failed to encode output information as JSON.', __FILE__, __METHOD__, __LINE__);
-			} else if (file_put_contents($output_info_filename, $json) === false) {
-				$this->write_err('Failed to write output information to "'.$output_info_filename.'".', __FILE__, __METHOD__, __LINE__);
+			} else if (file_put_contents($output_info_filepath, $json) === false) {
+				$this->write_err('Failed to write output information to "'.$output_info_filepath.'".', __FILE__, __METHOD__, __LINE__);
 			}
 		}
 	}

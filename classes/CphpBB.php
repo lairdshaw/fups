@@ -34,10 +34,6 @@ class phpBBFUPS extends FUPSBase {
 	protected $old_version = false;
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
-		if (!$do_not_init) {
-			$this->optional_settings[] = 'extract_user';
-		}
-
 		parent::__construct($web_initiated, $params, $do_not_init);
 
 		if (!$do_not_init) {
@@ -393,11 +389,6 @@ class phpBBFUPS extends FUPSBase {
 					'a' => 'Your username and password are as safe as the previous answer describes. The content of your posts (the output file) is slightly less safe in that this output file is publicly accessible - but only to those who know the 32-character random token associated with it, and only until it is deleted either by you after you have saved it, or by the daily scheduled deletion task. As with usernames and passwords, I will never look inside the temporary file containing your posts\' content.',
 				);
 
-				$qanda_new['q_images_supported'] = array(
-					'q' => 'Are images supported?',
-					'a' => 'External images are supported so long as you are online at the time of viewing the output - they are not downloaded, the link is merely retained. Internal images - those uploaded to the forum as attachments - aren\'t supported at all; they occur as relative URLs, which the script does not convert into absolute URLs.',
-				);
-
 				$qanda_new['q_which_skins_supported'] = array(
 					'q' => 'Which skins are supported?',
 					'a' => 'Both the prosilver and subsilver skins are supported. The script probably won\'t work with customised skins, but if you desire support for such a skin (you are getting error messages about regular expressions failing), feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a>. A workaround is to simply set your skin to either prosilver or subsilver in the user control panel of your phpBB forum whilst you are logged in, and then to supply your login credentials in the settings above, optionally reverting your skin back to whatever it was before in the user control panel after running FUPS.',
@@ -426,6 +417,7 @@ class phpBBFUPS extends FUPSBase {
 					'label'       => 'Extract User Username',
 					'default'     => ''                     ,
 					'description' => 'Set this to the username corresponding to the above ID. Note that it does not and cannot replace the need for the above ID; that ID is required. In contrast, this setting is not required (i.e. it can be left blank) if the script has permission to view member information on the specified phpBB board, in which case the script will extract it automatically from the member information page associated with the above ID: this will fail if the forum requires users to be logged in to view member information and if you do not provide valid login credentials (which can be specified below), in which case you should specify this setting.',
+					'required'    => false,
 				);
 			}
 		}

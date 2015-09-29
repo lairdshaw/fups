@@ -119,12 +119,11 @@ if (!isset($argv[1])) {
 }
 
 $forum_type = FUPSBase::read_forum_type_from_settings_file_s($settings_filename);
-$valid_forum_types = FUPSBase::get_valid_forum_types();
-if (!isset($valid_forum_types[$forum_type])) {
+$forum_type_caps = FUPSBase::get_canonical_forum_type($forum_type);
+if (!$forum_type_caps) {
 	FUPSBase::exit_err_s('Fatal error: missing or invalid forum_type in settings file "'.$settings_filename.'": "'.$forum_type.'".', __FILE__, __METHOD__, __LINE__);
 }
 
-$forum_type_caps = $valid_forum_types[$forum_type];
 require_once __DIR__.'/classes/C'.$forum_type_caps.'.php';
 if ($chained) {
 	$token_or_settings_filename = $web_initiated ? $token : $settings_filename;

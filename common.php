@@ -78,6 +78,40 @@ function arrays_combos($arrays) {
 	return $ret;
 }
 
+function ensure_unique_filename($dirname, $filename) {
+	$a = explode('.', $filename);
+	$ext = array_pop($a);
+	if (count($a) == 0) {
+		$base = $ext;
+		$ext = '';
+		$i = 0;
+	} else if (is_digits($ext)) {
+		$i = $ext;
+		$ext = '';
+		$base = implode('.', $a);
+	} else {
+		$i = array_pop($a);
+		if (!is_digits($i)) {
+			array_push($a, $i);
+			$i = 0;
+		}
+		$base = implode('.', $a);
+	}
+
+	$filepath = $dirname.'/'.$filename;
+
+	while (file_exists($filepath)) {
+		$i++;
+		$filename = '';
+		if ($base) $filename .= $base;
+		$filename .= ($filename ? '.' : '').$i;
+		if ($ext) $filename .= ($filename ? '.' : '').$ext;
+		$filepath = $dirname.'/'.$filename;
+	}
+
+	return $filename;
+}
+
 function format_html($html) {
 	$flags = defined('ENT_SUBSTITUTE') ? ENT_SUBSTITUTE : (ENT_COMPAT | ENT_HTML401);
 	return str_replace("\n", "<br />\n", htmlspecialchars($html, $flags));
@@ -88,6 +122,27 @@ function get_failed_done_cancelled($status, &$done, &$cancelled, &$failed, &$res
 	$failed = (substr($status, -strlen(FUPS_FAILED_STR)) == FUPS_FAILED_STR);
 	$done = (substr($status, -strlen(FUPS_DONE_STR)) == FUPS_DONE_STR);
 	$cancelled = (substr($status, -strlen(FUPS_CANCELLED_STR)) == FUPS_CANCELLED_STR);
+}
+
+function is_digits($str) {
+	foreach (str_split($str) as $c) {
+		if (!ctype_digit($c)) return false;
+	}
+
+	return true;
+}
+
+// Copied with minor edits from here: http://stackoverflow.com/a/7497848
+function is_dir_empty($dir) {
+	if (!is_readable($dir)) return null;
+	$handle = opendir($dir);
+	while (false !== ($entry = readdir($handle))) {
+		if ($entry != "." && $entry != "..") {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 function make_cancellation_filename($token) {
@@ -227,20 +282,34 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $resuma
 			<p>Success! Your posts were retrieved and the output is ready. The following output files are available:</p>
 
 			<table style="border-collapse: collapse;">
-				<tr><th style="border: 1px solid black;">Description</th><th style="border: 1px solid black;">View/download file (opens in a new window)</th><th style="border: 1px solid black;">File size</th></tr>
+				<tr><th style="border: 1px solid black; padding: 3px;">View/download file (opens in a new window)</th><th style="border: 1px solid black; padding: 3px;">Size</th><th style="border: 1px solid black; padding: 3px;">Description</th></tr>
 <?php
+			$zip_only = false;
 			foreach ($output_info as $opv) {
+				if (isset($opv['filename']) && strpos($opv['filename'], 'image-sources') !== false) {
+					$zip_only = true;
+				}
 ?>
-				<tr><td style="border: 1px solid black;"><?php echo $opv['description']; ?></td><td style="border: 1px solid black;"><a target="_blank" href="<?php echo $opv['url']; ?>">View/download file</a></td><td style="border: 1px solid black;"><?php echo number_format($opv['size']).' bytes'; ?></td></tr>
+				<tr><td style="border: 1px solid black; padding: 3px;"><?php echo (isset($opv['url']) ? '<a target="_blank" href="'.$opv['url'].'">' : '').$opv['filename'].(isset($opv['url']) ? '</a>' : ''); ?></td><td style="border: 1px solid black; text-align: right; padding: 3px;"><?php echo number_format($opv['size']).' bytes'; ?></td><td style="border: 1px solid black; padding: 3px;"><?php echo $opv['description']; ?></td></tr>
 <?php
 			}
 ?>
 			</table>
 
-			<p>If you're wondering what to do next, here are some possible steps:</p>
+			<p>If you are wondering what to do next, here are some possible steps:</p>
 			<ol>
+<?php
+			if ($zip_only) {
+?>
+				<li>Click on the "View/download file" link beside the zip file and save it to your local filesystem, then unzip it (being sure to remember which folder you unzipped it to). Check down the list of files and select the HTML file which is sorted according to your preference.</li>
+<?php
+			} else {
+?>
 				<li>Click on the "View/download file" link beside the HTML file which is sorted according to your preference. This will open up a new window/tab for that file. Switch to this window/tab if necessary, and then save the page, e.g. in Firefox click the "File" menu option and under that click "Save Page As". Select the directory/folder and filename you wish to save this output as (remember this location for the next step).</li>
-				<li>Start up a word processor such as LibreOffice/OpenOffice or Microsoft Word. Open up in that word processor the HTML file that you saved in the previous step, e.g. click the "File" menu option and under that click "Open", then select the file you saved in the previous step. You are now free to edit the file as you like. You can now (if you so desire) save the file in a friendlier format than HTML, a format such as your editor's default format, e.g. in LibreOffice, click the "File" menu option and then click "Save As" or "Export", and choose the format you desire.</li>
+<?php
+			}
+?>
+				<li>Start up a word processor such as LibreOffice/OpenOffice or Microsoft Word. Open up in that word processor the HTML file that <?php echo $zip_only ? 'you selected, from the folder to which you unzipped the zip file' : 'you saved in the previous step'; ?>, e.g. click the "File" menu option and under that click "Open", then select <?php echo $zip_only ? 'from the unzipped folder' : ''; ?> the HTML file that you <?php echo $zip_only ? 'chose' : 'saved'; ?> in the previous step. You are now free to edit the file as you like. You can now (if you so desire) save the file in a friendlier format than HTML, a format such as your editor's default format, e.g. in LibreOffice, click the "File" menu option and then click "Save As" or "Export", and choose the format you desire.</li>
 			</ol>
 <?php
 			show_delete($token, true);

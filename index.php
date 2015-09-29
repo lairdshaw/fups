@@ -39,12 +39,10 @@ $forums_str = '';
 $forums_str_linked = '';
 $enter_options_links_str = '';
 $how_identify_list_html = '';
-$forums_arr = array_values($valid_forum_types);
-$forums_lc_arr = array_keys($valid_forum_types);
-for ($i = 0; $i < count($forums_arr); $i++) {
+for ($i = 0; $i < count($valid_forum_types); $i++) {
 	if ($i > 0) {
 		$enter_options_links_str .= ' &nbsp;&nbsp;&nbsp;&nbsp; ';
-		if ($i < count($forums_arr) - 1) {
+		if ($i < count($valid_forum_types) - 1) {
 			$forums_str .= ', ';
 			$forums_str_linked .= ', ';
 		} else {
@@ -52,12 +50,12 @@ for ($i = 0; $i < count($forums_arr); $i++) {
 			$forums_str_linked .= ' or ';
 		}
 	}
-	$forums_str .= $forums_arr[$i];
-	require_once __DIR__.'/classes/C'.$forums_arr[$i].'.php';
-	$forum_class = $forums_arr[$i].'FUPS';
-	$forums_str_linked .= '<a href="'.$forum_class::get_forum_software_homepage().'">'.$forums_arr[$i].'</a>';
-	$enter_options_links_str .= '<a href="'.$fups_url_enter_options.'?forum_type='.$forums_lc_arr[$i].'">'.$forums_arr[$i].'</a>';
-	$how_identify_list_html .= '				<li><b>'.$forums_arr[$i].'</b>: '.$forum_class::get_msg_how_to_detect_forum().'</li>'."\n";
+	$forums_str .= $valid_forum_types[$i];
+	require_once __DIR__.'/classes/C'.$valid_forum_types[$i].'.php';
+	$forum_class = $valid_forum_types[$i].'FUPS';
+	$forums_str_linked .= '<a href="'.$forum_class::get_forum_software_homepage().'">'.$valid_forum_types[$i].'</a>';
+	$enter_options_links_str .= '<a href="'.$fups_url_enter_options.'?forum_type='.$valid_forum_types[$i].'">'.$valid_forum_types[$i].'</a>';
+	$how_identify_list_html .= '				<li><b>'.$valid_forum_types[$i].'</b>: '.$forum_class::get_msg_how_to_detect_forum().'</li>'."\n";
 }
 fups_output_page_start($page, 'FUPS: Forum user-post scraper', 'Scrape posts made under a particular username from a '.$forums_str.' forum.');
 ?>
@@ -92,6 +90,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-09-30
+					<ul>
+						<li>Added support for scraping images.</li>
+						<li>Reworked the settings code and added a "Consecutive request delay (seconds)" setting.</li>
+					</ul>
+				</li>
 				<li>2015-09-29
 					<ul>
 						<li>Added support for rebasing img/anchor URLs: relative image and anchor URLs in posts are now converted into the correct absolute URLs, so images should now always display (assuming an internet connection) and links in posts should now always direct to the correct place.</li>

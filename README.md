@@ -35,7 +35,7 @@ Create an options file. Type:
 
     php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/output-directory
 
-The output directory should not exist. If it does, then FUPS will append ".1" to the directory name that you supply. If that directory exists too, then FUPS will try instead appending ".2", etc.
+If fhe output directory already exists and is not empty, then FUPS will append ".1" to the directory name that you supply. If that directory exists too, then FUPS will try instead appending ".2", etc.
 
 Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than, or close to, your PHP max_execution_time ini setting, because in that case, FUPS will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you that it is still running (other than checking the contents of the status file in the directory you defined against `FUPS_DATADIR` in `settings.php`, or checking your operating system's process listing).
 
@@ -45,7 +45,7 @@ Depending on which forum software the forum you wish to scrape from runs, differ
 
 #### phpBB ####
 
-    forum_type=phpbb
+    forum_type=phpBB
     base_url=http://example.com/phpBB
     extract_user_id=1234
     extract_user=John Smith
@@ -53,18 +53,23 @@ Depending on which forum software the forum you wish to scrape from runs, differ
     login_password=abc123
     start_from_date=2014-10-17 19:46
     php_timezone=America/Los_Angeles
+    download_images=1
+    non_us_date_format=0
     debug=1
+    delay=5
 
 #### XenForo ####
 
-    forum_type=xenforo
+    forum_type=XenForo
     base_url=http://example.com/forum
     extract_user_id=example-username.12345
     start_from_date=2013-05-31 07:30
     php_timezone=Australia/Hobart
     thread_url_prefix=thread/
-    non_us_date_format=
+    download_images=0
+    non_us_date_format=1
     debug=0
+    delay=10
 
 ### The options ###
 
@@ -86,18 +91,20 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 
 * *php_timezone*: Required. Set this to the timezone in which the user's posts were made. It is a required setting (because PHP requires the timezone to be set), however it only affects the parsing of the *start_from_date* setting, so it is safe to leave it set to the default if you are not supplying a value for the *start_from_date* setting. Valid values are listed starting [here](http://php.net/manual/en/timezones.php).
 
-* *non_us_date_format*: Optional. The mere presence of this setting indicates that it should take effect; omit it completely for it to have no effect. Include it when the forum from which you're scraping outputs dates in the non-US ordering dd/mm rather than the US ordering mm/dd, but only if the day and month are specified by digits and separated by forward slashes.
+* *download_images*: Optional. If this is set to a value, and that value is other than "0", "false", "off" or "no", then FUPS will also scrape all images in the scraped posts, and will adjust the image URLs in posts to the URLs for the downloaded, local images.
+
+* *non_us_date_format*: Optional. If this is set to a value, and that value is other than "0", "false", "off" or "no", then, if the dates output by your forum are separated by forward slashes, and their month and day are specified by digits, FUPS will assume the non-US ordering dd/mm rather than the US ordering mm/dd (by default it assumes US ordering).
 
 * *thread_url_prefix*: Required for XenForo forums, to which it solely applies. Set this to that part of the URL for forum thread (topic) pages between the beginning part of the URL - the value of the *base_url* setting but followed by a forward slash - and the end part of the URL - the thread id optionally followed by forward slash and page number. By default, this setting should be "threads/", but the XenForo forum software supports changing this through [route filters](https://xenforo.com/help/route-filters/), and some XenForo forums have been configured in this way such that this setting (*thread_url_prefix*) needs to be empty. Here's an example of how to discern its value in a typical thread URL for a forum with *base_url* "http://civilwartalk.com". Let's say you pull up a thread there with a URL of: "http://civilwartalk.com/threads/traveller.84936/page-2". Here, the initial base URL plus forward slash is "http://civilwartalk.com/", the trailing thread id ("traveller.84936") plus optional-forward-slash-followed-by-page-number part is "traveller.84936/page-2", so, removing the initial and trailing parts, you are left with "threads/", which would be the value to enter for this setting. If route filtering were set up on the CivilWarTalk forum such that this setting should be empty, then that same thread URL would have looked like this: "http://civilwartalk.com/traveller.84936/page-2" (after removing those same initial and trailing parts, you are left with an empty string). If, hypothetically, this *thread_url_prefix* setting were to correctly be "topic/here/", then that same thread URL would have looked like this: "http://civilwartalk.com/topic/here/traveller.84936/page-2".
 
-* *debug*: Optional. If set to "true" or "1", additional debugging information will be output.
+* *debug*: Optional. If this is set to a value, and that value is other than "0", "false", "off" or "no", then additional debugging information will be output.
+
+* *delay*: Optional, minimum 5. The delay in seconds for which FUPS will pause between consecutive requests to the same web server, so as to avoid hammering / DOS attacks.
 
 Limitations
 -----------
 
 * As already noted, FUPS currently doesn't support logging in to XenForo forums.
-
-* Relative URLS within posts are currently not converted into absolute URLs. This means that sometimes, images that were uploaded to the forum do not appear in the FUPS output of the phpBB posts linking to those images, and that certain internal links in XenForo posts (e.g. those linked with an up arrow) are not functional in the HTML file that FUPS outputs.
 
 * The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway.
 
@@ -142,7 +149,7 @@ A lot more could be said about how the `FUPSBase` class and its descendants do t
 
 The steps to add support for a new type of forum software are:
 
-1. Create a new file in the "classes" subdirectory, and name that file C[forum_software_name].php, where [forum_software_name] is the correctly-capitalised identifier for the forum software - e.g. "phpBB", "XenForo" or "vBulletin". FUPS will auto-detect this file, and, based on its filename, add the forum software as both a selection on the main  web app page, and as a valid *forum_type* option for manually generated options files (note that when specifying the *forum_type* option, [forum_software_name] should be converted to lowercase).
+1. Create a new file in the "classes" subdirectory, and name that file C[forum_software_name].php, where [forum_software_name] is the correctly-capitalised identifier for the forum software - e.g. "phpBB", "XenForo" or "vBulletin". FUPS will auto-detect this file, and, based on its filename, add the forum software as both a selection on the main web app page, and as a valid *forum_type* option for manually generated options files.
 
 2. In that file, declare a class named [forum_software_name]FUPS which extends the FUPSBase class (in `classes/CFUPSBase.php`). This name (including correct capitalisation) is important because `fups.php` auto-instantiates it.
 

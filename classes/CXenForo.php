@@ -82,9 +82,6 @@ class XenForoFUPS extends FUPSBase {
 	);
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
-		if (!$do_not_init) {
-			$this->required_settings[] = 'thread_url_prefix';
-		}
 		parent::__construct($web_initiated, $params, $do_not_init);
 		if (!$do_not_init) {
 			$this->regexps['cwt_default']['thread_id'] = '#<a href="'.$this->settings['thread_url_prefix'].'([^/]*)/[^"]*" title="[^"]*" class="datePermalink"#';
@@ -172,10 +169,6 @@ class XenForoFUPS extends FUPSBase {
 			$qanda_new[$id] = $qa;
 
 			if ($id == 'q_lang') {
-				$qanda_new['q_images_supported'] = array(
-					'q' => 'Are images supported?',
-					'a' => 'Yes, images are supported so long as you are online at the time of viewing the output - they are not downloaded, the link is merely retained.',
-				);
 				$qanda_new['q_which_skins_supported'] = array(
 					'q' => 'Which skins are supported?',
 					'a' => 'Whichever skin(s) is/are default for the <a href="http://civilwartalk.com">CivilWarTalk</a>, <a href="http://ecigssa.co.za/">ECIGS SA</a> and <a href="http://www.skeptiko-forum.com/">Skeptiko</a> forums. FUPS\' XenForo scraping functionality was originally developed as a paid job to extract posts from the CivilWarTalk forum; since then it has been tested on the other two forums and seems to function fine. If you need support for another XenForo skin, feel free to <a href="'.FUPS_CONTACT_URL.'">contact me</a>.',
@@ -247,6 +240,7 @@ class XenForoFUPS extends FUPSBase {
 			'label' => 'Thread URL prefix',
 			'default' => 'threads/',
 			'description' => 'Set this to that part of the URL for forum thread (topic) pages between the beginning part of the URL, that which was entered above beside "Base forum URL" but followed by a forward slash, and the end part of the URL, the thread id optionally followed by forward slash and page number. By default, this setting should be "threads/", but the XenForo forum software supports changing this default through <a href="https://xenforo.com/help/route-filters/">route filters</a>, and some XenForo forums have been configured in this way such that this setting ("Thread URL prefix") needs to be empty. An example of how to discern this value (it is emboldened) in a typical thread URL with "Base forum URL" set to "http://civilwartalk.com" is: "http://civilwartalk.com/<b>threads/</b>traveller.84936/page-2". Here, the initial base URL plus forward slash is obvious, the thread id part is "traveller.84936" and the optional-forward-slash-followed-by-page-number part is "/page-2". If route filtering were set up on the CivilWarTalk forum such that this setting should be empty, then that same thread URL would have looked like this: "http://civilwartalk.com/traveller.84936/page-2". If, hypothetically, this "Thread URL prefix" setting were to correctly be "topic/here/", then that same thread URL would have looked like this: "http://civilwartalk.com/topic/here/traveller.84936/page-2".',
+			'required' => true,
 		);
 
 		return $settings_arr;
