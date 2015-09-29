@@ -35,7 +35,7 @@ Create an options file. Type:
 
     php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/output-directory
 
-If fhe output directory already exists and is not empty, then FUPS will append ".1" to the directory name that you supply. If that directory exists too, then FUPS will try instead appending ".2", etc.
+If the output directory already exists and is not empty, then FUPS will append ".1" to the directory name that you supply. If that directory exists too, then FUPS will try instead appending ".2", etc.
 
 Optionally, a `-q` parameter can be added to suppress status update messages. This parameter is not recommended if you expect the scrape to take longer than, or close to, your PHP max_execution_time ini setting, because in that case, FUPS will chain itself at some point and appear to have finished (the command prompt will reappear), and due to the lack of status update messages there will be nothing to indicate to you that it is still running (other than checking the contents of the status file in the directory you defined against `FUPS_DATADIR` in `settings.php`, or checking your operating system's process listing).
 
