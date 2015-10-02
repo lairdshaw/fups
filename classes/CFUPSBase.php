@@ -102,6 +102,7 @@ abstract class FUPSBase {
 	protected $search_id         =    null;
 	protected $post_search_counter =     0;
 	protected $posts_not_found   = array();
+	protected $empty_posts       = array();
 	protected $posts_data        = array();
 	protected $total_posts       =       0;
 	protected $current_topic_id  =    null;
@@ -868,14 +869,23 @@ abstract class FUPSBase {
 
 		foreach ($matches as $match) {
 			if (isset($posts[$match[1]])) {
-				$post_html = static::replace_contextual_urls_s($match[2], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, $img_urls);
-				if ($this->dbg) {
-					if ($img_urls) {
-						$this->write_err('Merging the following image URLs into $this->img_urls: <'.implode('>, <', $img_urls).'>.');
-					} else	$this->write_err('No image URLs to merge.');
+				if ($match[2] == '') {
+					$this->empty_posts[$match[1]] = true;
+					$this->write_err("Warning: the post with ID {$match[1]} in the topic with ID $topicid appears to be empty.");
+				} else {
+					$img_urls = array();
+					$post_html = static::replace_contextual_urls_s($match[2], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, $img_urls);
+					if ($this->dbg) {
+						if ($img_urls) {
+							$this->write_err('Merging the following image URLs into $this->img_urls: <'.implode('>, <', $img_urls).'>.');
+						} else	$this->write_err('No image URLs to merge.');
+					}
+					$this->img_urls = array_merge($this->img_urls, $img_urls);
+					if ($post_html == '') {
+						$this->empty_posts[$match[1]] = true;
+						$this->write_and_record_err_admin("Warning: after replacing URLs the post with ID {$match[1]} in the topic with ID $topicid appears to be empty. The pre-replacement post HTML is:\n\n{$match[2]}", __FILE__, __METHOD__, __LINE__);
+					} else	$posts[$match[1]]['content'] = $post_html;
 				}
-				$this->img_urls = array_merge($this->img_urls, $img_urls);
-				$posts[$match[1]]['content'] = $post_html;
 				if ($postid == $match[1]) $found = true;
 				$count++;
 			}
@@ -1312,7 +1322,7 @@ abstract class FUPSBase {
 						$done = true;
 						foreach ($posts as $postid => $dummy2) {
 							$p =& $posts[$postid];
-							if ($p['content'] == null && !isset($this->posts_not_found[$postid])) {
+							if ($p['content'] == null && !isset($this->posts_not_found[$postid]) && !isset($this->empty_posts[$postid])) {
 								$this->get_post_contents($t['forumid'], $topicid, $postid);
 								$this->write_status('Retrieved '.$this->num_posts_retrieved.' of '.$this->total_posts.' posts.');
 								$done = false;
