@@ -211,9 +211,9 @@ function make_php_exec_cmd($params) {
 		if ($args) $args .= ' ';
 		$args .= '-i '.escapeshellarg($params['settings_filename']);
 	}
-	if (isset($params['output_filename'])) {
+	if (isset($params['output_dirname'])) {
 		if ($args) $args .= ' ';
-		$args .= '-o '.escapeshellarg($params['output_filename']);
+		$args .= '-o '.escapeshellarg($params['output_dirname']);
 	}
 	if (isset($params['chained']) && $params['chained'] == true) {
 		if ($args) $args .= ' ';

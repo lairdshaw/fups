@@ -90,6 +90,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2015-10-03
+					<ul>
+						<li>Fixed a bug: commandline chaining wasn't working due to 'output_filename' being used instead of 'output_dirname' in make_php_exec_cmd().</li>
+					</ul>
+				</li>
 				<li>2015-09-30
 					<ul>
 						<li>Added support for scraping images.</li>
