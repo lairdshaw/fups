@@ -99,7 +99,7 @@ if ($errmsg) {
 ?>
 			<h3>Enter settings for your <?php echo $canonical_forum_type; ?> forum</h3>
 
-			<p>To retrieve your posts: fill in the settings below, optionally after reading the questions and answers below the settings form, then click "Retrieve posts!". A status page will appear, updating progress automatically in a status box. When scraping is complete, a link to the results (a single, self-contained HTML page) will appear.</p>
+			<p>To retrieve your posts: fill in the settings below, optionally after reading the questions and answers below the settings form, then click "Retrieve posts!". A status page will appear, updating progress automatically in a status box. When scraping is complete, the results file(s) will be linked to.</p>
 
 			<form id="mainform" method="post" action="<?php echo $fups_url_run; ?>">
 			<table id="table_fups_enter_options">
