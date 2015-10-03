@@ -217,6 +217,15 @@ abstract class FUPSBase {
 		date_default_timezone_set($this->settings['php_timezone']);
 		$this->was_chained = true;
 		$this->write_status('Woke up in chained/resumed process.');
+		// Reset num_posts_retrieved in case recovering from chained process with bug fixed in commit
+		// https://github.com/lairdshaw/fups/commit/a8da8deff20e844132e993bda8e8a25652f57966
+		$num_posts_retrieved = 0;
+		foreach ($this->posts_data as $t_id => $t_arr) {
+			foreach ($t_arr['posts'] as $p_id => $p_arr) {
+				if ($p_arr['content'] || isset($this->empty_posts[$p_id]) || isset($this->posts_not_found[$p_id])) $num_posts_retrieved++;
+			}
+		}
+		$this->num_posts_retrieved = $num_posts_retrieved;
 	}
 
 	protected function add_img_failed_dnlds_output_file($eol, $eol_desc, $eol_prefix, &$output_info, $have_images) {
@@ -1216,7 +1225,7 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	public function run() {
+	public function run($login_if_available = true) {
 		$valid_protocols = (CURLPROTO_HTTP | CURLPROTO_HTTPS);
 
 		$this->cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
@@ -1248,8 +1257,8 @@ abstract class FUPSBase {
 
 		# Login if necessary
 		if ($this->supports_feature('login')) {
-			if ($this->was_chained) {
-				if ($this->dbg) $this->write_err('Not bothering to check whether to log in again, because we\'ve just chained.');
+			if (!$login_if_available) {
+				if ($this->dbg) $this->write_err('Not bothering to check whether to log in again, because $login_if_available is false (probably we\'ve just chained without the -r parameter being passed).');
 			} else	$this->check_do_login();
 		}
 

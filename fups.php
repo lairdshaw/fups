@@ -52,6 +52,7 @@ if (!isset($argv[1])) {
 	FUPSBase::exit_err_s('Fatal error: No commandline arguments supplied.'."\n", __FILE__, __METHOD__, __LINE__);
 } else {
 	$chained = false;
+	$relogin = false;
 	$web_initiated = null;
 	$settings_filename = false;
 	$output_dirname = false;
@@ -102,6 +103,10 @@ if (!isset($argv[1])) {
 			$chained = true;
 			$i++;
 			break;
+		case '-r':
+			$relogin = true;
+			$i++;
+			break;
 		default:
 			FUPSBase::exit_err_s('Fatal error: unknown commandline argument specified: "'.$argv[$i].'".', __FILE__, __METHOD__, __LINE__);
 			break;
@@ -135,12 +140,12 @@ if ($chained) {
 		$params = array(
 			'settings_filename' => $settings_filename,
 			'output_dirname'    => $output_dirname,
-			'quiet'             => $quiet
+			'quiet'             => $quiet,
 		);
 	}
 	$class = $forum_type_caps.'FUPS';
 	$FUPS = new $class($web_initiated, $params);
 }
-$FUPS->run();
+$FUPS->run($relogin || !$chained);
 
 ?>

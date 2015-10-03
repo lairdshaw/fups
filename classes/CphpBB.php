@@ -179,6 +179,9 @@ class phpBBFUPS extends FUPSBase {
 	}
 
 	protected function check_do_login() {
+		# We don't want any existing authentication token to mess with the process below. This does matter (tested).
+		if ($this->was_chained) @unlink($this->cookie_filename);
+
 		# Do this first bit so that we set old_version if necessary regardless of whether or not the user supplied credentials.
 
 		# Discover the SID
@@ -228,7 +231,8 @@ class phpBBFUPS extends FUPSBase {
 			if ((!$html && $redirect) || $this->skins_preg_match('login_success', $html, $dummy)) {
 				if ($this->dbg) $this->write_err('Logged in successfully.');
 			} else {
-				$this->exit_err('Login was unsuccessful (did not find success message). This could be due to a wrong username/password combination. The URL is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__,  $html);
+				$method = $this->was_chained ? 'exit_err_resumable' : 'exit_err';
+				$this->$method('Login was unsuccessful (did not find success message). This could be due to a wrong username/password combination. The URL is <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__,  $html);
 			}
 
 			# Set cURL method back to GET because this class and especially its ancestor rely on the default method being GET

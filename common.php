@@ -223,6 +223,10 @@ function make_php_exec_cmd($params) {
 		if ($args) $args .= ' ';
 		$args .= '-q';
 	}
+	if (isset($params['relogin']) && $params['relogin'] == true) {
+		if ($args) $args .= ' ';
+		$args .= '-r';
+	}
 
 	$fups_path = realpath(__DIR__.'/fups.php');
 	if ($fups_path === false) {
