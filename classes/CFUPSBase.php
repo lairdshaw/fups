@@ -277,7 +277,10 @@ abstract class FUPSBase {
 				$sourcepath = str_replace('\\', '/', realpath($sourcepath));
 
 				if (is_dir($sourcepath) === true) {
-					if ($zip->addPattern('(.*)', '.') === false) {
+					if ($zip->addEmptyDir(basename($sourcepath)) === false) {
+						$this->write_err('Failed to add directory "'.basename($sourcepath).'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
+					}
+					if ($zip->addPattern('(.*)', '.', array('add_path' => basename($sourcepath).'/', 'remove_all_path' => true)) === false) {
 						$this->write_err('Failed to add contents of directory "'.$sourcepath.'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
 					}
 
@@ -295,7 +298,7 @@ abstract class FUPSBase {
 						}
 
 						$filepath = realpath($filepath);
-						$local_filepath = str_replace($sourcepath.'/', '', $filepath);
+						$local_filepath = basename($sourcepath).'/'.str_replace($sourcepath.'/', '', $filepath);
 
 						if ($zip->addEmptyDir($local_filepath) === false) {
 							$this->write_err('Failed to add directory "'.$local_filepath.'" to the zip archive.', __FILE__, __METHOD__, __LINE__);
