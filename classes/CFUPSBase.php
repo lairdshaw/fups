@@ -488,6 +488,10 @@ abstract class FUPSBase {
 
 	# Non-static variant of the static variant below with additional functionality including resumability
 	protected function exit_err($msg, $file, $method, $line, $html = false, $send_mail = true, $resumable = false) {
+		# Do this before the call to write_err below otherwise we will include the written error twice in the email -
+		# once (correctly) as a fatal error and once (incorrectly) as a prior non-fatal error.
+		$existing_errs = $this->get_err_msgs_from_files_for_email(/*$skip_settings_and_classname*/true);
+
 		$token = $this->web_initiated ? $this->token : false;
 		$dbg   = $this->dbg;
 		$this->write_err($msg, $file, $method, $line);
@@ -511,8 +515,6 @@ abstract class FUPSBase {
 
 			curl_close($this->ch); // So we save the cookie file to disk for the resumed process.
 		}
-
-		$existing_errs = $this->get_err_msgs_from_files_for_email(/*$skip_settings_and_classname*/true);
 
 		static::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, $existing_errs, get_class($this), $html, $settings_str, $send_mail && $this->web_initiated /*don't send mail for commandline runs*/, $token, $dbg, $resumable, $resumable && !$this->web_initiated);
 	}

@@ -44,7 +44,6 @@
 
 require_once __DIR__.'/common.php';
 
-$prefix = 'fups.output.';
 $min_delete_age = FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS * 24 * 60 * 60; // in seconds
 
 delete_files_in_dir_older_than_r(FUPS_DATADIR, $min_delete_age, false, array());
