@@ -38,10 +38,17 @@ if (empty($_POST['token']) || empty($_POST['email_address'])) {
 	$err = 'Fatal error: one or both of the URL parameters "token" and "email_address" were not set.';
 }
 if (!$err) {
-	$msg = 'The contact email address for the FUPS process "'.$_POST['token'].'" is <'.$_POST['email_address'].'>.'."\n\n".'Any message the user included follows:'."\n\n".$_POST['message'];
-	$headers = 'From: '.FUPS_EMAIL_SENDER;
-	if (!mail(FUPS_EMAIL_RECIPIENT, 'Contact email address for FUPS process '.$_POST['token'], $msg, $headers)) {
-		$err = fups_notify_email_address_fail_msg($_POST['token']);
+	$email_addr = $_POST['email_address'];
+	if (!filter_var($email_addr, FILTER_VALIDATE_EMAIL)) {
+		$err = "Fatal error: the email address you supplied, <$email_addr>, is not valid.";
+	}
+	if (!$err) {
+		$msg = 'The contact email address for the FUPS process "'.$_POST['token'].'" is <'.$_POST['email_address'].'>.'."\n\n".'Any message the user included follows:'."\n\n".$_POST['message'];
+		$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
+		           'Reply-To: '.$email_addr;
+		if (!mail(FUPS_EMAIL_RECIPIENT, 'Contact email address for FUPS process '.$_POST['token'], $msg, $headers)) {
+			$err = fups_notify_email_address_fail_msg($_POST['token']);
+		}
 	}
 }
 
@@ -50,7 +57,7 @@ fups_output_page_start($page, 'FUPS: notifying me of your contact email address'
 
 if ($err) {
 ?>
-			<div class="fups_error"><?php echo $err; ?></div>
+			<div class="fups_error"><?php echo htmlspecialchars($err); ?></div>
 <?php
 } else {
 ?>
