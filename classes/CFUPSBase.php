@@ -410,15 +410,15 @@ abstract class FUPSBase {
 		}
 	}
 
-	static public function class_file_to_forum_type($class_file) {
+	static public function class_file_to_forum_type_s($class_file) {
 		return substr($class_file, 1, -4); # Omit initial "C" and trailing ".php"
 	}
 
-	static public function class_to_forum_type($class) {
+	static public function classname_to_forum_type_s($class) {
 		return substr($class, 0, -4); # Omit trailing "FUPS"
 	}
 
-	function do_send(&$redirect = false, $quit_on_error = true, &$err = false, $check_get_board_title = true) {
+	public function do_send(&$redirect = false, $quit_on_error = true, &$err = false, $check_get_board_title = true) {
 		static $retry_delays = array(0, 5, 5);
 		static $first_so_no_wait = true;
 
@@ -646,10 +646,10 @@ abstract class FUPSBase {
 		return 'The active FUPS class is: '.$classname;
 	}
 
-	static public function get_canonical_forum_type($forum_type) {
+	static public function get_canonical_forum_type_s($forum_type) {
 		$ret = false;
 
-		$valid_forum_types = FUPSBase::get_valid_forum_types();
+		$valid_forum_types = FUPSBase::get_valid_forum_types_s();
 		foreach ($valid_forum_types as $valid_forum_type) {
 			if (strcasecmp($forum_type, $valid_forum_type) == 0) {
 				$ret = $valid_forum_type;
@@ -722,7 +722,7 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	static protected function get_formatted_err($method, $line, $file, $msg) {
+	static protected function get_formatted_err_s($method, $line, $file, $msg) {
 		$ret = '';
 		if ($method) $ret = "In $method";
 		if ($line) {
@@ -736,16 +736,20 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	static function get_forum_software_homepage() {
-		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	public function get_forum_type() {
+		return static::get_canonical_forum_type_s(static::classname_to_forum_type_s(get_class($this)));
 	}
 
-	static protected function get_img_filename_from_url($url) {
+	static function get_forum_software_homepage_s() {
+		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage_s() method OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	}
+
+	static protected function get_img_filename_from_url_s($url) {
 		return urldecode(explode('?', basename($url))[0]);
 	}
 
-	static function get_msg_how_to_detect_forum() {
-		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
+	static function get_msg_how_to_detect_forum_s() {
+		return '[YOU NEED TO CUSTOMISE THE static get_msg_how_to_detect_forum_s() function OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}
 
 	protected function get_output_variants() {
@@ -910,7 +914,7 @@ abstract class FUPSBase {
 
 	abstract protected function get_post_url($forumid, $topicid, $postid, $with_hash = false);
 
-	static function get_qanda() {
+	static function get_qanda_s() {
 		return array(
 			'q_lang' => array(
 				'q' => 'Does the script work with forums using a language other than English?',
@@ -937,7 +941,7 @@ abstract class FUPSBase {
 		$default_settings = array(
 			'forum_type' => array(
 				'label'       => 'Forum type'                            ,
-				'default'     => static::class_to_forum_type(get_class($this)),
+				'default'     => static::classname_to_forum_type_s(get_class($this)),
 				'description' => 'Specifies the forum type (e.g. "phpBB" or "XenForo").',
 				'required'    => true                                    ,
 				'hidden'      => false                                   ,
@@ -1019,7 +1023,6 @@ abstract class FUPSBase {
 				'required' => false,
 			)
 		));
-
 		return $default_settings;
 	}
 
@@ -1043,13 +1046,13 @@ abstract class FUPSBase {
 
 	abstract protected function get_user_page_url();
 
-	static public function get_valid_forum_types() {
+	static public function get_valid_forum_types_s() {
 		static $ignored_files = array('.', '..', 'CFUPSBase.php');
 		$ret = array();
 		$class_files = scandir(__DIR__);
 		if ($class_files) foreach ($class_files as $class_file) {
 			if (!in_array($class_file, $ignored_files)) {
-				$class = self::class_file_to_forum_type($class_file);
+				$class = self::class_file_to_forum_type_s($class_file);
 				$ret[] = $class;
 			}
 		}
@@ -1129,7 +1132,7 @@ abstract class FUPSBase {
 		$html_msg = $html !== false ? 'The relevant page\'s HTML is:'.PHP_EOL.PHP_EOL.$html.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL.PHP_EOL : '';
 		$settings_msg = (!$have_written_to_admin_err_file && $settings_str) ? static::get_settings_msg_s($settings_str) : '';
 		$classname_msg = (!$have_written_to_admin_err_file && $classname) ? static::get_classname_msg_s($classname).PHP_EOL.PHP_EOL : '';
-		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.static::get_formatted_err($method, $line, $file, $msg).($resumable ? ' N.B. This error is RESUMABLE.' : '').PHP_EOL.PHP_EOL.$html_msg;
+		$full_admin_msg = $classname_msg.$settings_msg.PHP_EOL.static::get_formatted_err_s($method, $line, $file, $msg).($resumable ? ' N.B. This error is RESUMABLE.' : '').PHP_EOL.PHP_EOL.$html_msg;
 
 		if ($token) {
 			$filename = make_errs_admin_filename($token);
@@ -1197,7 +1200,7 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	static protected function replace_img_urls($html, $urls) {
+	static protected function replace_img_urls_s($html, $urls) {
 		$ret = $html;
 
 		if (preg_match_all('(<img [^>]*>)', $html, $matches, PREG_PATTERN_ORDER)) {
@@ -1427,7 +1430,7 @@ abstract class FUPSBase {
 					if ($img_server == $parsed['host']) {
 						$this->wait_courteously();
 					} else	$img_server = $parsed['host'];
-					$img_filename_org = static::get_img_filename_from_url($download_url);
+					$img_filename_org = static::get_img_filename_from_url_s($download_url);
 
 					# Handle duplicate image filenames
 					$img_filename = ensure_unique_filename($output_img_path, $img_filename_org);
@@ -1469,7 +1472,7 @@ abstract class FUPSBase {
 
 					foreach ($this->posts_data as $topicid => &$topic_data) {
 						foreach ($topic_data['posts'] as $postid => &$post_data) {
-							$post_data['content'] = static::replace_img_urls($post_data['content'], $this->img_urls);
+							$post_data['content'] = static::replace_img_urls_s($post_data['content'], $this->img_urls);
 						}
 					}
 				}
@@ -1714,7 +1717,7 @@ abstract class FUPSBase {
 
 	static public function write_err_s($ferr, $msg, $file = null, $method = null, $line = null) {
 		if (!is_null($file) || !is_null($method) || !is_null($line)) {
-			$msg = static::get_formatted_err($method, $line, $file, $msg);
+			$msg = static::get_formatted_err_s($method, $line, $file, $msg);
 		}
 		if ($ferr) {
 			fwrite($ferr, $msg.PHP_EOL);

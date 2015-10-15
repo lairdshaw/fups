@@ -35,7 +35,7 @@ $forum_type = isset($_GET['forum_type']) ? $_GET['forum_type'] : '';
 $errmsg = '';
 if (!$forum_type) $errmsg = 'Forum type not provided';
 else {
-	if (!($canonical_forum_type = FUPSBase::get_canonical_forum_type($forum_type))) {
+	if (!($canonical_forum_type = FUPSBase::get_canonical_forum_type_s($forum_type))) {
 		$errmsg = 'Unsupported forum type: "'.$forum_type.'"';
 	}
 }
@@ -120,7 +120,7 @@ if ($errmsg) {
 
 			<h3>Answers to possible questions</h3>
 <?php
-	$qanda = $forum_class::get_qanda();
+	$qanda = $forum_class::get_qanda_s();
 	if (isset($fups_extra_qanda)) $qanda = array_merge($qanda, $fups_extra_qanda);
 	foreach ($qanda as $id => $qa) {
 		echo '			<h4 id="'.$id.'">'.$qa['q'].'</h4>'."\n";

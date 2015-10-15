@@ -132,11 +132,11 @@ class XenForoFUPS extends FUPSBase {
 		} else	$this->post_search_counter++;
 	}
 
-	static function get_forum_software_homepage() {
+	static function get_forum_software_homepage_s() {
 		return 'http://xenforo.com/';
 	}
 
-	static function get_msg_how_to_detect_forum() {
+	static function get_msg_how_to_detect_forum_s() {
 		return 'Typically, XenForo forums can be identified by the presence of the text "Forum software by XenForo" in the footer of their forum pages. It is possible, however, that these footer texts have been removed by the administrator of the forum. In this case, the only way to know for sure is to contact your forum administrator.';
 	}
 
@@ -156,12 +156,12 @@ class XenForoFUPS extends FUPSBase {
 		return $this->settings['base_url']."/posts/$postid/";
 	}
 
-	static function get_qanda() {
-		$qanda = parent::get_qanda();
+	static function get_qanda_s() {
+		$qanda = parent::get_qanda_s();
 		$qanda_new = array(
 			'q_how_know_xenforo' => array(
 				'q' => 'How can I know if a forum is a XenForo forum?',
-				'a' => self::get_msg_how_to_detect_forum(),
+				'a' => self::get_msg_how_to_detect_forum_s(),
 			)
 		);
 
