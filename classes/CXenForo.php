@@ -277,12 +277,12 @@ class XenForoFUPS extends FUPSBase {
 		$this->search_id = $this->get_search_id();
 	}
 
-	public function supports_feature($feature) {
+	public static function supports_feature_s($feature) {
 		static $features = array(
 			'login' => false
 		);
 
-		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature($feature);
+		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature_s($feature);
 	}
 }
 

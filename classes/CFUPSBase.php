@@ -118,14 +118,14 @@ abstract class FUPSBase {
 		3 => 'posts_retrieval',
 		4 => 'extract_per_thread_info',
 		5 => 'handle_missing_posts',
-		6 => 'download_images',
+		6 => 'download_files',
 		7 => 'write_output',
 		8 => 'check_send_non_fatal_err_email',
 	);
 	protected $was_chained       =   false;
-	protected $img_urls          = array();
-	protected $img_urls_downloaded      = array();
-	protected $img_urls_failed_download = array();
+	protected $downld_file_urls  = array();
+	protected $downld_file_urls_downloaded      = array();
+	protected $downld_file_urls_failed_download = array();
 
 	public function __construct($web_initiated, $params, $do_not_init = false) {
 		if (!$do_not_init) {
@@ -228,37 +228,55 @@ abstract class FUPSBase {
 		$this->num_posts_retrieved = $num_posts_retrieved;
 	}
 
-	protected function add_img_failed_dnlds_output_file($eol, $eol_desc, $eol_prefix, &$output_info, $have_images) {
-		$img_failed_dlds_filename = 'failed-image-downloads.'.$eol_prefix.'.txt';
-		$img_failed_dlds_filepath = $this->output_dirname.$img_failed_dlds_filename;
-		if (file_put_contents($img_failed_dlds_filepath, implode($eol, array_keys($this->img_urls_failed_download))) === false) {
-			$this->write_err('Failed to write failed to "'.$img_failed_dlds_filename.'".', __FILE__, __METHOD__, __LINE__);
+	static protected function absolutify_url_s($url, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url) {
+		$new_url = $url;
+		if ($url) {
+			$parsed = parse_url($url);
+			if (!$parsed || !isset($parsed['scheme'])) {
+				if ($url[0] == '#') {
+					$new_url = $current_url.$url;
+				} else {
+					if (!isset($parsed['scheme']) && substr($url, 0, 2) == '//') {
+						$new_url = $current_protocol.':'.$url;
+					} else	$new_url = ($url[0] == '/' ? $root_rel_url_base : $path_rel_url_base).(substr($url, 0, 2) == './' ? substr($url, 2) : $url);
+				}
+			}
+		}
+
+		return $new_url;
+	}
+
+	protected function add_downld_file_failed_dnlds_output_file($eol, $eol_desc, $eol_prefix, &$output_info, $have_downld_files) {
+		$downld_file_failed_dlds_filename = 'failed-file-downloads.'.$eol_prefix.'.txt';
+		$downld_file_failed_dlds_filepath = $this->output_dirname.$downld_file_failed_dlds_filename;
+		if (file_put_contents($downld_file_failed_dlds_filepath, implode($eol, array_keys($this->downld_file_urls_failed_download))) === false) {
+			$this->write_err('Failed to write failed to "'.$downld_file_failed_dlds_filename.'".', __FILE__, __METHOD__, __LINE__);
 		}
 		$opts = array(
-			'filename'    => $img_failed_dlds_filename,
-			'description' => 'A list of URLs of images that could not be downloaded, one per line. Plain text file with '.$eol_desc.' line endings. (These URLs have been left unmodified in the posts).',
-			'size'        => stat($img_failed_dlds_filepath)['size'],
+			'filename'    => $downld_file_failed_dlds_filename,
+			'description' => 'A list of URLs of files that could not be downloaded, one per line. Plain text file with '.$eol_desc.' line endings. (These URLs have been left unmodified in the posts).',
+			'size'        => stat($downld_file_failed_dlds_filepath)['size'],
 		);
-		if (!$have_images) {
-			$opts['url'] = $this->output_dirname_web.$img_failed_dlds_filename;
+		if (!$have_downld_files) {
+			$opts['url'] = $this->output_dirname_web.$downld_file_failed_dlds_filename;
 		}
 		$output_info[] = $opts;
 	}
 
-	protected function add_img_map_output_file($eol, $eol_desc, $eol_prefix, &$output_info) {
-		$img_map_filename = 'image-sources.'.$eol_prefix.'.txt';
-		$img_map_filepath = $this->output_dirname.$img_map_filename;
+	protected function add_downld_file_map_output_file($eol, $eol_desc, $eol_prefix, &$output_info) {
+		$downld_file_map_filename = 'sources-of-downloaded-files.'.$eol_prefix.'.txt';
+		$downld_file_map_filepath = $this->output_dirname.$downld_file_map_filename;
 		$contents = '';
-		foreach ($this->img_urls_downloaded as $org_url => $new_name) {
+		foreach ($this->downld_file_urls_downloaded as $org_url => $new_name) {
 			$contents .= "$new_name$eol\t$org_url$eol";
 		}
-		if (file_put_contents($img_map_filepath, $contents) === false) {
-			$this->write_err('Failed to write output information to "'.$img_map_filename.'".', __FILE__, __METHOD__, __LINE__);
+		if (file_put_contents($downld_file_map_filepath, $contents) === false) {
+			$this->write_err('Failed to write output information to "'.$downld_file_map_filename.'".', __FILE__, __METHOD__, __LINE__);
 		}
 		$output_info[] = array(
-			'filename'    => $img_map_filename,
-			'description' => 'A mapping of downloaded image filenames to the original URLs from which they were downloaded. Plain text with '.$eol_desc.' line endings.',
-			'size'        => stat($img_map_filepath)['size'],
+			'filename'    => $downld_file_map_filename,
+			'description' => 'A mapping of downloaded file filenames to the original URLs from which they were downloaded. Plain text with '.$eol_desc.' line endings.',
+			'size'        => stat($downld_file_map_filepath)['size'],
 		);
 	}
 
@@ -378,7 +396,7 @@ abstract class FUPSBase {
 		if (empty($this->settings['board_title'])) {
 			# Try to discover the board's title
 			if (!$this->skins_preg_match('board_title', $html, $matches)) {
-				if ($this->dbg) $this->write_err("Warning: couldn't find the site title. The URL of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+				if ($this->dbg) $this->write_and_record_err_admin("Warning: couldn't find the site title. The URL of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
 			}
 			$this->settings['board_title'] = $matches[1];
 			if ($this->dbg) $this->write_err("Site title: {$this->settings['board_title']}");
@@ -556,12 +574,6 @@ abstract class FUPSBase {
 		$this->set_url($this->get_search_url());
 		$html = $this->do_send();
 
-		if ($this->skins_preg_match('search_results_not_found', $html, $matches)) {
-			if ($this->dbg) $this->write_err('Matched "search_results_not_found" regex; we have finished finding posts.');
-			$this->progress_level++;
-			return 0;
-		}
-
 		if (!$this->skins_preg_match_all('search_results_page_data', $html, $matches, 'search_results_page_data_order', $combine = true)) {
 			$this->write_and_record_err_admin('Error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
 			$this->progress_level++;
@@ -606,6 +618,9 @@ abstract class FUPSBase {
 				'timestamp' => $ts,
 				'content'   => null,
 			);
+			if ($this->settings['download_attachments']) {
+				$this->posts_data[$topicid]['posts'][$postid]['attachments'] = array();
+			}
 			if ($this->dbg) {
 				$this->write_err("Added post: $posttitle ($topic; $ts; $forum; forumid: $forumid; topicid: $topicid; postid: $postid)");
 			}
@@ -616,6 +631,11 @@ abstract class FUPSBase {
 		$do_inc_progress_level = $found_earliest;
 
 		$this->find_author_posts_via_search_page__end_hook($do_inc_progress_level, $html, $found_earliest, $matches);
+
+		if ($this->skins_preg_match('search_results_not_found', $html, $matches)) {
+			if ($this->dbg) $this->write_err('Matched "search_results_not_found" regex; we have finished finding posts.');
+			$do_inc_progress_level = true;
+		}
 
 		if ($do_inc_progress_level) $this->progress_level++;
 		
@@ -709,13 +729,27 @@ abstract class FUPSBase {
 	protected function get_final_output_array() {
 		static $ret = null;
 		if ($ret === null) {
+			$posts_data = $this->posts_data;
+			if ($this->settings['download_attachments']) {
+				// Map absolute URLS of downloaded attachments to local, relative URLs.
+				foreach ($posts_data  as $topicid => &$topic_data) {
+					foreach ($topic_data['posts'] as &$post_data) {
+						if ($post_data['attachments']) foreach ($post_data['attachments'] as &$attachment) {
+							$attachment['original_url'] = $attachment['url'];
+							if (isset($this->downld_file_urls_downloaded[$attachment['url']])) {
+								$attachment['url'] = $this->downld_file_urls_downloaded[$attachment['url']];
+							}
+						}
+					}
+				}
+			}
 			$ret = array(
 				'board_title'       => $this->settings['board_title'],
 				'user_name'         => $this->settings['extract_user'],
 				'board_base_url'    => $this->settings['base_url'],
 				'start_from_date'   => $this->settings['start_from_date'],
 				'character_set'     => $this->charset,
-				'threads_and_posts' => $this->posts_data,
+				'threads_and_posts' => $posts_data,
 			);
 		}
 
@@ -736,15 +770,15 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	public function get_forum_type() {
-		return static::get_canonical_forum_type_s(static::classname_to_forum_type_s(get_class($this)));
+	static public function get_forum_type_s() {
+		return static::get_canonical_forum_type_s(static::classname_to_forum_type_s(get_called_class()));
 	}
 
 	static function get_forum_software_homepage_s() {
 		return '[YOU NEED TO CUSTOMISE THE static get_forum_software_homepage_s() method OF YOUR CLASS DESCENDING FROM FUPSBase!]';
 	}
 
-	static protected function get_img_filename_from_url_s($url) {
+	static protected function get_downld_file_filename_from_url_s($url) {
 		return urldecode(explode('?', basename($url))[0]);
 	}
 
@@ -820,7 +854,7 @@ abstract class FUPSBase {
 		$count = 0;
 		if (!$this->skins_preg_match_all('post_contents', $html, $matches)) {
 			$err = true;
-			$this->write_err('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+			$this->write_and_record_err_admin('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
 		} else {
 			list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
 			list($found, $count) = $this->get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
@@ -891,18 +925,40 @@ abstract class FUPSBase {
 					$this->empty_posts[$match[1]] = true;
 					$this->write_err("Warning: the post with ID {$match[1]} in the topic with ID $topicid appears to be empty.");
 				} else {
-					$img_urls = array();
-					$post_html = static::replace_contextual_urls_s($match[2], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, $img_urls);
+					$downld_file_urls = array();
+					$post_html = static::replace_contextual_urls_s($match[2], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, $downld_file_urls);
 					if ($this->dbg) {
-						if ($img_urls) {
-							$this->write_err('Merging the following image URLs into $this->img_urls: <'.implode('>, <', $img_urls).'>.');
-						} else	$this->write_err('No image URLs to merge.');
+						if ($downld_file_urls) {
+							$this->write_err('Merging the following downloadable file URLs into $this->downld_file_urls: <'.implode('>, <', $downld_file_urls).'>.');
+						} else	$this->write_err('No downloadable file URLs to merge.');
 					}
-					$this->img_urls = array_merge($this->img_urls, $img_urls);
+					$this->downld_file_urls = array_merge($this->downld_file_urls, $downld_file_urls);
 					if ($post_html == '') {
 						$this->empty_posts[$match[1]] = true;
 						$this->write_and_record_err_admin("Warning: after replacing URLs the post with ID {$match[1]} in the topic with ID $topicid appears to be empty. The pre-replacement post HTML is:\n\n{$match[2]}", __FILE__, __METHOD__, __LINE__);
 					} else	$posts[$match[1]]['content'] = $post_html;
+				}
+				if ($this->settings['download_attachments'] && isset($match[3]) && $match[3] != '') {
+					if ($this->dbg) $this->write_err("Attempting to parse attachments in post with ID {$match[1]}.");
+					if (!$this->skins_preg_match_all('attachments', $match[3], $matches_att, 'attachments_order')) {
+						$this->write_and_record_err_admin("Warning: the post with ID {$match[1]} appears to have attachments but we could not parse them.", __FILE__, __METHOD__, __LINE__);
+					} else {
+						$attachments = array();
+						foreach ($matches_att as $match_att) {
+							$is_image = isset($match_att[$match_att['match_indexes']['img_url']]) && $match_att[$match_att['match_indexes']['img_url']] != '';
+							$attachment = array(
+								'comment'  => isset($match_att[$match_att['match_indexes']['comment']]) ? $match_att[$match_att['match_indexes']['comment']] : '',
+								'is_image' => $is_image,
+								'url'      => htmlspecialchars_decode($match_att[$match_att['match_indexes'][($is_image ? 'img' : 'file').'_url']]),
+								'filename' => $match_att[$match_att['match_indexes'][($is_image ? 'img' : 'file').'_name']],
+							);
+							$attachment['url'] = static::absolutify_url_s($attachment['url'], $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url);
+							$this->downld_file_urls[$attachment['url']] = $attachment['filename'];
+							$attachments[] = $attachment;
+						}
+						$posts[$match[1]]['attachments'] = $attachments;
+						if ($this->dbg) $this->write_err('Parsed '.count($attachments)." attachments in post with ID {$match[1]}.");
+					}
 				}
 				if ($postid == $match[1]) $found = true;
 				$count++;
@@ -927,6 +983,10 @@ abstract class FUPSBase {
 			'q_images_supported' => array(
 				'q' => 'Are images supported?',
 				'a' => 'Yes. If you check "Scrape images" (checked by default), then images are downloaded along with the posts. If not, then all relative image URLs are converted to absolute URLs, so images will display in the HTML output files so long as you are online at the time of viewing those files.',
+			),
+			'q_attachments_supported' => array(
+				'q' => 'Is the downloading of attachments supported?',
+				'a' => static::supports_feature_s('attachments') ? 'Yes. If you check "Scrape attachments" (checked by default), then attachments are downloaded along with the posts.' : 'In general, yes, but not yet for '.static::get_forum_type_s().' forums.',
 			),
 			'q_why_slow' => array(
 				'q' => 'Why is this script so slow?',
@@ -962,7 +1022,7 @@ abstract class FUPSBase {
 			)
 		);
 
-		if ($this->supports_feature('login')) {
+		if (static::supports_feature_s('login')) {
 			$default_settings = array_merge($default_settings, array(
 				'login_user'  => array(
 					'label' => 'Login User Username',
@@ -996,10 +1056,25 @@ abstract class FUPSBase {
 			'download_images' => array(
 				'label' => 'Scrape images',
 				'default' => true,
-				'description' => 'Check this box if you want FUPS to scrape all images in posts too, and to adjust image URLs to refer the local, downloaded images.',
+				'description' => 'Check this box if you want FUPS to scrape all images in posts too, and to adjust image URLs to refer the local, downloaded images. Note that images which are attached to posts, but which are not included inline in the post itself, will not be scraped'.(static::supports_feature_s('attachments') ? ' unless you also check "Scrape attachments" below.' : ' (because FUPS does not yet support the scraping of attachments for '.static::get_forum_type_s().' forums).'),
 				'type' => 'checkbox',
 				'required' => false,
 			),
+		));
+
+		if (static::supports_feature_s('attachments')) {
+			$default_settings = array_merge($default_settings, array(
+				'download_attachments'  => array(
+					'label' => 'Scrape attachments',
+					'default' => true,
+					'description' => 'Check this box if you want FUPS to scrape all attachments to posts too.',
+					'type' => 'checkbox',
+					'required'    => false,
+				),
+			));
+		}
+
+		$default_settings = array_merge($default_settings, array(
 			'non_us_date_format' => array(
 				'label' => 'Non-US date format',
 				'default' => false,
@@ -1023,6 +1098,7 @@ abstract class FUPSBase {
 				'required' => false,
 			)
 		));
+
 		return $default_settings;
 	}
 
@@ -1066,7 +1142,7 @@ abstract class FUPSBase {
 	protected function hook_after__posts_retrieval        () {} // Run after progress level 3
 	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
 	protected function hook_after__handle_missing_posts   () {} // Run after progress level 5
-	protected function hook_after__download_images        () {} // Run after progress level 6
+	protected function hook_after__download_files         () {} // Run after progress level 6
 	protected function hook_after__write_output           () {} // Run after progress level 7
 	protected function hook_after__check_send_non_fatal_err_email() {} // Run after progress level 8
 
@@ -1154,10 +1230,10 @@ abstract class FUPSBase {
 		return $full_admin_msg;
 	}
 
-	static protected function replace_contextual_urls_s($html, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, &$img_urls_abs) {
+	static protected function replace_contextual_urls_s($html, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url, &$downld_file_urls_abs) {
 		$ret = $html;
 
-		if (!is_array($img_urls_abs)) $img_urls_abs = array();
+		if (!is_array($downld_file_urls_abs)) $downld_file_urls_abs = array();
 
 		if (preg_match_all('(<(img|a) [^>]*>)', $html, $matches, PREG_SET_ORDER)) {
 			$search = array();
@@ -1171,19 +1247,13 @@ abstract class FUPSBase {
 					foreach ($attrs as $attr => $value) {
 						if (($tag == 'img' && $attr == 'src') || ($tag == 'a' && $attr = 'href')) {
 							$url = htmlspecialchars_decode($value);
-							$parsed = parse_url($url);
-							if (!$parsed || !isset($parsed['scheme'])) {
-								if ($tag == 'a' && $url[0] == '#') {
-									$new_url = $current_url.$url;
-								} else {
-									if (!isset($parsed['scheme']) && substr($url, 0, 2) == '//') {
-										$new_url = $current_protocol.':'.$url;
-									} else	$new_url = ($url[0] == '/' ? $root_rel_url_base : $path_rel_url_base).$url;
-									if ($tag == 'img') $img_urls_abs[$new_url] = $new_url;
-								}
+
+							$new_url = static::absolutify_url_s($url, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url);
+							$downld_file_urls_abs[$new_url] = $new_url;
+							if ($new_url != $url) {
 								$search2[] = $full_attr_matches[$attr];
 								$replace2[] = $attr.'="'.htmlspecialchars($new_url).'"';
-							} else	if ($tag == 'img') $img_urls_abs[$url] = $url;
+							}
 						}
 					}
 					if ($search2) {
@@ -1200,7 +1270,7 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	static protected function replace_img_urls_s($html, $urls) {
+	static protected function replace_downld_file_urls_s($html, $urls) {
 		$ret = $html;
 
 		if (preg_match_all('(<img [^>]*>)', $html, $matches, PREG_PATTERN_ORDER)) {
@@ -1264,7 +1334,7 @@ abstract class FUPSBase {
 		}
 
 		# Login if necessary
-		if ($this->supports_feature('login')) {
+		if (static::supports_feature_s('login')) {
 			if (!$login_if_available) {
 				if ($this->dbg) $this->write_err('Not bothering to check whether to log in again, because $login_if_available is false (probably we\'ve just chained without the -r parameter being passed).');
 			} else	$this->check_do_login();
@@ -1408,37 +1478,43 @@ abstract class FUPSBase {
 			$this->$hook_method(); // hook_after__handle_missing_posts();
 		}
 
-		# Download images if necessary
+		# Download downloable files if necessary
 		if ($this->progress_level == 6) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 
-			if (isset($this->settings['download_images']) && $this->settings['download_images'] && $this->img_urls) {
-				$this->write_status('Downloading images.');
-				$output_img_dirname = 'images';
-				$output_img_path = $this->output_dirname.$output_img_dirname;
-				if (!file_exists($output_img_path) && !mkdir($output_img_path, 0775, true)) {
-					$this->exit_err_resumable('Failed to create image output directory "'.$output_img_path.'".', __FILE__, __METHOD__, __LINE__);
+			if ((isset($this->settings['download_images']) && $this->settings['download_images']
+			     ||
+			     isset($this->settings['download_attachments']) && $this->settings['download_attachments']
+			    )
+			    &&
+			    $this->downld_file_urls
+			   ) {
+				$this->write_status('Downloading images and/or attachments.');
+				$output_downld_file_dirname = 'files';
+				$output_downld_file_path = $this->output_dirname.$output_downld_file_dirname;
+				if (!file_exists($output_downld_file_path) && !mkdir($output_downld_file_path, 0775, true)) {
+					$this->exit_err_resumable('Failed to create "files" output directory "'.$output_downld_file_path.'".', __FILE__, __METHOD__, __LINE__);
 				}
 
-				ksort($this->img_urls);
-				$img_server = '';
-				foreach ($this->img_urls as $download_url => &$url) {
+				ksort($this->downld_file_urls);
+				$downld_file_server = '';
+				foreach ($this->downld_file_urls as $download_url => &$url) {
 					# Don't redownload if we chained during this loop.
-					if (isset($this->img_urls_downloaded[$download_url]) || isset($this->img_urls_failed_download[$download_url])) continue;
+					if (isset($this->downld_file_urls_downloaded[$download_url]) || isset($this->downld_file_urls_failed_download[$download_url])) continue;
 
 					$parsed = parse_url($download_url);
-					if ($img_server == $parsed['host']) {
+					if ($downld_file_server == $parsed['host']) {
 						$this->wait_courteously();
-					} else	$img_server = $parsed['host'];
-					$img_filename_org = static::get_img_filename_from_url_s($download_url);
+					} else	$downld_file_server = $parsed['host'];
+					$downld_file_filename_org = sanitise_filename(static::get_downld_file_filename_from_url_s($url));
 
-					# Handle duplicate image filenames
-					$img_filename = ensure_unique_filename($output_img_path, $img_filename_org);
-					$img_path = $output_img_path.'/'.$img_filename;
+					# Handle duplicate filenames
+					$downld_file_filename = ensure_unique_filename($output_downld_file_path, $downld_file_filename_org);
+					$downld_file_path = $output_downld_file_path.'/'.$downld_file_filename;
 
-					$fp = fopen($img_path, 'wb');
+					$fp = fopen($downld_file_path, 'wb');
 					if ($fp === false) {
-						$this->exit_err_resumable('Failed to create image file "'.$img_filename.'" for writing in image output directory.', __FILE__, __METHOD__, __LINE__);
+						$this->exit_err_resumable('Failed to create file "'.$downld_file_filename.'" for writing in "file" output directory.', __FILE__, __METHOD__, __LINE__);
 					}
 
 					$this->set_url($download_url);
@@ -1449,30 +1525,30 @@ abstract class FUPSBase {
 					if (!curl_setopt_array($this->ch, $opts)) {
 						$this->exit_err_resumable('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 					}
-					$this->write_status('Downloading image from URL <'.$download_url.'>.');
+					$this->write_status('Downloading file from URL <'.$download_url.'>.');
 					$this->do_send($redirect, /*$quit_on_error*/false, $err, /*$check_get_board_title*/false);
 					if ($err) {
-						$this->img_urls_failed_download[$download_url] = true;
-						if ($this->dbg) $this->write_err('Failed to download image from URL <'.$download_url.'>.', __FILE__, __METHOD__, __LINE__);
-					} else	$this->img_urls_downloaded[$download_url] = $output_img_dirname.'/'.$img_filename;
+						$this->downld_file_urls_failed_download[$download_url] = true;
+						if ($this->dbg) $this->write_err('Failed to download file from URL <'.$download_url.'>.', __FILE__, __METHOD__, __LINE__);
+					} else	$this->downld_file_urls_downloaded[$download_url] = $output_downld_file_dirname.'/'.$downld_file_filename;
 					fclose($fp);
-					if ($err) unlink($img_path);
+					if ($err) unlink($downld_file_path);
 					else {
-						$url = $output_img_dirname.'/'.rawurlencode($img_filename);
-						if ($this->dbg) $this->write_err('Successfully downloaded image from URL <'.$download_url.'> to "'.$img_path.'".');
+						$url = $output_downld_file_dirname.'/'.rawurlencode($downld_file_filename);
+						if ($this->dbg) $this->write_err('Successfully downloaded file from URL <'.$download_url.'> to "'.$downld_file_path.'".');
 					}
 
 					$this->check_do_chain();
 				}
 
-				if (!$this->img_urls_downloaded) {
-					rmdir($output_img_path);
+				if (!$this->downld_file_urls_downloaded) {
+					rmdir($output_downld_file_path);
 				} else {
-					$this->write_status('Replacing image URLs in posts with local URLs for downloaded images.');
+					$this->write_status('Replacing URLs in posts with local URLs for downloaded files.');
 
 					foreach ($this->posts_data as $topicid => &$topic_data) {
 						foreach ($topic_data['posts'] as $postid => &$post_data) {
-							$post_data['content'] = static::replace_img_urls_s($post_data['content'], $this->img_urls);
+							$post_data['content'] = static::replace_downld_file_urls_s($post_data['content'], $this->downld_file_urls);
 						}
 					}
 				}
@@ -1480,7 +1556,7 @@ abstract class FUPSBase {
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
 			$this->progress_level++;
-			$this->$hook_method(); // hook_after__download_images();
+			$this->$hook_method(); // hook_after__download_files();
 		}
 
 		# Write output
@@ -1634,9 +1710,10 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	public function supports_feature($feature) {
+	public static function supports_feature_s($feature) {
 		static $default_features = array(
-			'login' => false
+			'login'       => false,
+			'attachments' => false,
 		);
 
 		return isset($default_features[$feature]) ? $default_features[$feature] : false;
@@ -1660,7 +1737,7 @@ abstract class FUPSBase {
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 			}
 			$ip = gethostbyname($parsed['host']);
-			if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+			if (!filter_var($ip, FILTER_VALIDATE_IP/*, /*FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE*/)) {
 				$err = 'The host ("'.$parsed['host'].'") in '.$url_label.' ("'.$url.'") maps to the IP address "'.$ip.'", which is a private or reserved IP address, or is unmapped.';
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 			}
@@ -1726,8 +1803,8 @@ abstract class FUPSBase {
 
 	protected function write_output() {
 		$output_info = array();
-		$wanted_images = count($this->img_urls) > 0;
-		$have_images = $wanted_images && $this->img_urls_downloaded;
+		$wanted_downld_files = count($this->downld_file_urls) > 0;
+		$have_downld_files = $wanted_downld_files && $this->downld_file_urls_downloaded;
 
 		foreach ($this->get_output_variants() as $opv) {
 			$op_filename =  make_output_filename($this->output_dirname, $opv['filename_appendix']);
@@ -1735,10 +1812,10 @@ abstract class FUPSBase {
 				$opts = array(
 					'filename'    => make_output_filename('', $opv['filename_appendix']),
 					'filepath'    => $op_filename,
-					'description' => ($wanted_images ? 'The post output listing as: ' : '').$opv['description'],
+					'description' => ($wanted_downld_files ? 'The post output listing as: ' : '').$opv['description'],
 					'size'        => stat($op_filename)['size'],
 				);
-				if (!$have_images) {
+				if (!$have_downld_files) {
 					$opts['url'] = make_output_filename($this->output_dirname_web, $opv['filename_appendix']);
 				}
 				$output_info[] = $opts;
@@ -1746,32 +1823,32 @@ abstract class FUPSBase {
 		}
 
 		if ($this->web_initiated) {
-			if ($wanted_images) {
-				if ($have_images) {
-					$img_dir_size = 0;
-					$img_dir = $this->output_dirname.'images';
-					$handle = opendir($img_dir);
+			if ($wanted_downld_files) {
+				if ($have_downld_files) {
+					$downld_file_dir_size = 0;
+					$downld_file_dir = $this->output_dirname.'files';
+					$handle = opendir($downld_file_dir);
 					if ($handle === false) {
-						$this->write_err('Unable to open directory "'.$img_dir.'" for reading.', __FILE__, __METHOD__, __LINE__);
+						$this->write_err('Unable to open directory "'.$downld_file_dir.'" for reading.', __FILE__, __METHOD__, __LINE__);
 					} else {
 						while (($f = readdir($handle)) !== false) {
 							if (!in_array($f, array('.', '..'))) {
-								$img_dir_size += stat($img_dir.'/'.$f)['size'];
+								$downld_file_dir_size += stat($downld_file_dir.'/'.$f)['size'];
 							}
 						}
 						closedir($handle);
 					}
 					$output_info[] = array(
-						'filename'    => 'images/*',
-						'description' => 'A directory containing all downloaded images.',
-						'size'        => $img_dir_size,
+						'filename'    => 'files/*',
+						'description' => 'A directory containing all downloaded files.',
+						'size'        => $downld_file_dir_size,
 					);
-					$this->add_img_map_output_file("\n", 'UNIX/Linux/Mac', 'unix-linux-mac', $output_info);
-					$this->add_img_map_output_file("\r\n", 'MS-DOS/Windows', 'dos-win', $output_info);
+					$this->add_downld_file_map_output_file("\n", 'UNIX/Linux/Mac', 'unix-linux-mac', $output_info);
+					$this->add_downld_file_map_output_file("\r\n", 'MS-DOS/Windows', 'dos-win', $output_info);
 				}
-				if ($this->img_urls_failed_download) {
-					$this->add_img_failed_dnlds_output_file("\n", 'UNIX/Linux/Mac', 'unix-linux-mac', $output_info, $have_images);
-					$this->add_img_failed_dnlds_output_file("\r\n", 'MS-DOS/Windows', 'dos-win', $output_info, $have_images);
+				if ($this->downld_file_urls_failed_download) {
+					$this->add_downld_file_failed_dnlds_output_file("\n", 'UNIX/Linux/Mac', 'unix-linux-mac', $output_info, $have_downld_files);
+					$this->add_downld_file_failed_dnlds_output_file("\r\n", 'MS-DOS/Windows', 'dos-win', $output_info, $have_downld_files);
 				}
 			}
 			$zip_ext = '.all.zip';
@@ -1975,7 +2052,22 @@ abstract class FUPSBase {
 		echo '	</div>'."\n";
 		echo '	<div>'.$post_data['content']."\n";
 		echo '	</div>'."\n\n";
-
+		if ($this->settings['download_attachments'] && $post_data['attachments']) {
+			echo '	<br/><div class="attachments">'."\n";
+			echo '	<span><em>Attachments:</em></span><br />'."\n";
+			foreach ($post_data['attachments'] as $i => $attachment) {
+				$size = isset($this->downld_file_urls_downloaded[$attachment['url']]) ? number_format(stat($this->output_dirname.'/'.$this->downld_file_urls_downloaded[$attachment['url']])['size']).' bytes' : 'Unknown size';
+				$url  = isset($this->downld_file_urls_downloaded[$attachment['url']]) ? $this->downld_file_urls_downloaded[$attachment['url']] : $attachment['url'];
+				echo '		<div class="attachment">'."\n";
+				echo '			'.($attachment['is_image'] ? '<img src="'.htmlspecialchars($url).'" alt="'.htmlspecialchars($attachment['filename']).'" />' : '<a href="'.htmlspecialchars($url).'">'.htmlspecialchars($attachment['filename']).'</a> ('.$size.')').'<br />'."\n";
+				echo '			<span><i>'.$attachment['comment'].'</i></span><br />'."\n";
+				if ($attachment['is_image']) {
+					echo '			<span>'.htmlspecialchars($attachment['filename']).' ('.$size.')</span>'."\n";
+				}
+				echo '		</div>'."\n";
+			}
+			echo '	</div>'."\n\n";
+		}
 		echo '	<br />'."\n\n";
 	}
 

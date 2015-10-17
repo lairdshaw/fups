@@ -30,6 +30,7 @@
 require_once __DIR__.'/../phpBB-days-and-months-intl.php';
 
 class phpBBFUPS extends FUPSBase {
+	protected static $partial_attach_support_warning = 'Note however that attachments are not supported on all skins: if the version of the phpBB software that your forum is running is old then FUPS might not scrape attachments even if you do check "Scrape attachments".';
 	protected $regexps = null;
 	protected $old_version = false;
 
@@ -69,15 +70,25 @@ class phpBBFUPS extends FUPSBase {
 							'postid'  => the match index of the post id,
 						)
 					'search_id'                => a regexp to match the search id (only available in older versions of phpBB)
-					'post_contents'            => a regexp to match post id (first match) and post contents (second match)
-								on a thread page; it is called with match_all so it will return all
-								post ids and contents on the page
+					'post_contents'            => a regexp to match post id (first match), post contents (second match) and, if any,
+					                              attachments HTML (third match) on a thread page; it is called with match_all
+					                              so it will return all post ids and contents on the page
 					'prev_page'                => a regexp to extract the forumid (first match), topicid (second match) and
 								start (third match) parameters from the "previous page" url on a thread
 								view page
 					'next_page'                => a regexp to extract the forumid (first match), topicid (second match) and
 								start (third match) parameters from the "next page" url on a thread
 								view page
+					'attachments'              => a regexp to extract the attachments from the third match of 'post_contents'.
+					'attachments_order'        => an array specifying the order in which the following matches occur in the matches
+					                              returned by the previous array.
+					                              = array(
+					                                      'comment' => the match index of any comment/label associated with the attachment,
+					                                      'file_url' => the match index of the source URL of the attachment if it is not an image,
+					                                      'file_name' => the match index of the filename of the attachment if it is not an image,
+					                                      'img_url' => the match index of the source URL of the attachment if it is an image,
+					                                      'img_name' => the match index of the filename of the attachment if it is an image,
+					                              )
 				),
 				*/
 				'mobile' => array(
@@ -90,6 +101,7 @@ class phpBBFUPS extends FUPSBase {
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
 					'search_results_page_data' => '#<span class="topictitle"><a name="p(\d+?)".*viewforum\.php\?f=(\d+?)[^>]*>([^<]*)</a>.*viewtopic\.php\?f=\d+?&amp;t=(\d+?)[^>]*>([^<]*)</a>.*viewtopic\.php\?[^>]*>([^<]*)</a>.*</b>[ ]([^<]*)</p>#Us',
 					'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
+					// N.B. Does not (yet) contain a match for attachments.
 					'post_contents'            => '#<tr class="row1">\\s*<td class="gensmall"><a href="\\./viewtopic\\.php\\?p=(\\d+?).*<tr class="row1">\\s*<td>\\s*<div class="postbody">(.*)</div>\\s*</td>\\s*</tr>\\s*</table>#Us',
 				),
 				'prosilver.1' => array(
@@ -103,14 +115,30 @@ class phpBBFUPS extends FUPSBase {
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
 					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">(?:(?!</dl>).)*<dd>('.get_posted_on_date_regex().' )?([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
 					'search_results_page_data_order' => array('title' => 1, 'ts' => 4, 'forum' => 5, 'topic' => 6, 'forumid' => 7, 'topicid' => 8, 'postid' => 9),
-					'post_contents'            => '#<div id="p(\d+)".*<div class="content">(.*)</div>[\r\n]+#Us',
+					'post_contents'            => '#<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">((?:(?!<dl\\sclass="attachbox">)(?!<div\\sclass="back2top">).)*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="file">.*</dl>)+\\s*</dd>\\s*</dl>)?\\s*</div>\\s*<dl\\sclass="postprofile"#Us',
 					'prev_page'                => '#<strong>\\d+</strong>[^<]+<strong>\\d+</strong>.*<a href="\\./viewtopic\\.php\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">\\d+</a><span class="page-sep">, </span><strong>\\d+</strong>#Us',
 					'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
+					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><img\\s[^>]*>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
+					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
 				),
 				'prosilver.2' => array(
 					'login_success'            => '(<li class="icon-logout"><a href="\\./ucp\\.php\\?mode=logout)', # Sometimes boards are set up to redirect to the index page, in which case the above won't work and this will
 					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^<]+)</a>#Us',
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
+				),
+				'prosilver_3.1.6' => array(
+					'search_results_not_found' => '(&bull;\\s[^<\\s]+\\s<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)',
+					'post_contents'            => '#<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">((?:(?!<dl\\sclass="attachbox">)(?!<div\\sclass="back2top">).)*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="file">.*</dl>)+\\s*</dd>\\s*</dl>)?\\s*</div>\\s*</div>\\s*<div\\sclass="back2top">#Us',
+					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><span[^<]*</span>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
+					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
+				),
+				'subsilver2_3.1.6' => array(
+					'login_success'            => '(<a href="\\./ucp\\.php\\?mode=logout)',
+					'user_name'                => '(<td align="center"><b class="gen" style="color: [^"]*">([^<]*)</b>)',
+					'search_results_not_found' => '(<span class="nav">[^<]*<strong>(\\d+)</strong>[^<]*<strong>\\1</strong></span>)',
+					'post_contents'            => '(<a name="p(\\d+?)[^"]*"(?:(?!<div class="postbody">).)*<div class="postbody">(.*)</div>\\s*<br clear="all"(?:(?!<a name="p(?:\\d+?)[^"]*")(?!<table [^>]*class="tablebg"[^>]*>\\s*<tr>\\s*<td[^>]*><b class="genmed">).)*?(<table [^>]*class="tablebg"[^>]*>\\s*<tr>\\s*<td[^>]*><b class="genmed">.*\\s*</table>)?+)Us',
+					'attachments'              => '((?:<span class="gensmall"><b>[^<]*</b>\\s*?((?:(?!</span>).)*)</span>|)(?:(?!<span class="gensmall">).)*(?:<a [^>]*href="([^"]*)"[^>]*>([^<]*)<|<img [^>]*src="([^"]*)"[^>]*alt="([^"]*)"))Us',
+					'attachments_order'        => array('comment' => 1, 'file_url' => 2, 'file_name' => 3, 'img_url' => 4, 'img_name' => 5),
 				),
 				'subsilver.2' => array(
 					/* 'sid'                      => ? (not constructed yet), */
@@ -121,7 +149,7 @@ class phpBBFUPS extends FUPSBase {
 					/* 'thread_author'            => ? (not constructed yet), */
 					'search_results_not_found'  => '#<td class="row1" align="center"><br /><p class="gen">[^<]*</p><br /></td>#',
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-					'search_results_page_data'  => '#<tr class="row2">\\s*<td colspan="2" height="25"><p class="topictitle"><a name="p(\\d+)" id="p\\d+"></a>&nbsp;[^:]*: <a href="\\./viewforum\\.php\\?f=(\\d+?)[^"]*">([^<]*)</a> &nbsp; [^:]*: <a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+?)[^"]*">([^<]+)</a> </p></td>\\s*</tr>\\s*<tr class="row1">\\s*<td width="150" align="center" valign="middle"><b class="postauthor"><a href="[^"]*">[^<]*</a></b></td>\\s*<td height="25">\\s*<table width="100%" cellspacing="0" cellpadding="0" border="0">\\s*<tr>\\s*<td class="gensmall">\\s*<div style="float: left;">\\s*&nbsp;<b>[^:]*:</b> <a href="[^"]*">([^<]*)</a>\\s*</div>\\s*<div style="float: right;"><b>[^:]*:</b>\\s(.*)&nbsp;</div>#Us',
+					'search_results_page_data'  => '#<tr class="row2">\\s*<td colspan="2" height="25"><p class="topictitle"><a name="p(\\d+)" id="p\\d+"[^>]*></a>&nbsp;[^:]*: <a href="\\./viewforum\\.php\\?f=(\\d+?)[^"]*">([^<]*)</a> &nbsp; [^:]*: <a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+?)[^"]*">([^<]+)</a>\\s*</p></td>\\s*</tr>\\s*<tr class="row1">\\s*<td width="150" align="center" valign="middle"><b class="postauthor"><a [^>]*>[^<]*</a></b></td>\\s*<td height="25">\\s*<table width="100%" cellspacing="0" cellpadding="0" border="0">\\s*<tr>\\s*<td class="gensmall">\\s*<div style="float: left;">\\s*&nbsp;<b>[^:]*:</b> <a href="[^"]*">([^<]*)</a>\\s*</div>\\s*<div style="float: right;"><b>[^:]*:</b>\\s(.*)&nbsp;</div>#Us',
 					'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
 					/* 'post_contents'            => ? (not constructed yet), */
 					/* 'prev_page'                => same as for prosilver.1 */
@@ -139,10 +167,11 @@ class phpBBFUPS extends FUPSBase {
 					/* 'login_success'            => ? (not constructed yet), */
 					/* 'login_required'           => ? (not constructed yet), */
 					/* 'user_name'                => ? (not constructed yet), */
-					'thread_author'             => '#<b class="postauthor">(.+)</b>#Us',
+					'thread_author'             => '#<b class="postauthor"[^>]*>(.+)</b>#Us',
 					/* 'search_results_not_found' => ? (not constructed yet), */
 					// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
 					/* 'search_results_page_data' => ? (not constructed yet), */
+					// N.B. Does not (yet) contain a match for attachments.
 					'post_contents'             => '#<a name="p(\\d+)">.*<td valign="top">\\s*<table width="100%" cellspacing="5">\\s*<tr>\\s*<td>\\s*?(.*)(\\s*?<br /><br />\\s*<span class="gensmall">.*</span>|)\\n\\s*<br clear="all" /><br />#Us',
 					'prev_page'                 => '#<a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+)">[^<]+</a>&nbsp;&nbsp;<a href="\\./viewtopic\\.php\\?f=\\d+&amp;t=\\d+[^"]*">\\d+</a><span class="page-sep">,#',
 					/* 'next_page'                => ? (not constructed yet), */
@@ -152,6 +181,7 @@ class phpBBFUPS extends FUPSBase {
 					'user_name'                => '#alt="[^\\[]*\\[ (.*) \\]"#',
 					'search_results_page_data' => '#<span class="topictitle">.*&nbsp;<a href="viewtopic\\.php\\?t=(\\d+?).*class="topictitle">([^<]*)</a></span></td>.*<span class="postdetails">[^:]*:&nbsp;<b><a href="viewforum\\.php\\?f=(\\d+?)[^>]*>([^<]*)</a></b>&nbsp; &nbsp;[^:]*: ([^&]*?)&nbsp;.*viewtopic\\.php\\?p=(\\d+?)[^>]*>([^<]*)</a></b></span>#Us',
 					'search_results_page_data_order' => array('topicid' => 1, 'topic' => 2, 'forumid' => 3, 'forum' => 4, 'ts' => 5, 'postid' => 6, 'title' => 7),
+					// N.B. Does not (yet) contain a match for attachments.
 					'post_contents'            => '#<td class="row1".*<a href="viewtopic\\.php\\?p=(\\d+?).*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2">(.*)</td>\\s*</tr>\\s*</table></td>\\s*</tr>#Us',
 				),
 				'subsilver.0' => array(
@@ -166,6 +196,7 @@ class phpBBFUPS extends FUPSBase {
 					'search_results_page_data' => '#<tr>\\s*<td[^>]*><span class="topictitle"><img src="[^"]+" align="absmiddle" />&nbsp; .*:&nbsp;<a href="viewtopic\\.php\\?t=(\\d+)&amp;highlight=" class="topictitle">([^<]*)</a></span></td>\\s*</tr>\\s*<tr>\\s*<td width="\\d+" align="left" valign="top" class="row1" rowspan="2"><span class="name"><b><a href="profile\\.php\\?mode=viewprofile&amp;u=3">[^<]*</a></b></span><br />\\s*<br />\\s*<span class="postdetails">[^<]*<b>[^<]*</b><br />\\s*[^<]*<b>[^<]*</b></span><br />\\s*</td>\\s*<td width="100%" valign="top" class="row1"><img[^>]*><span class="postdetails">[^<]*<b><a href="viewforum\\.php\\?f=(\\d+)" class="postdetails">([^<]*)</a></b>&nbsp; &nbsp;[^:]*: (.*)&nbsp; &nbsp;[^:]*: <b><a href="viewtopic\\.php\\?p=(\\d+)&amp;highlight=\\#\\d+">([^<]+)</a></b></span></td>\\s*</tr>#Us',
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 5, 'forum' => 4, 'topic' => 2, 'forumid' => 3, 'topicid' => 1, 'postid' => 6),
 					'search_id'                => '#\\?search_id=(\\d+)&#',
+					// N.B. Does not (yet) contain a match for attachments.
 					'post_contents'            => '#<tr>\\s*<td width="100%"><a href="viewtopic\\.php\\?p=(\\d+?)[^\\#]*\\#\\d+"><img[^>]*></a><span class="postdetails">[^<]*<span class="gen">&nbsp;</span>[^<]*</span></td>\\s*<td valign="top" nowrap="nowrap"><a href="posting\\.php\\?[^"]*"><img[^>]*></a>\\s*</td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><hr /></td>\\s*</tr>\\s*<tr>\\s*<td colspan="2"><span class="postbody">(.*)</span><span class="gensmall">(<br /><br />|)[^<]*</span></td>\\s*</tr>#Us',
 					'thread_author'            => '#<b>(.*?)</b></span><br /><span class="postdetails">#',
 					'prev_page'                => '#()<span class="gensmall"><b>.*?<a href="viewtopic\\.php\\?t=(\\d+?).*start=(\\d+?)[^>]*>[^<]*</a>, <b>#U',
@@ -287,6 +318,11 @@ class phpBBFUPS extends FUPSBase {
 	padding: 5px;
 	font-weight: normal;
 }
+.attachment {
+	border-top: dotted gray 2px;
+	margin-top: 7px;
+	padding-top: 7px;
+}
 </style>';
 	}
 
@@ -354,6 +390,8 @@ class phpBBFUPS extends FUPSBase {
 
 	static function get_qanda_s() {
 		$qanda = parent::get_qanda_s();
+		$qanda['q_images_supported']['a'] .= ' Note that if you wish to scrape images which are attached to posts then you will need to also check "Scrape attachments" too. '.self::$partial_attach_support_warning;
+		$qanda['q_attachments_supported']['a'] .= ' '.self::$partial_attach_support_warning;
 		$qanda = array_merge($qanda, array(
 			'q_relationship' => array(
 				'q' => 'Does this script have any relationship with <a href="https://github.com/ProgVal/PHPBB-Extract">the PHPBB-Extract script on GitHub</a>?',
@@ -431,6 +469,7 @@ class phpBBFUPS extends FUPSBase {
 		$new_settings_arr['base_url']['description'] .= ' This is the URL that appears in your browser\'s address bar when you access the forum, only with everything onwards from (and including) the filename of whichever script is being accessed (e.g. /index.php or /viewtopic.php) stripped off. The default URL provided is for the particular phpBB board known as "Genius Forums".';
 		$new_settings_arr['extract_user_id']['description'] .= ' You can find a user\'s ID by hovering your cursor over a hyperlink to their name and taking note of the number that appears after "&amp;u=" in the URL in the browser\'s status bar.';
 		$new_settings_arr['login_user']['description'] = 'Set this to the username of the user whom you wish to log in as (it\'s fine to set it to the same value as Extract User Username above), or leave it blank if you do not wish FUPS to log in. Logging in is optional but if you log in then the timestamps associated with each post will be according to the timezone specified in that user\'s preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts. If you don\'t want to log in, then simply leave blank this setting and the next setting.';
+		$new_settings_arr['download_attachments']['description'] .= ' '.self::$partial_attach_support_warning;
 
 		return $new_settings_arr;
 	}
@@ -443,12 +482,13 @@ class phpBBFUPS extends FUPSBase {
 		return $this->settings['base_url'].'/memberlist.php?mode=viewprofile&u='.urlencode($this->settings['extract_user_id']);
 	}
 
-	public function supports_feature($feature) {
+	public static function supports_feature_s($feature) {
 		static $features = array(
-			'login' => true
+			'login'       => true,
+			'attachments' => true,
 		);
 
-		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature($feature);
+		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature_s($feature);
 	}
 
 	protected function validate_settings() {
