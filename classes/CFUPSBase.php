@@ -574,6 +574,12 @@ abstract class FUPSBase {
 		$this->set_url($this->get_search_url());
 		$html = $this->do_send();
 
+		if ($this->skins_preg_match('search_results_not_found', $html, $matches)) {
+			if ($this->dbg) $this->write_err('Matched "search_results_not_found" regex; we have finished finding posts.');
+			$this->progress_level++;
+			return 0;
+		}
+
 		if (!$this->skins_preg_match_all('search_results_page_data', $html, $matches, 'search_results_page_data_order', $combine = true)) {
 			$this->write_and_record_err_admin('Error: couldn\'t find any search result matches on one of the search results pages.  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
 			$this->progress_level++;
@@ -632,8 +638,8 @@ abstract class FUPSBase {
 
 		$this->find_author_posts_via_search_page__end_hook($do_inc_progress_level, $html, $found_earliest, $matches);
 
-		if ($this->skins_preg_match('search_results_not_found', $html, $matches)) {
-			if ($this->dbg) $this->write_err('Matched "search_results_not_found" regex; we have finished finding posts.');
+		if ($this->skins_preg_match('last_search_page', $html, $matches)) {
+			if ($this->dbg) $this->write_err('Matched "last_search_page" regex; we have finished finding posts.');
 			$do_inc_progress_level = true;
 		}
 
@@ -1737,7 +1743,7 @@ abstract class FUPSBase {
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 			}
 			$ip = gethostbyname($parsed['host']);
-			if (!filter_var($ip, FILTER_VALIDATE_IP/*, /*FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE*/)) {
+			if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
 				$err = 'The host ("'.$parsed['host'].'") in '.$url_label.' ("'.$url.'") maps to the IP address "'.$ip.'", which is a private or reserved IP address, or is unmapped.';
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 			}
@@ -1811,7 +1817,6 @@ abstract class FUPSBase {
 			if ($this->$opv['method']($op_filename)) {
 				$opts = array(
 					'filename'    => make_output_filename('', $opv['filename_appendix']),
-					'filepath'    => $op_filename,
 					'description' => ($wanted_downld_files ? 'The post output listing as: ' : '').$opv['description'],
 					'size'        => stat($op_filename)['size'],
 				);
@@ -1861,7 +1866,6 @@ abstract class FUPSBase {
 					array_unshift($output_info, array(
 						'filename'    => make_output_filename('', $zip_ext),
 						'url'         => make_output_filename($this->output_dirname_web, $zip_ext),
-						'filepath'    => $zip_filename,
 						'description' => 'A ZIP archive of all of the below files.',
 						'size'        => stat($zip_filename)['size'],
 					));

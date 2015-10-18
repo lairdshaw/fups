@@ -127,7 +127,7 @@ class phpBBFUPS extends FUPSBase {
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
 				),
 				'prosilver_3.1.6' => array(
-					'search_results_not_found' => '(&bull;\\s[^<\\s]+\\s<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)',
+					'last_search_page'         => '(&bull;\\s[^<\\s]+\\s<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)',
 					'post_contents'            => '#<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">((?:(?!<dl\\sclass="attachbox">)(?!<div\\sclass="back2top">).)*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="file">.*</dl>)+\\s*</dd>\\s*</dl>)?\\s*</div>\\s*</div>\\s*<div\\sclass="back2top">#Us',
 					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><span[^<]*</span>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
 					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
@@ -135,7 +135,7 @@ class phpBBFUPS extends FUPSBase {
 				'subsilver2_3.1.6' => array(
 					'login_success'            => '(<a href="\\./ucp\\.php\\?mode=logout)',
 					'user_name'                => '(<td align="center"><b class="gen" style="color: [^"]*">([^<]*)</b>)',
-					'search_results_not_found' => '(<span class="nav">[^<]*<strong>(\\d+)</strong>[^<]*<strong>\\1</strong></span>)',
+					'last_search_page'         => '(<span class="nav">[^<]*<strong>(\\d+)</strong>[^<]*<strong>\\1</strong></span>)',
 					'post_contents'            => '(<a name="p(\\d+?)[^"]*"(?:(?!<div class="postbody">).)*<div class="postbody">(.*)</div>\\s*<br clear="all"(?:(?!<a name="p(?:\\d+?)[^"]*")(?!<table [^>]*class="tablebg"[^>]*>\\s*<tr>\\s*<td[^>]*><b class="genmed">).)*?(<table [^>]*class="tablebg"[^>]*>\\s*<tr>\\s*<td[^>]*><b class="genmed">.*\\s*</table>)?+)Us',
 					'attachments'              => '((?:<span class="gensmall"><b>[^<]*</b>\\s*?((?:(?!</span>).)*)</span>|)(?:(?!<span class="gensmall">).)*(?:<a [^>]*href="([^"]*)"[^>]*>([^<]*)<|<img [^>]*src="([^"]*)"[^>]*alt="([^"]*)"))Us',
 					'attachments_order'        => array('comment' => 1, 'file_url' => 2, 'file_name' => 3, 'img_url' => 4, 'img_name' => 5),

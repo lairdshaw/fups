@@ -78,6 +78,52 @@ function arrays_combos($arrays) {
 	return $ret;
 }
 
+
+/* $excluded_files applies to the top level only.
+ * $num_files_del and $num_dirs_del are not initialised to zero within the function,
+ * so existing values can be passed in, which are incremented.
+ */
+function delete_files_in_dir_older_than_r($dir, $min_delete_age, $delete_dir_too = false, $excluded_files = array(), &$num_files_del = 0, &$num_dirs_del = 0) {
+	static $excluded_dirs = array('.', '..');
+
+	$dir_is_empty = true;
+	// Stat before making changes.
+	$dir_m_time = stat($dir)['mtime'];
+
+	if ($dh = opendir($dir)) {
+		while (($file = readdir($dh)) !== false) {
+			// Ignore . and ..
+			if (in_array($file, $excluded_dirs)) continue;
+
+			if (in_array($file, $excluded_files)) {
+				$dir_is_empty = false;
+				continue;
+			}
+			$filepath = $dir.'/'.$file;
+			if (is_file($filepath)) {
+				if (time() - stat($filepath)['mtime'] > $min_delete_age) {
+					if (!unlink($filepath)) {
+						fwrite(STDERR, 'Non-fatal error: failed to unlink file "'.$filepath."\"\n");
+						$dir_is_empty = false;
+					} else	$num_files_del++;
+				} else	$dir_is_empty = false;
+			} else if (is_dir($filepath) && !delete_files_in_dir_older_than_r($filepath, $min_delete_age, true, array(), $num_files_del, $num_dirs_del)) {
+				$dir_is_empty = false;
+			}
+		}
+	} else	fwrite(STDERR, 'Non-fatal error: failed to open directory "'.$dir."\".\n");
+	closedir($dh);
+
+	if ($delete_dir_too && $dir_is_empty && time() - $dir_m_time > $min_delete_age) {
+		if (!rmdir($dir)) {
+			fwrite(STDERR, 'Non-fatal error: failed to remove directory "'.$dir."\"\n");
+			$dir_is_empty = false;
+		} else	$num_dirs_del++;
+	}
+
+	return $dir_is_empty;
+}
+
 function ensure_unique_filename($dirname, $filename) {
 	$a = explode('.', $filename);
 	$ext = array_pop($a);

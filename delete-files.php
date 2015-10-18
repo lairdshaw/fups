@@ -32,20 +32,12 @@ require_once __DIR__.'/common.php';
 
 $err = '';
 $num_files_deleted = 0;
+$num_dirs_deleted = 0;
 if (!isset($_GET['token'])) $err = 'Fatal error: I did not detect a URL query parameter "token".';
 else {
 	$token = $_GET['token'];
-	$op_info_filename = make_output_info_filename($token);
-	if (is_file($op_info_filename)) {
-		$output_info = json_decode(file_get_contents($op_info_filename), true);
-		if (is_array($output_info)) {
-			$output_dir = null;
-			foreach ($output_info as $opv) {
-				try_delete_file($opv['filepath'], '"'.$opv['filepath'].'"', false, $err, $num_files_deleted, false);
-				$output_dir = dirname($opv['filepath']);
-			}
-			@rmdir($output_dir);
-		}
+	if (!delete_files_in_dir_older_than_r(make_output_dirname($token), -1, true, array(), $num_files_deleted, $num_dirs_deleted)) {
+		$err = 'An error occurred: failed to delete all files in the output directory.';
 	}
 	if (validate_token($token, $err)) {
 		try_delete_file(make_settings_filename    ($token), 'settings'      , true , $err, $num_files_deleted);
@@ -87,9 +79,9 @@ if ($err) {
 			<p class="fups_error"><?php echo $err; ?></p>
 <?php
 }
-if ($num_files_deleted > 0) {
+if ($num_files_deleted > 0 || $num_dirs_deleted > 0) {
 ?>
-			<p>Successfully deleted <?php echo $num_files_deleted; ?> file(s) from this web server.</p>
+			<p>Successfully deleted <?php echo $num_files_deleted; ?> file<?php if ($num_files_deleted > 1) echo 's'; ?> and <?php echo $num_dirs_deleted; ?> director<?php echo $num_dirs_deleted == 1 ? 'y' : 'ies'; ?> from this web server.</p>
 <?php
 }
 

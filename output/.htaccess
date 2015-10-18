@@ -1,5 +1,3 @@
-deny from none
-
 Options -Indexes
 
 # For some versions/configurations, this will prevent Apache
