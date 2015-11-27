@@ -75,8 +75,6 @@ class XenForoFUPS extends FUPSBase {
 			// Sometimes the DateTime <span> is actually an <abbr>.
 			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<abbr class="DateTime"[^>]*>([^<]*)</abbr>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
 			'search_results_page_data_order' => array('topic' => 4, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
-		),
-		'cwt_default3' => array(
 			'thread_author'            => '#data-author="([^"]*)"#',
 		),
 	);
@@ -89,31 +87,12 @@ class XenForoFUPS extends FUPSBase {
 	}
 
 	protected function find_author_posts_via_search_page__match_hook($match, &$forum, &$forumid, &$topic, &$topicid, &$postid, &$posttitle, &$ts_raw, &$ts) {
-		# Messy workaround: posts which start a thread are displayed as a "thread" result in XenForo search results,
-		# so we need to convert the threadid into a postid.
+		# Posts which start a thread are displayed as a "thread" result in XenForo search results,
+		# but our regex detects the topic (thread) ID as a post ID, so we need to convert it.
 		if (isset($match['match_indexes']['postsorthreads']) && $match[$match['match_indexes']['postsorthreads']] == 'threads') {
-			$this->write_status('Resolving first post in thread "'.$topic.'".');
-			$url = $this->settings['base_url'].'/'.$this->settings['thread_url_prefix'].$postid; # really a threadid
-			$this->set_url($url);
-			$html = $this->do_send();
-			if (!$this->skins_preg_match('post_contents', $html, $matches)) {
-				$this->write_and_record_err_admin("Error: the regex to detect the first post ID on the thread page at <$url> failed.", __FILE__, __METHOD__, __LINE__, $html);
-				$postid = null;
-			} else {
-				$postid = $matches[1];
-			}
-		}
-
-		# Another messy workaround: the topic (thread) ID is not present anywhere in the XenForo search page HTML,
-		# so we generate fake incrementing thread IDs, associated with the thread text, and then resolve
-		# the actual IDs later (in get_post_contents__end_hook() and hook_after__posts_retrieval() below).
-		if (!isset($this->topic_ids[$topic])) {
-			$ids = array_values($this->topic_ids);
-			$lastid = array_pop($ids);
-			$lastid++;
-			$this->topic_ids[$topic] = $lastid;
-		}
-		$topicid = $this->topic_ids[$topic];
+			$topicid = $postid;
+			$postid = null;
+		} else	$topicid = 0;
 	}
 
 	protected function find_author_posts_via_search_page__ts_raw_hook(&$ts_raw) {
@@ -140,14 +119,12 @@ class XenForoFUPS extends FUPSBase {
 		return 'Typically, XenForo forums can be identified by the presence of the text "Forum software by XenForo" in the footer of their forum pages. It is possible, however, that these footer texts have been removed by the administrator of the forum. In this case, the only way to know for sure is to contact your forum administrator.';
 	}
 
-	# First part of the postponed resolution of thread (topic) IDs -
-	# see also find_author_posts_via_search_page__match_hook() above and hook_after__posts_retrieval() below.
-	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {
-		if (!$err && $found) {
-			if (!$this->skins_preg_match('thread_id', $html, $matches)) {
-				$this->write_and_record_err_admin('Error: could not match the thread_id on the page with URL <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__, $html);
-			} else {
-				$this->topic_ids[$this->posts_data[$topicid]['topic']] = $matches[1];
+	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $postids, $html, &$found, $err, $count, &$ret) {
+		if ($topicid == 0) {
+			if (!preg_match('(/([^/]+)/(page-\\d+)?$)', $this->last_url, $matches)) {
+				$this->write_err('Error: could not extract the topic ID from the post URL: <'.$this->last_url.'>', __FILE__, __METHOD__, __LINE__);
+			} else foreach ($postids as $pid) {
+				$this->posts_data[$topicid]['posts'][$pid]['topicid'] = $matches[1];
 			}
 		}
 	}
@@ -254,14 +231,77 @@ class XenForoFUPS extends FUPSBase {
 		return $this->settings['base_url'].'/members/'.urlencode($this->settings['extract_user_id']).'/';
 	}
 
-	# Second and final part of the postponed resolution of thread (topic) IDs -
-	# see also find_author_posts_via_search_page__match_hook() and get_post_contents__end_hook() above.
 	protected function hook_after__posts_retrieval() {
-		$posts_data2 = array();
-		foreach ($this->posts_data as $topicid => $t) {
-			$posts_data2[$this->topic_ids[$t['topic']]] = $t;
+		foreach ($this->posts_data[0]['posts'] as $pid => $post) {
+			if (isset($post['topicid'])) {
+				$topicid = $post['topicid'];
+				if (!isset($this->posts_data[$topicid])) {
+					$this->posts_data[$topicid] = array(
+						'forum'   => $post['forum'],
+						'topic'   => $post['topic'],
+						'forumid' => $post['forumid'],
+						'posts'   => array(),
+					);
+				}
+				unset($post['forum']);
+				unset($post['forumid']);
+				unset($post['topic']);
+				unset($post['topicid']);
+				$this->posts_data[$topicid]['posts'][$pid] = $post;
+			} else {
+				$this->write_err('Error: $post[\'topicid\'] is unset.', __FILE__, __METHOD__, __LINE__);
+			}
 		}
-		$this->posts_data = $posts_data2;
+		unset($this->posts_data[0]);
+	}
+
+	protected function hook_after__user_post_search() {
+		$go = is_null($this->current_topic_id);
+		foreach ($this->posts_data as $topicid => $dummy) {
+			if (!$go) {
+				if ($this->current_topic_id == $topicid) $go = true;
+			} else {
+				$this->current_topic_id = $topicid;
+				if (isset($this->posts_data[$topicid]['posts'][null])) {
+					$url = $this->settings['base_url'].'/'.$this->settings['thread_url_prefix'].$topicid;
+					$this->set_url($url);
+					$html = $this->do_send();
+					if (!$this->skins_preg_match_all('post_contents', $html, $matches)) {
+						$this->write_and_record_err_admin("Error: the regex to detect the first thread post in the thread at <$url> failed.", __FILE__, __METHOD__, __LINE__, $html);
+					} else {
+						$postid = $matches[0][1];
+						$this->posts_data[$topicid] = $this->posts_data[$topicid];
+						$this->posts_data[$topicid]['posts'] = array($postid => $this->posts_data[$topicid]['posts'][null]);
+						list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
+						list($found, $postids) = $this->get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
+						$count = count($postids);
+						if ($found) {
+							if ($this->dbg) $this->write_err('Retrieved post contents of post ID "'.$postid.'"');
+							$count--;
+						} else	$this->write_and_record_err_admin('FAILED to retrieve post contents of post ID "'.$postid.'". The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+
+						if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts.');
+
+						if (!$found) $this->posts_not_found[$postid] = true;
+						$this->num_posts_retrieved += $count + ($found ? 1 : 0);
+
+						$this->write_status('Retrieved '.$this->num_posts_retrieved.' of '.$this->total_posts.' posts.');
+					}
+					if (!$this->skins_preg_match('thread_author', $html, $matches)) {
+						$this->write_and_record_err_admin("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+						$topic['startedby'] = '???';
+					} else {
+						$topic['startedby'] = $matches[1];
+						if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
+						$this->num_thread_infos_retrieved++;
+						$this->write_status('Retrieved author for '.$this->num_thread_infos_retrieved.' of '.count($this->posts_data).' threads.');
+					}
+					$this->check_do_chain();
+				}
+			}
+		}
+
+		$this->current_topic_id = null; # Reset this for progress level 2
 	}
 
 	protected function init_post_search_counter() {

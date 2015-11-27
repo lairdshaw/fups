@@ -114,9 +114,9 @@ abstract class FUPSBase {
 	protected $progress_levels   = array(
 		0 => 'init_user_post_search',
 		1 => 'user_post_search',
-		2 => 'topic_post_sort',
-		3 => 'posts_retrieval',
-		4 => 'extract_per_thread_info',
+		2 => 'posts_retrieval',
+		3 => 'extract_per_thread_info',
+		4 => 'topic_post_sort',
 		5 => 'handle_missing_posts',
 		6 => 'download_files',
 		7 => 'write_output',
@@ -623,8 +623,13 @@ abstract class FUPSBase {
 				'ts'        => $ts_raw,
 				'timestamp' => $ts,
 				'content'   => null,
+				// Need the below for XenForo, since topicid is always zero, so these values will
+				// be overwritten above for each different topic.
+				'forum'     => $forum,
+				'topic'     => $topic,
+				'forumid'   => $forumid,
 			);
-			if ($this->settings['download_attachments']) {
+			if (isset($this->settings['download_attachments']) && $this->settings['download_attachments']) {
 				$this->posts_data[$topicid]['posts'][$postid]['attachments'] = array();
 			}
 			if ($this->dbg) {
@@ -736,7 +741,7 @@ abstract class FUPSBase {
 		static $ret = null;
 		if ($ret === null) {
 			$posts_data = $this->posts_data;
-			if ($this->settings['download_attachments']) {
+			if (isset($this->settings['download_attachments']) && $this->settings['download_attachments']) {
 				// Map absolute URLS of downloaded attachments to local, relative URLs.
 				foreach ($posts_data  as $topicid => &$topic_data) {
 					foreach ($topic_data['posts'] as &$post_data) {
@@ -863,7 +868,8 @@ abstract class FUPSBase {
 			$this->write_and_record_err_admin('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
 		} else {
 			list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
-			list($found, $count) = $this->get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
+			list($found, $postids) = $this->get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
+			$count = count($postids);
 			if ($found) {
 				if ($this->dbg) $this->write_err('Retrieved post contents of post ID "'.$postid.'"');
 				$ret = true;
@@ -873,7 +879,7 @@ abstract class FUPSBase {
 			if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts.');
 		}
 
-		$this->get_post_contents__end_hook($forumid, $topicid, $postid, $html, $found, $err, $count, $ret);
+		$this->get_post_contents__end_hook($forumid, $topicid, $postid, $postids, $html, $found, $err, $count, $ret);
 
 		if (!$found) $this->posts_not_found[$postid] = true;
 		$this->num_posts_retrieved += $count + ($found ? 1 : 0);
@@ -881,7 +887,7 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
-	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {}
+	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $postids, $html, &$found, $err, $count, &$ret) {}
 
 	static protected function get_base_urls_s($url, $html) {
 		$root_rel_url_base = '';
@@ -922,7 +928,7 @@ abstract class FUPSBase {
 
 	protected function get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url) {
 		$found = false;
-		$count = 0;
+		$postids = array();
 		$posts =& $this->posts_data[$topicid]['posts'];
 
 		foreach ($matches as $match) {
@@ -944,7 +950,7 @@ abstract class FUPSBase {
 						$this->write_and_record_err_admin("Warning: after replacing URLs the post with ID {$match[1]} in the topic with ID $topicid appears to be empty. The pre-replacement post HTML is:\n\n{$match[2]}", __FILE__, __METHOD__, __LINE__);
 					} else	$posts[$match[1]]['content'] = $post_html;
 				}
-				if ($this->settings['download_attachments'] && isset($match[3]) && $match[3] != '') {
+				if (isset($this->settings['download_attachments']) && $this->settings['download_attachments'] && isset($match[3]) && $match[3] != '') {
 					if ($this->dbg) $this->write_err("Attempting to parse attachments in post with ID {$match[1]}.");
 					if (!$this->skins_preg_match_all('attachments', $match[3], $matches_att, 'attachments_order')) {
 						$this->write_and_record_err_admin("Warning: the post with ID {$match[1]} appears to have attachments but we could not parse them.", __FILE__, __METHOD__, __LINE__);
@@ -967,11 +973,13 @@ abstract class FUPSBase {
 					}
 				}
 				if ($postid == $match[1]) $found = true;
-				$count++;
+				$postids[] = $match[1];
 			}
 		}
 
-		return array($found, $count);
+		unset($posts);
+
+		return array($found, $postids);
 	}
 
 	abstract protected function get_post_url($forumid, $topicid, $postid, $with_hash = false);
@@ -1255,7 +1263,7 @@ abstract class FUPSBase {
 							$url = htmlspecialchars_decode($value);
 
 							$new_url = static::absolutify_url_s($url, $root_rel_url_base, $path_rel_url_base, $current_protocol, $current_url);
-							$downld_file_urls_abs[$new_url] = $new_url;
+							if ($tag == 'img') $downld_file_urls_abs[$new_url] = $new_url;
 							if ($new_url != $url) {
 								$search2[] = $full_attr_matches[$attr];
 								$replace2[] = $attr.'="'.htmlspecialchars($new_url).'"';
@@ -1354,8 +1362,8 @@ abstract class FUPSBase {
 			$this->init_post_search_counter();
 			$this->init_search_user_posts();
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__init_user_post_search();
+			$this->progress_level++;
 		}
 		if ($this->progress_level == 1) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
@@ -1371,37 +1379,10 @@ abstract class FUPSBase {
 			$this->$hook_method(); // hook_after__user_post_search();
 		}
 
-		# Sort topics and posts
+		# Retrieve the contents of all of the user's posts
 		if ($this->progress_level == 2) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
-			$this->write_status('Sorting posts and topics prior to scraping posts\' content.');
-			# Sort topics in ascending alphabetical order
-			uasort($this->posts_data, 'cmp_topics_topic');
-
-			# Sort posts within each topic into ascending timestamp order
-			foreach ($this->posts_data as $topicid => $dummy) {
-				$posts =& $this->posts_data[$topicid]['posts'];
-				uasort($posts, 'cmp_posts_date');
-			}
-			if ($this->dbg) {
-				$this->write_err('SORTED POSTS::');
-				foreach ($this->posts_data as $topicid => $topic) {
-					$this->write_err("\tTopic: {$topic['topic']}\tTopic ID: $topicid");
-					foreach ($topic['posts'] as $postid => $p) {
-						$newts = strftime('%c', $p['timestamp']);
-						$this->write_err("\t\tTime: $newts ({$p['ts']}); Post ID: $postid");
-					}
-				}
-			}
-			$this->write_status('Finished sorting posts and topics. Now scraping contents of '.$this->total_posts.' posts.');
-			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
-			$this->$hook_method(); // hook_after__topic_post_sort();
-		}
-
-		# Retrieve the contents of all of the user's posts
-		if ($this->progress_level == 3) {
-			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+			$this->write_status('Now scraping contents of '.$this->total_posts.' posts.');
 			# If the current topic ID is already set, then we are continuing after having chained.
 			$go = is_null($this->current_topic_id);
 			foreach ($this->posts_data as $topicid => $dummy) {
@@ -1420,21 +1401,24 @@ abstract class FUPSBase {
 								$this->write_status('Retrieved '.$this->num_posts_retrieved.' of '.$this->total_posts.' posts.');
 								$done = false;
 							}
+							unset($p);
 							$this->check_do_chain();
 						}
 					}
+					unset($t);
+					unset($posts);
 				}
 			}
 
-			$this->current_topic_id = null; # Reset this for progress level 4
+			$this->current_topic_id = null; # Reset this for progress level 3
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__posts_retrieval();
+			$this->progress_level++;
 		}
 
-		# Extract per-thread information: thread author and forum
-		if ($this->progress_level == 4) {
+		# Extract per-thread information: thread author
+		if ($this->progress_level == 3) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			# If the current topic ID is already set, then we are continuing after having chained.
 			$go = is_null($this->current_topic_id);
@@ -1442,7 +1426,7 @@ abstract class FUPSBase {
 			foreach ($this->posts_data as $topicid => $dummy) {
 				if (!$go) {
 					if ($this->current_topic_id == $topicid) $go = true;
-				} else {
+				} else if (!isset($topic['startedby'])) {
 					$topic =& $this->posts_data[$topicid];
 					$url = $this->get_topic_url($topic['forumid'], $topicid);
 					$this->set_url($url);
@@ -1454,15 +1438,45 @@ abstract class FUPSBase {
 						$topic['startedby'] = $matches[1];
 						if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
 						$this->num_thread_infos_retrieved++;
-						$this->write_status('Retrieved author and topic name for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
+						$this->write_status('Retrieved author for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
 					}
 					$this->current_topic_id = $topicid;
+					unset($topic); // Break the reference otherwise we get corruption during sorting.
 					$this->check_do_chain();
 				}
 			}
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__extract_per_thread_info();
+			$this->progress_level++;
+		}
+
+		# Sort topics and posts
+		if ($this->progress_level == 4) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+			$this->write_status('Sorting posts and topics subsequent to scraping posts\' contents.');
+
+			# Sort topics in ascending alphabetical order
+			uasort($this->posts_data, 'cmp_topics_topic');
+
+			# Sort posts within each topic into ascending timestamp order
+			foreach ($this->posts_data as $topicid => $dummy) {
+				$posts =& $this->posts_data[$topicid]['posts'];
+				uasort($posts, 'cmp_posts_date');
+			}
+			if ($this->dbg) {
+				$this->write_err('SORTED POSTS::');
+				foreach ($this->posts_data as $topicid => $topic) {
+					$this->write_err("\tTopic: {$topic['topic']}\tTopic ID: $topicid");
+					foreach ($topic['posts'] as $postid => $p) {
+						$newts = strftime('%c', $p['timestamp']);
+						$this->write_err("\t\tTime: $newts ({$p['ts']}); Post ID: $postid");
+					}
+				}
+			}
+			$this->write_status('Finished sorting posts and topics.');
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->$hook_method(); // hook_after__topic_post_sort();
+			$this->progress_level++;
 		}
 
 		# Warn about missing posts
@@ -1480,8 +1494,8 @@ abstract class FUPSBase {
 				}
 			}
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__handle_missing_posts();
+			$this->progress_level++;
 		}
 
 		# Download downloable files if necessary
@@ -1561,8 +1575,8 @@ abstract class FUPSBase {
 			}
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__download_files();
+			$this->progress_level++;
 		}
 
 		# Write output
@@ -1577,8 +1591,8 @@ abstract class FUPSBase {
 			$this->write_status('DONE');
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__write_output();
+			$this->progress_level++;
 		}
 
 		# Potentially send an admin email re non-fatal errors.
@@ -1592,8 +1606,8 @@ abstract class FUPSBase {
 			}
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
-			$this->progress_level++;
 			$this->$hook_method(); // hook_after__check_send_non_fatal_err_email();
+			$this->progress_level++;
 		}
 	}
 
@@ -2056,7 +2070,7 @@ abstract class FUPSBase {
 		echo '	</div>'."\n";
 		echo '	<div>'.$post_data['content']."\n";
 		echo '	</div>'."\n\n";
-		if ($this->settings['download_attachments'] && $post_data['attachments']) {
+		if (isset($this->settings['download_attachments']) && $this->settings['download_attachments'] && $post_data['attachments']) {
 			echo '	<br/><div class="attachments">'."\n";
 			echo '	<span><em>Attachments:</em></span><br />'."\n";
 			foreach ($post_data['attachments'] as $i => $attachment) {

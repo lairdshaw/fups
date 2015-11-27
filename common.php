@@ -472,7 +472,7 @@ function show_delete($token, $had_success = false) {
 ?>
 			<p>For your privacy, you might wish to delete from this web server all session and output files associated with this request, especially if you have supplied a login username and password (files that store your username and password details are not publicly visible, but it is wise to delete them anyway).<?php echo FUPS_ROUTINE_DELETION_POLICY; ?></p>
 <?php	if ($had_success) { ?>
-			<p>Be sure to do this only <strong>after</strong> you have clicked the above "View result" link, and saved the contents at that page, because they will no longer be accessible after clicking the following link.</p>
+			<p>Be sure to do this only <strong>after</strong> you have downloaded the files you desire from the above links, because they will no longer be accessible after clicking the following link.</p>
 <?php	} ?>
 			<p><a href="<?php echo $fups_url_delete_files; ?>?token=<?php echo htmlspecialchars(urlencode($token)); ?>">Delete all files</a> associated with your scrape from my web server - this includes your settings, including your password if you entered one.</p>
 <?php

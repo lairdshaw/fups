@@ -106,6 +106,8 @@ Limitations
 
 * As already noted, FUPS currently doesn't support logging in to XenForo forums.
 
+* FUPS currently doesn't support downloading attachments from XenForo forums.
+
 * The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway.
 
 The code
