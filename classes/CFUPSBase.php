@@ -1428,21 +1428,23 @@ abstract class FUPSBase {
 			foreach ($this->posts_data as $topicid => $dummy) {
 				if (!$go) {
 					if ($this->current_topic_id == $topicid) $go = true;
-				} else if (!isset($topic['startedby'])) {
+				} else {
 					$topic =& $this->posts_data[$topicid];
-					$url = $this->get_topic_url($topic['forumid'], $topicid);
-					$this->set_url($url);
-					$html = $this->do_send();
-					if (!$this->skins_preg_match('thread_author', $html, $matches)) {
-						$this->write_and_record_err_admin("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
-						$topic['startedby'] = '???';
-					} else {
-						$topic['startedby'] = $matches[1];
-						if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
-						$this->num_thread_infos_retrieved++;
-						$this->write_status('Retrieved author for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
+					if (!isset($topic['startedby'])) {
+						$url = $this->get_topic_url($topic['forumid'], $topicid);
+						$this->set_url($url);
+						$html = $this->do_send();
+						if (!$this->skins_preg_match('thread_author', $html, $matches)) {
+							$this->write_and_record_err_admin("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
+							$topic['startedby'] = '???';
+						} else {
+							$topic['startedby'] = $matches[1];
+							if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
+							$this->num_thread_infos_retrieved++;
+							$this->write_status('Retrieved author for '.$this->num_thread_infos_retrieved.' of '.$total_threads.' threads.');
+						}
+						$this->current_topic_id = $topicid;
 					}
-					$this->current_topic_id = $topicid;
 					unset($topic); // Break the reference otherwise we get corruption during sorting.
 					$this->check_do_chain();
 				}

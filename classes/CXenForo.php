@@ -289,10 +289,10 @@ class XenForoFUPS extends FUPSBase {
 					}
 					if (!$this->skins_preg_match('thread_author', $html, $matches)) {
 						$this->write_and_record_err_admin("Error: couldn't find a match for the author of the thread with topic id '$topicid'.  The URL of the page is <".$url.'>.', __FILE__, __METHOD__, __LINE__, $html);
-						$topic['startedby'] = '???';
+						$this->posts_data[$topicid]['startedby'] = '???';
 					} else {
-						$topic['startedby'] = $matches[1];
-						if ($this->dbg) $this->write_err("Added author of '{$topic['startedby']}' for topic id '$topicid'.");
+						$this->posts_data[$topicid]['startedby'] = $matches[1];
+						if ($this->dbg) $this->write_err("Added author of '{$this->posts_data[$topicid]['startedby']}' for topic id '$topicid'.");
 						$this->num_thread_infos_retrieved++;
 						$this->write_status('Retrieved author for '.$this->num_thread_infos_retrieved.' of '.count($this->posts_data).' threads.');
 					}
