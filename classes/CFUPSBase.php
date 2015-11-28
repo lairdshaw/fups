@@ -608,8 +608,9 @@ abstract class FUPSBase {
 			} else	{
 				if (!empty($this->settings['earliest']) && $ts < $this->settings['earliest']) {
 					$found_earliest = true;
-					if ($this->dbg) $this->write_err("Found post earlier than earliest allowed; not searching further: ".$ts_raw." < {$this->settings['start_from_date']}.");
-					break;
+					$found_earliest_msg = "Found post earlier than earliest allowed; not searching further: ".$ts_raw." < {$this->settings['start_from_date']}.";
+					// Don't quit yet - matches might not be in order due to $combine = true above.
+					continue;
 				}
 			}
 
@@ -640,6 +641,7 @@ abstract class FUPSBase {
 		}
 
 		$do_inc_progress_level = $found_earliest;
+		if ($found_earliest && $this->dbg) $this->write_err($found_earliest_msg);
 
 		$this->find_author_posts_via_search_page__end_hook($do_inc_progress_level, $html, $found_earliest, $matches);
 
