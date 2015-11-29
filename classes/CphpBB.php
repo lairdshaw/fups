@@ -334,7 +334,7 @@ class phpBBFUPS extends FUPSBase {
 		return 'Typically, phpBB forums can be identified by the presence of the text "Powered by phpBB" in the footer of their forum pages. It is possible, however, that these footer texts have been removed by the administrator of the forum. In this case, the only way to know for sure is to contact your forum administrator.';
 	}
 
-	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $html, &$found, $err, $count, &$ret) {
+	protected function get_post_contents__end_hook($forumid, $topicid, $postid, $postids, $html, &$found, $err, $count, &$ret) {
 		# Sometimes (this seems to be a phpBB bug), posts don't appear on the thread page they're supposed to,
 		# and instead appear on the previous or next page in the thread. Here, we deal with those scenarios.
 		$org_url = $this->last_url;
@@ -348,7 +348,8 @@ class phpBBFUPS extends FUPSBase {
 				if (!$this->skins_preg_match_all('post_contents', $html__prev_page, $matches__prev_posts)) {
 					$this->write_and_record_err_admin('Warning: could not find any post contents on the previous page in the thread. The URL of that previous page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__prev_page);
 				} else {
-					list($found, $count) = $this->get_post_contents_from_matches($matches__prev_posts, $postid, $topicid);
+					list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
+					list($found, $count) = $this->get_post_contents_from_matches($matches__prev_posts, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
 					if ($found) {
 						$this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
 						$ret = true;
@@ -360,7 +361,7 @@ class phpBBFUPS extends FUPSBase {
 				}
 			}
 		}
-		if (!$found) {
+//		if (!$found) {
 			$this->write_err('Trying to find post ID '.$postid.' on next page of thread, if that page exists.');
 			if (!$this->skins_preg_match('next_page', $html, $matches__next_page)) {
 				$this->write_and_record_err_admin('Warning: could not extract the details of the next thread page from the current page. The URL of that page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
@@ -370,7 +371,8 @@ class phpBBFUPS extends FUPSBase {
 				if (!$this->skins_preg_match_all('post_contents', $html__next_page, $matches__next_posts)) {
 					$this->write_and_record_err_admin('Warning: could not find any post contents on the next page in the thread. The URL of that next page in the thread is: '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html__next_page);
 				} else {
-					list($found, $count) = $this->get_post_contents_from_matches($matches__next_posts, $postid, $topicid);
+					list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
+					list($found, $count) = $this->get_post_contents_from_matches($matches__next_posts, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
 					if ($found) {
 						$this->write_err('Success! Retrieved post contents of post ID "'.$postid.'".');
 						$ret = true;
@@ -381,7 +383,7 @@ class phpBBFUPS extends FUPSBase {
 					if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts from the page.');
 				}
 			}
-		}
+//		}
 	}
 
 	protected function get_post_url($forumid, $topicid, $postid, $with_hash = false) {
