@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2015 Laird Shaw.
+ * Copyright (C) 2013-2016 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -103,6 +103,9 @@ class phpBBFUPS extends FUPSBase {
 					'search_results_page_data_order' => array('title' => 6, 'ts' => 7, 'forum' => 3, 'topic' => 5, 'forumid' => 2, 'topicid' => 4, 'postid' => 1),
 					// N.B. Does not (yet) contain a match for attachments.
 					'post_contents'            => '#<tr class="row1">\\s*<td class="gensmall"><a href="\\./viewtopic\\.php\\?p=(\\d+?).*<tr class="row1">\\s*<td>\\s*<div class="postbody">(.*)</div>\\s*</td>\\s*</tr>\\s*</table>#Us',
+				),
+				'prosilver.?' => array(
+					'last_search_page'         => '(<li class="active"><span>(\\d+)</span></li>\\s*</ul>\\s*</div>\\s*</div>)',
 				),
 				'prosilver.1' => array(
 					'sid'                      => '/name="sid" value="([^"]*)"/',
@@ -361,7 +364,7 @@ class phpBBFUPS extends FUPSBase {
 				}
 			}
 		}
-//		if (!$found) {
+		if (!$found) {
 			$this->write_err('Trying to find post ID '.$postid.' on next page of thread, if that page exists.');
 			if (!$this->skins_preg_match('next_page', $html, $matches__next_page)) {
 				$this->write_and_record_err_admin('Warning: could not extract the details of the next thread page from the current page. The URL of that page is <'.$org_url.'>.', __FILE__, __METHOD__, __LINE__, $html);
@@ -383,7 +386,7 @@ class phpBBFUPS extends FUPSBase {
 					if ($count > 0 && $this->dbg) $this->write_err('Retrieved '.$count.' other posts from the page.');
 				}
 			}
-//		}
+		}
 	}
 
 	protected function get_post_url($forumid, $topicid, $postid, $with_hash = false) {
