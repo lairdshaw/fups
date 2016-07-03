@@ -476,8 +476,8 @@ abstract class FUPSBase {
 						// certain older versions of cURL or receiving webservers.
 						$tmp = explode('#', $url, 2);
 						$url = $tmp[0];
+						$redirect = $url;
 						if ($redirect !== false) {
-							$redirect = $url;
 							return '';
 						}
 						$this->validate_url($url, 'the redirected-to location', true);
@@ -1251,16 +1251,17 @@ abstract class FUPSBase {
 
 		if (!is_array($downld_file_urls_abs)) $downld_file_urls_abs = array();
 
-		if (preg_match_all('(<(img|a) [^>]*>)', $html, $matches, PREG_SET_ORDER)) {
+		if (preg_match_all('(<(img|a) [^>]*>)i', $html, $matches, PREG_SET_ORDER)) {
 			$search = array();
 			$replace = array();
 			foreach ($matches as $arr) {
-				$tag = $arr[1];
+				$tag = strtolower($arr[1]); // Compare tags case-insensitively
 				$tag_match = $arr[0];
 				if ($attrs = static::split_attrs_s($tag_match, $full_attr_matches)) {
 					$search2 = array();
 					$replace2 = array();
 					foreach ($attrs as $attr => $value) {
+						$attr = strtolower($attr); // Match attributes case-insensitively
 						if (($tag == 'img' && $attr == 'src') || ($tag == 'a' && $attr = 'href')) {
 							$url = htmlspecialchars_decode($value);
 
@@ -1289,7 +1290,7 @@ abstract class FUPSBase {
 	static protected function replace_downld_file_urls_s($html, $urls) {
 		$ret = $html;
 
-		if (preg_match_all('(<img [^>]*>)', $html, $matches, PREG_PATTERN_ORDER)) {
+		if (preg_match_all('(<img [^>]*>)i', $html, $matches, PREG_PATTERN_ORDER)) {
 			$search = array();
 			$replace = array();
 			foreach ($matches[0] as $match) {
@@ -1297,7 +1298,7 @@ abstract class FUPSBase {
 					$search2 = array();
 					$replace2 = array();
 					foreach ($attrs as $attr => $value) {
-						if ($attr == 'src') {
+						if (strtolower($attr) == 'src') { // Match attributes case-insensitively
 							$url = htmlspecialchars_decode($value);
 							if (isset($urls[$url])) {
 								$search2[] = $full_attr_matches[$attr];
@@ -1550,6 +1551,7 @@ abstract class FUPSBase {
 						$this->exit_err_resumable('Failed to set the following cURL options:'.PHP_EOL.var_export($opts, true), __FILE__, __METHOD__, __LINE__);
 					}
 					$this->write_status('Downloading file from URL <'.$download_url.'>.');
+					$redirect = true;
 					$this->do_send($redirect, /*$quit_on_error*/false, $err, /*$check_get_board_title*/false);
 					if ($err) {
 						$this->downld_file_urls_failed_download[$download_url] = true;

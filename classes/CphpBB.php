@@ -224,7 +224,7 @@ class phpBBFUPS extends FUPSBase {
 		$redirect = false;
 		$html = $this->do_send($redirect, /*$quit_on_error*/false, $err);
 		
-		if ($err) {
+		if ($err || $redirect) {
 			# Earlier versions of phpBB need a different URL
 			$this->old_version = true;
 		}
