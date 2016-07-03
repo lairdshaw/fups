@@ -90,6 +90,13 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2016-07-03
+					<ul>
+						<li>Fixed a bug in the detection of the old version of phpBB.</li>
+						<li>Fixed an image scraping bug.</li>
+						<li>Improved detection of Romanian dates on some versions of phpBB.</li>
+					</ul>
+				</li>
 				<li>2015-10-14
 					<ul>
 						<li>Added support for detecting successful login under the prosilver skin on phpBB boards that redirect to the index page after login.</li>
