@@ -101,6 +101,8 @@ if ($errmsg) {
 
 			<p>To retrieve your posts: fill in the settings below, optionally after reading the questions and answers below the settings form, then click "Retrieve posts!". A status page will appear, updating progress automatically in a status box. When scraping is complete, the results file(s) will be linked to.</p>
 
+			<p>Required fields are asterisked.</p>
+
 			<form id="mainform" method="post" action="<?php echo $fups_url_run; ?>">
 			<table id="table_fups_enter_options">
 <?php
@@ -109,7 +111,7 @@ if ($errmsg) {
 
 		$is_checkbox = isset($settings['type']) && $settings['type'] == 'checkbox';
 ?>
-				<tr><td class="fups_opt_label"><label for="<?php echo $key; ?>"><?php echo $settings['label']; ?></label></td><td class="fups_opt_input"><input type="<?php echo isset($settings['type']) ? $settings['type'] : 'text'; ?>" name="<?php echo $key; ?>" id="<?php echo $key; ?>" <?php echo $is_checkbox ? ($settings['default'] == true ? 'checked="checked"' : '') : "value=\"{$settings['default']}\""; if (isset($settings['style'])) echo ' style="'.$settings['style'].'" '; if (isset($settings['readonly']) && $settings['readonly']) echo ' readonly="readonly"'; ?>/></td><td class="fups_opt_desc"><?php echo $settings['description']; ?></td></tr>
+				<tr><td class="fups_opt_label"><label for="<?php echo $key; ?>"><?php echo ($settings['required'] ? '<strong>*</strong>' : '').$settings['label']; ?></label></td><td class="fups_opt_input"><input type="<?php echo isset($settings['type']) ? $settings['type'] : 'text'; ?>" name="<?php echo $key; ?>" id="<?php echo $key; ?>" <?php echo $is_checkbox ? ($settings['default'] == true ? 'checked="checked"' : '') : "value=\"{$settings['default']}\""; if (isset($settings['style'])) echo ' style="'.$settings['style'].'" '; if (isset($settings['readonly']) && $settings['readonly']) echo ' readonly="readonly"'; ?>/></td><td class="fups_opt_desc"><?php echo $settings['description']; ?></td></tr>
 
 <?php
 	}

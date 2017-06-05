@@ -41,6 +41,8 @@ abstract class FUPSBase {
 	# to avoid timeouts due to exceeding the PHP commandline max_execution_time ini setting.
 	public    $FUPS_CHAIN_DURATION =  null;
 	protected $charset             =  null;
+	protected $forum_idx           =  null;
+	protected $forum_idx2          =  null;
 	protected $have_written_to_admin_err_file = false;
 	protected $private_settings  = array('login_user', 'login_password');
 	/* Different skins sometimes output html different enough that
@@ -83,6 +85,23 @@ abstract class FUPSBase {
 			'post_contents'            => a regex to match post id (first match) and post contents (second match)
 			                              on a thread page; it is called with match_all so it will return all
 			                              post ids and contents on the page
+			'last_forum_page'           => a regex to match when this is the last page of a forum listing.
+			'forum_page_topicids'       => a regex to match the topicids on the forum listing pages.
+			'post_contents_ext'         => a regex to match extended information about a post (see below)
+						       on a thread page; it is called with match_all with flags set to
+						       PREG_SET_ORDER so that each entry of $matches ends up with the
+						       matches in the order specified in post_contents_ext_order.
+			'post_contents_ext_order'   => an array specifying the order in which the following matches occur
+			                               in the matches returned by the previous regex.
+				= array(
+					'author'  => the match index of the name (not ID) of the post author,
+					'title'   => the match index of the title of post,
+					'ts'      => the match index of the timestamp of post,
+					'postid'  => the match index of the post id,
+					'contents'=> the match index of the post contents,
+				)
+			'forum_title'               => a regex to match the forum title on a (sub)forum page.
+			'last_topic_page'           => a regex to match when this is the last page of a topic.
 		),
 		*/
 	);
@@ -98,6 +117,9 @@ abstract class FUPSBase {
 	protected $errs_filename     =   false;
 	protected $cookie_filename   =   false;
 	protected $ch                =    null;
+	protected $forum_data        = array();
+	protected $forum_pg          =    null;
+	protected $forum_page_counter=    null;
 	protected $last_url          =    null;
 	protected $search_id         =    null;
 	protected $post_search_counter =     0;
@@ -112,6 +134,7 @@ abstract class FUPSBase {
 	protected $dbg               =   false;
 	protected $quiet             =   false;
 	protected $progress_levels   = array(
+		// User-post extraction levels
 		0 => 'init_user_post_search',
 		1 => 'user_post_search',
 		2 => 'posts_retrieval',
@@ -119,8 +142,13 @@ abstract class FUPSBase {
 		4 => 'topic_post_sort',
 		5 => 'handle_missing_posts',
 		6 => 'download_files',
-		7 => 'write_output',
-		8 => 'check_send_non_fatal_err_email',
+		// Forum extraction levels
+		7 => 'init_forums_extract',
+		8 => 'forums_extract',
+		9 => 'forum_topics_extract',
+		// Generic levels
+		10 => 'write_output',
+		11 => 'check_send_non_fatal_err_email',
 	);
 	protected $was_chained       =   false;
 	protected $downld_file_urls  = array();
@@ -392,8 +420,15 @@ abstract class FUPSBase {
 
 	protected function check_do_login() {}
 
+	protected function check_do_send_errs() {
+		if ($this->web_initiated) {
+			$err_msg = $this->get_err_msgs_from_files_for_email();
+			if ($err_msg) static::send_err_mail_to_admin_s($err_msg, $this->token, FUPS_EMAIL_TYPE_NONFATAL);
+		}
+	}
+
 	protected function check_get_board_title($html) {
-		if (empty($this->settings['board_title'])) {
+		if (!isset($this->settings['board_title'])) {
 			# Try to discover the board's title
 			if (!$this->skins_preg_match('board_title', $html, $matches)) {
 				if ($this->dbg) $this->write_and_record_err_admin("Warning: couldn't find the site title. The URL of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
@@ -596,7 +631,7 @@ abstract class FUPSBase {
 			$posttitle = isset($match['match_indexes']['title']) && isset($match[$match['match_indexes']['title']]) ? $match[$match['match_indexes']['title']] : '';
 			$ts_raw  = $match[$match['match_indexes']['ts'     ]];
 
-			$this->find_author_posts_via_search_page__ts_raw_hook($ts_raw);
+			$this->ts_raw_hook($ts_raw);
 
 			$ts = $this->strtotime_intl($ts_raw);
 			if ($ts === false) {
@@ -663,7 +698,7 @@ abstract class FUPSBase {
 
 	# Override this function to e.g. remove extraneous text from the matched timestamp string
 	# prior to attempting to parse it into a UNIX timestamp.
-	protected function find_author_posts_via_search_page__ts_raw_hook(&$ts_raw) {}
+	protected function ts_raw_hook(&$ts_raw) {}
 
 	protected function find_post($postid) {
 		foreach ($this->posts_data as $topicid => $t) {
@@ -783,6 +818,8 @@ abstract class FUPSBase {
 		return $ret;
 	}
 
+	abstract protected function get_forum_page_url($id, $pg);
+
 	static public function get_forum_type_s() {
 		return static::get_canonical_forum_type_s(static::classname_to_forum_type_s(get_called_class()));
 	}
@@ -800,7 +837,7 @@ abstract class FUPSBase {
 	}
 
 	protected function get_output_variants() {
-		return array(
+		$user_posts_opvs = array(
 			array(
 				'filename_appendix' => '.threadasc.dateasc.html',
 				'method'            => 'write_output_html_threadasc_dateasc',
@@ -847,6 +884,23 @@ abstract class FUPSBase {
 				'description'       => 'JSON.',
 			),
 		);
+		$forum_posts_opvs = array(
+			array(
+				'filename_appendix' => '.forum-posts.json',
+				'method'            => 'write_output_json_forums',
+				'description'       => 'JSON.',
+			),
+		);
+
+		$final_arr = array();
+		if (!empty($this->settings['extract_user_id'])) {
+			$final_arr = array_merge($final_arr, $user_posts_opvs);
+		}
+		if (isset($this->settings['forum_ids_arr'])) {
+			$final_arr = array_merge($final_arr, $forum_posts_opvs);
+		}
+
+		return $final_arr;
 	}
 
 	protected function get_post_contents($forumid, $topicid, $postid) {
@@ -1034,10 +1088,19 @@ abstract class FUPSBase {
 				'label'       => 'Extract User ID'                       ,
 				'default'     => ''                                      ,
 				'description' => 'Set this to the user ID of the user whose posts are to be extracted.',
-				'required'    => true                                    ,
+				'required'    => !static::supports_feature_s('forums_dl')                                    ,
 			)
 		);
-
+		if (static::supports_feature_s('forums_dl')) {
+			$default_settings = array_merge($default_settings, array(
+				'forum_ids'  => array(
+					'label' => 'Forum IDs',
+					'default' => '',
+					'description' => 'Set this to a comma-separated list of IDs of any forums that you wish for FUPS to scrape.',
+					'required'    => false,
+				),
+			));
+		}
 		if (static::supports_feature_s('login')) {
 			$default_settings = array_merge($default_settings, array(
 				'login_user'  => array(
@@ -1128,11 +1191,14 @@ abstract class FUPSBase {
 			if ($v && in_array($k, $this->private_settings)) {
 				$v = '[redacted]';
 			}
+			if (is_array($v)) $v = var_export($v, true);
 			$settings_str .= "\t$k=$v".PHP_EOL;
 		}
 
 		return $settings_str;
 	}
+
+	abstract protected function get_topic_page_url($forum_id, $topic_id, $topic_pg_counter);
 
 	abstract protected function get_topic_url($forumid, $topicid);
 
@@ -1159,14 +1225,25 @@ abstract class FUPSBase {
 	protected function hook_after__extract_per_thread_info() {} // Run after progress level 4
 	protected function hook_after__handle_missing_posts   () {} // Run after progress level 5
 	protected function hook_after__download_files         () {} // Run after progress level 6
-	protected function hook_after__write_output           () {} // Run after progress level 7
-	protected function hook_after__check_send_non_fatal_err_email() {} // Run after progress level 8
+	protected function hook_after__init_forums_extract    () {} // Run after progress level 7
+	protected function hook_after__forums_extract         () {} // Run after progress level 8
+	protected function hook_after__forum_topics_extract   () {} // Run after progress level 9
+	protected function hook_after__write_output           () {} // Run after progress level 10
+	protected function hook_after__check_send_non_fatal_err_email() {} // Run after progress level 11
+
+	protected function init_forum_page_counter() {
+		$this->forum_page_counter = 0;
+	}
 
 	protected function init_post_search_counter() {
 		$this->post_search_counter = 0;
 	}
 
 	protected function init_search_user_posts() {}
+
+	protected function init_topic_pg_counter() {
+		$this->topic_pg_counter = 0;
+	}
 
 	static public function read_forum_type_from_settings_file_s($settings_filename) {
 		$settings_raw = static::read_settings_raw_s($settings_filename);
@@ -1355,6 +1432,11 @@ abstract class FUPSBase {
 			if (!$login_if_available) {
 				if ($this->dbg) $this->write_err('Not bothering to check whether to log in again, because $login_if_available is false (probably we\'ve just chained without the -r parameter being passed).');
 			} else	$this->check_do_login();
+		}
+
+		# Skip to forum extraction if user-extraction is not operative
+		if (!$this->settings['extract_user_id']) {
+			$this->progress_level = 7;
 		}
 
 		# Find all of the user's posts through the search feature
@@ -1585,8 +1667,79 @@ abstract class FUPSBase {
 			$this->progress_level++;
 		}
 
-		# Write output
+		if (!isset($this->settings['forum_ids_arr']) || count($this->settings['forum_ids_arr']) <= 0) {
+			$this->progress_level = 10;
+		}
+
+		# Initialise scraping from individual forums based on supplied forumids.
 		if ($this->progress_level == 7) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+
+			# Null indicates that we haven't scraped anything yet. We don't want to init
+			# these vars to 0 if we're chaining and have already begun scraping.
+			if (is_null($this->forum_idx)) {
+				$this->forum_idx = 0;
+				$this->forum_pg  = 0;
+				$this->init_forum_page_counter();
+			}
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->$hook_method(); // hook_after__init_forums_extract();
+			$this->progress_level++;
+		}
+
+		# Extract all topics within forums given their supplied IDs.
+		if ($this->progress_level == 8) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+
+			while ($this->forum_idx < count($this->settings['forum_ids_arr'])) {
+				$id = $this->settings['forum_ids_arr'][$this->forum_idx];
+				if (!isset($this->forum_data[$id])) {
+					$this->forum_data[$id] = array('topics' => array());
+				}
+				$num_topics_found = $this->scrape_forum_pg();
+				$this->check_do_chain();
+			}
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->$hook_method(); // hook_after__forums_extract();
+			$this->progress_level++;
+		}
+
+		# Extract all posts in all topics retrieved in the previous progress level.
+		if ($this->progress_level == 9) {
+			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
+
+			if (is_null($this->forum_idx2)) {
+				$this->forum_idx2 = 0;
+				$this->topic_idx  = 0;
+				$this->topic_pg   = 0;
+				$this->init_topic_pg_counter();
+			}
+
+			while ($this->forum_idx2 < count($this->settings['forum_ids_arr'])) {
+				$id = $this->settings['forum_ids_arr'][$this->forum_idx2];
+				$forum =& $this->forum_data[$id];
+				$t_keys = array_keys($forum['topics']);
+				if ($this->topic_idx >= count($t_keys)) {
+					$this->forum_idx2++;
+					$this->topic_idx = 0;
+					$this->topic_pg  = 0;
+					$this->init_topic_pg_counter();
+					continue;
+				}
+				$topic =& $forum['topics'][$t_keys[$this->topic_idx]];
+				$this->scrape_topic_page();
+				$this->check_do_chain();
+			}
+
+			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
+			$this->$hook_method(); // hook_after__forum_topics_extract();
+			$this->progress_level++;
+		}
+
+		# Write output
+		if ($this->progress_level == 10) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 			$this->write_status('Writing output.');
 
@@ -1602,19 +1755,132 @@ abstract class FUPSBase {
 		}
 
 		# Potentially send an admin email re non-fatal errors.
-		if ($this->progress_level == 8) {
+		if ($this->progress_level == 11) {
 			if ($this->dbg) $this->write_err('Entered progress level '.$this->progress_level);
 
-			if ($this->web_initiated) {
-				$err_msg = $this->get_err_msgs_from_files_for_email();
-				if ($err_msg) static::send_err_mail_to_admin_s($err_msg, $this->token, FUPS_EMAIL_TYPE_NONFATAL);
-
-			}
+			$this->check_do_send_errs();
 
 			$hook_method = 'hook_after__'.$this->progress_levels[$this->progress_level];
 			$this->$hook_method(); // hook_after__check_send_non_fatal_err_email();
 			$this->progress_level++;
 		}
+	}
+
+	protected function scrape_forum_pg() {
+		$id = $this->settings['forum_ids_arr'][$this->forum_idx];
+		$pg = $this->forum_pg;
+		$this->write_status('Attempting to scrape page '.($pg+1).' of forum with ID '.$id.'.');
+		$this->set_url($this->get_forum_page_url($id, $this->forum_page_counter));
+		$html = $this->do_send();
+
+		if (!$this->skins_preg_match_all('forum_page_topicids', $html, $matches)) {
+			$this->write_and_record_err_admin('Error: couldn\'t find any topic matches on one of the forum pages. The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			$this->forum_idx++;
+			$this->forum_pg = 0;
+			$this->init_forum_page_counter();
+			return 0;
+		}
+
+		$num_topics_found = count($matches);
+		foreach($matches as $match) {
+			$topicid = $match[1];
+			$forumid = $this->settings['forum_ids_arr'][$this->forum_idx];
+			$this->forum_data[$forumid]['topics'][$topicid] = array();
+		}
+
+		if ($this->dbg) $this->write_err('Found '.$num_topics_found.' topics on page '.($this->forum_pg+1).' in forum with ID "'.$id.'".');
+
+		if ($pg == 0) {
+			if (!$this->skins_preg_match('forum_title', $html, $matches)) {
+				$this->write_and_record_err_admin('Error: couldn\'t find the title of the forum on the forum page with forum ID "'.$id.'". The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			} else	$this->forum_data[$forumid]['title'] = $matches[1];
+		}
+
+		if ($last_forum_page = $this->skins_preg_match('last_forum_page', $html, $matches)) {
+			if ($this->dbg) $this->write_err('Matched "last_forum_page" regex; moving to the next forum (if any).');
+			$this->forum_idx++;
+			$this->forum_pg = 0;
+			$this->init_forum_page_counter();
+		} else {
+			$this->forum_pg++;
+		}
+
+		$this->scrape_forum_pg__end_hook($html, $num_topics_found, $last_forum_page);
+
+		return $num_topics_found;
+	}
+
+	protected function scrape_forum_pg__end_hook($html, $num_topics_found, $last_forum_page) {
+		if ($num_topics_found > 0 && !$last_forum_page) $this->forum_page_counter += $num_topics_found;	
+	}
+
+	protected function scrape_topic_page() {
+		$id = $this->settings['forum_ids_arr'][$this->forum_idx2];
+		$forum =& $this->forum_data[$id];
+		$t_keys = array_keys($forum['topics']);
+		$topic =& $forum['topics'][$t_keys[$this->topic_idx]];
+
+		$url = $this->get_topic_page_url($id, $t_keys[$this->topic_idx], $this->topic_pg_counter);
+		$this->set_url($url);
+
+		$this->write_status('Attempting to scrape page '.($this->topic_pg+1).' of topic with ID '.$t_keys[$this->topic_idx].' in forum with ID '.$id.'.');
+
+		$html = $this->do_send();
+
+		if (!isset($topic['title'])) {
+			if (!$this->skins_preg_match('topic', $html, $matches)) {
+				$this->write_err('Failed to match the "topic" regex - could not determine the title of the topic with ID "'.$t_keys[$this->topic_idx].'" is. The URL of the topic page is: <'.$this->last_url.'>.', __FILE__, __METHOD__, __LINE__);
+			} else	$topic['title'] = $matches[1];
+		}
+
+		if (!$this->skins_preg_match_all('post_contents_ext', $html, $matches, 'post_contents_ext_order')) {
+			$this->write_and_record_err_admin('Error: couldn\'t find any posts on topic with ID "'.$t_keys[$this->topic_idx].'" and page counter set to "'.$this->topic_pg_counter.'".  The URL of the page is '.$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			goto scrape_topic_page__next_topic;
+		}
+
+		foreach ($matches as $match) {
+			$author   = $match[$match['match_indexes']['author'  ]];
+			$title    = $match[$match['match_indexes']['title'   ]];
+			$ts_raw   = $match[$match['match_indexes']['ts'      ]];
+			$postid   = $match[$match['match_indexes']['postid'  ]];
+			$contents = $match[$match['match_indexes']['contents']];
+
+			$this->ts_raw_hook($ts_raw);
+
+			$ts = $this->strtotime_intl($ts_raw);
+			if ($ts === false) {
+				$err_msg = "Error: strtotime_intl failed for '$ts_raw'.";
+				if ((!isset($this->settings['non_us_date_format']) || !$this->settings['non_us_date_format']) && strpos($ts_raw, '/') !== false) {
+					$err_msg .= ' Hint: Perhaps you need to check the "Non-US date format" box on the previous page.';
+				}
+				$this->write_err($err_msg);
+			}
+
+			if (!isset($this->forum_data[$id]['topics'][$t_keys[$this->topic_idx]]['posts'])) {
+				$this->forum_data[$id]['topics'][$t_keys[$this->topic_idx]]['posts'] = array();
+			}
+			$this->forum_data[$id]['topics'][$t_keys[$this->topic_idx]]['posts'][$postid] = array(
+				'author'   => $author  ,
+				'title'    => $title   ,
+				'ts'       => $ts      ,
+				'datetime' => trim($ts_raw),
+				'contents' => $contents,
+			);
+		}
+
+		$this->scrape_topic_page__end_hook($html, $matches);
+
+		if ($this->skins_preg_match('last_topic_page', $html, $matches)) {
+			if ($this->dbg) $this->write_err('Matched "last_topic_page" regex; we have finished finding posts for this topic.');
+scrape_topic_page__next_topic:
+			$this->topic_idx++;
+			$this->topic_pg = 0;
+			$this->init_topic_pg_counter();
+		} else	$this->topic_pg++;
+	}
+
+	protected function scrape_topic_page__end_hook($html, $matches) {
+		$this->topic_pg_counter += count($matches);
 	}
 
 	static protected function send_err_mail_to_admin_s($full_admin_msg, $token = false, $type = FUPS_EMAIL_TYPE_NONFATAL) {
@@ -1709,6 +1975,13 @@ abstract class FUPSBase {
 			// either separated from the rest of the string by a space or occurs at the
 			// beginning/end of the string (as such, it may comprise the entire string).
 			$time_str = preg_replace('#(^|\s)(\d{1,2})/(\d{1,2})(/\d\d|/\d\d\d\d|)(\s|$)#', '$1$3/$2$4$5', $time_str);
+		} else {
+			$re = '((\\d{2})\\s(\\d{2})\\s(\\d{2})\\s(\\d{2}):(\\d{2}))';
+			if (preg_match($re, $time_str, $matches)) {
+				$time_str_new = preg_replace($re, '20$1-$2-$3 $4:$5', $time_str);
+				$ret = strtotime($time_str_new);
+				if ($ret !== false) return $ret;
+			}
 		}
 		if ($this->dbg) $this->write_err('Running strtotime() on "'.$time_str.'".'.($non_us_date_format ? 'This was derived from "'.$time_str_org.'" due to the "Non-US date format" setting being in effect.' : ''));
 		$ret = strtotime($time_str);
@@ -1740,6 +2013,7 @@ abstract class FUPSBase {
 		static $default_features = array(
 			'login'       => false,
 			'attachments' => false,
+			'forums_dl'   => false
 		);
 
 		return isset($default_features[$feature]) ? $default_features[$feature] : false;
@@ -1929,6 +2203,21 @@ abstract class FUPSBase {
 	protected function write_output_json($filename) {
 		$ret = false;
 		$op_arr = $this->get_final_output_array();
+		$this->array_to_utf8($op_arr);
+		$op_arr['character_set'] = 'UTF-8';
+		$json = json_encode($op_arr, JSON_PRETTY_PRINT);
+		if ($json === false) {
+			$this->write_err('Failed to encode final output array for "'.$filename.'" as JSON.', __FILE__, __METHOD__, __LINE__);
+		} else if (file_put_contents($filename, $json) === false) {
+			$this->write_err('Failed to write final output array as JSON to "'.$filename.'".', __FILE__, __METHOD__, __LINE__);
+		} else	$ret = true;
+
+		return $ret;
+	}
+
+	protected function write_output_json_forums($filename) {
+		$ret = false;
+		$op_arr = $this->forum_data;
 		$this->array_to_utf8($op_arr);
 		$op_arr['character_set'] = 'UTF-8';
 		$json = json_encode($op_arr, JSON_PRETTY_PRINT);

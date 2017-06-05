@@ -89,6 +89,23 @@ class phpBBFUPS extends FUPSBase {
 					                                      'img_url' => the match index of the source URL of the attachment if it is an image,
 					                                      'img_name' => the match index of the filename of the attachment if it is an image,
 					                              )
+					'last_forum_page'           => a regex to match when this is the last page of a forum listing.
+					'forum_page_topicids'       => a regex to match the topicids on the forum listing pages.
+					'post_contents_ext'         => a regex to match extended information about a post (see below)
+							               on a thread page; it is called with match_all with flags set to
+								       PREG_SET_ORDER so that each entry of $matches ends up with the
+								       matches in the order specified in post_contents_ext_order.
+					'post_contents_ext_order'   => an array specifying the order in which the following matches occur
+								       in the matches returned by the previous regex.
+									= array(
+										'author'  => the match index of the name (not ID) of the post author,
+										'title'   => the match index of the title of post,
+										'ts'      => the match index of the timestamp of post,
+										'postid'  => the match index of the post id,
+										'contents'=> the match index of the post contents,
+									)
+					'forum_title'               => a regex to match the forum title on a (sub)forum page.
+					'last_topic_page'           => a regex to match when this is the last page of a topic.
 				),
 				*/
 				'mobile' => array(
@@ -106,6 +123,12 @@ class phpBBFUPS extends FUPSBase {
 				),
 				'prosilver.?' => array(
 					'last_search_page'         => '(<li class="active"><span>(\\d+)</span></li>\\s*</ul>\\s*</div>\\s*</div>)',
+					'last_forum_page'          => '(<div class="pagination">[^&]*&bull;\\s*(<a[^>]*>)?[^<]+<strong>(\\d+)</strong>[^<]*<strong>\\2</strong>)Us',
+				),
+				'prosilver.html' => array(
+					'forum_page_topicids'      => '(<a\\s+href="[^"]+-t(\\d+).html"\\s+class="topictitle">)',
+					'topic'                    => '(<div\\sid="page-body">.*<h2><a\\s+href="[^"]+-t\\d+\\.html">([^<]*)</a></h2>)s',
+					'forum_title'              => '(<div\\sid="page-body">.*<h2><a\\s*[^>]+>([^<]+)</a></h2>)s',
 				),
 				'prosilver.1' => array(
 					'sid'                      => '/name="sid" value="([^"]*)"/',
@@ -113,7 +136,7 @@ class phpBBFUPS extends FUPSBase {
 					'login_success'            => '/<div class="panel" id="message">/',
 					'login_required'           => '/class="panel"/',
 					'user_name'                => '#<dl class="left-box details"[^>]*>\\s*<dt>[^<]*</dt>\\s*<dd>\\s*<span>([^<]+)</span>#Us',
-					'thread_author'            => '#<p class="author">.*memberlist\.php.*>(.+)<#Us',
+					'thread_author'            => '#<p class="author">.*memberlist\\.php.*>(.+)<#Us',
 					'search_results_not_found' => '#<div class="panel" id="message">\\s*<div class="inner"><span class="corners-top"><span></span></span>\\s*<h2>#Us',
 					# N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
 					'search_results_page_data' => '#<h3>[^>]*>([^<]*)</a>.*<dl class="postprofile">(?:(?!</dl>).)*<dd>('.get_posted_on_date_regex().' )?([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)#Us',
@@ -123,6 +146,18 @@ class phpBBFUPS extends FUPSBase {
 					'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
 					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><img\\s[^>]*>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
 					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
+					'post_contents_ext'        => '(<div\\s+class="postbody">\\s*<h3[^>]*><a\\s*href="#p(\\d+)">([^<]*)</a></h3>\\s*<p\\s+class="author"><a\\s*href="[^"]*"><img\\s*[^>]*></a>[^<]*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*&raquo;\\s*([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>\\s*(<div class="notice">(.*)</div>)?\\s*(<div\\s+id="[^"]+"\\s+class="signature">.*</div>)?\\s*</div>\\s*<dl\\s*class="postprofile")Us',
+					'post_contents_ext_order'  => array(
+						'author'  => 4,
+						'title'   => 2,
+						'ts'      => 6,
+						'postid'  => 1,
+						'contents'=> 7,
+					),
+					'forum_page_topicids'      => '(<a\\s+href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+)"\\s+class="topictitle">)',
+					'forum_title'              => '(<h2><a\\s*[^>]+>([^<]+)</a></h2>)',
+					'last_topic_page'          => '(<div class="pagination">[^&]*&bull;\\s*(<a[^>]*>)?[^<]+<strong>(\\d+)</strong>[^<]*<strong>\\2</strong>)Us',
+					'topic'                    => '(<h2><a\\s+href="\\./viewtopic\\.php\\?f=\\d+&amp;t=\\d+">([^<]*)</a></h2>)',
 				),
 				'prosilver.2' => array(
 					'login_success'            => '(<li class="icon-logout"><a href="\\./ucp\\.php\\?mode=logout)', # Sometimes boards are set up to redirect to the index page, in which case the above won't work and this will
@@ -287,7 +322,7 @@ class phpBBFUPS extends FUPSBase {
 	}
 
 	# Strip any preceding text in the timestamp such as "on" e.g. [posted] "on Mon 28 September 2015 6:05am".
-	protected function find_author_posts_via_search_page__ts_raw_hook(&$ts_raw) {
+	protected function ts_raw_hook(&$ts_raw) {
 		global $intl_data;
 		static $posted_on_date_arr = null;
 
@@ -329,8 +364,16 @@ class phpBBFUPS extends FUPSBase {
 </style>';
 	}
 
+	protected function get_forum_page_url($id, $pg) {
+		return $this->settings['base_url'].'/viewforum.php?f='.$id.'&start='.$pg;
+	}
+
 	static function get_forum_software_homepage_s() {
 		return 'https://www.phpbb.com/';
+	}
+
+	protected function get_topic_page_url($forum_id, $topic_id, $topic_pg_counter) {
+		return $this->settings['base_url'].'/viewtopic.php?f='.$forum_id.'&t='.$topic_id.'&start='.$topic_pg_counter;
 	}
 
 	static function get_msg_how_to_detect_forum_s() {
@@ -473,6 +516,7 @@ class phpBBFUPS extends FUPSBase {
 		$new_settings_arr['base_url']['default'] = 'http://www.theabsolute.net/phpBB';
 		$new_settings_arr['base_url']['description'] .= ' This is the URL that appears in your browser\'s address bar when you access the forum, only with everything onwards from (and including) the filename of whichever script is being accessed (e.g. /index.php or /viewtopic.php) stripped off. The default URL provided is for the particular phpBB board known as "Genius Forums".';
 		$new_settings_arr['extract_user_id']['description'] .= ' You can find a user\'s ID by hovering your cursor over a hyperlink to their name and taking note of the number that appears after "&amp;u=" in the URL in the browser\'s status bar.';
+		$new_settings_arr['forum_ids']['description'] .= ' You can find a forum\'s ID by hovering your cursor over a forum hyperlink and taking note of the integer that appears after "&amp;f=" in the URL in the browser\'s status bar.';
 		$new_settings_arr['login_user']['description'] = 'Set this to the username of the user whom you wish to log in as (it\'s fine to set it to the same value as Extract User Username above), or leave it blank if you do not wish FUPS to log in. Logging in is optional but if you log in then the timestamps associated with each post will be according to the timezone specified in that user\'s preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts. If you don\'t want to log in, then simply leave blank this setting and the next setting.';
 		$new_settings_arr['download_attachments']['description'] .= ' '.self::$partial_attach_support_warning;
 
@@ -491,6 +535,7 @@ class phpBBFUPS extends FUPSBase {
 		static $features = array(
 			'login'       => true,
 			'attachments' => true,
+			'forums_dl'   => true
 		);
 
 		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature_s($feature);
@@ -499,8 +544,27 @@ class phpBBFUPS extends FUPSBase {
 	protected function validate_settings() {
 		parent::validate_settings();
 
-		if (filter_var($this->settings['extract_user_id'], FILTER_VALIDATE_INT) === false) {
-			$this->exit_err('The value supplied for the extract_user_id setting, "'.$this->settings['extract_user_id'].'", is not an integer, which it is required to be for phpBB boards.', __FILE__, __METHOD__, __LINE__);
+		$forum_ids1 = explode(',', $this->settings['forum_ids']);
+		$forum_ids2 = array();
+		foreach ($forum_ids1 as $id) {
+			$tmp = trim($id);
+			if ($tmp) {
+				if (filter_var($tmp, FILTER_VALIDATE_INT) === false) {
+					$this->exit_err('One of the values in the comma-separated list supplied for the Forum IDs setting, "'.$tmp.'", is not an integer, which it is required to be for phpBB boards.', __FILE__, __METHOD__, __LINE__);
+				} else	$forum_ids2[] = $tmp;
+			}
+		}
+		if ($forum_ids2) {
+			$this->settings['forum_ids_arr'] = $forum_ids2;
+			if ($this->dbg) $this->write_err('$this->settings[\'forum_ids_arr\'] == '.var_export($this->settings['forum_ids_arr'], true));
+		}
+
+		if ($this->settings['extract_user_id']) {
+			if (filter_var($this->settings['extract_user_id'], FILTER_VALIDATE_INT) === false) {
+				$this->exit_err('The value supplied for the "Extract User ID" setting, "'.$this->settings['extract_user_id'].'", is not an integer, which it is required to be for phpBB boards.', __FILE__, __METHOD__, __LINE__);
+			}
+		} else if (!$this->settings['forum_ids_arr']) {
+				$this->exit_err('Neither the "Extract User ID" setting nor the "Forum IDs" setting were specified: at least one of these must be set.', __FILE__, __METHOD__, __LINE__);
 		}
 	}
 }

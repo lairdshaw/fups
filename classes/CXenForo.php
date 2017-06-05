@@ -95,7 +95,7 @@ class XenForoFUPS extends FUPSBase {
 		} else	$topicid = 0;
 	}
 
-	protected function find_author_posts_via_search_page__ts_raw_hook(&$ts_raw) {
+	protected function ts_raw_hook(&$ts_raw) {
 		if ($this->dbg) $this->write_err('Deleting any "at " in time string "'.$ts_raw.'".');
 		$ts_new = preg_replace('/\\bat /', '', $ts_raw);
 		if (!is_null($ts_new)) $ts_raw = $ts_new;
@@ -111,9 +111,15 @@ class XenForoFUPS extends FUPSBase {
 		} else	$this->post_search_counter++;
 	}
 
+	// Unimplemented for now
+	protected function get_forum_page_url($id, $pg) {}
+
 	static function get_forum_software_homepage_s() {
 		return 'http://xenforo.com/';
 	}
+
+	// Unimplemented for now
+	protected function get_topic_page_url($forum_id, $topic_id, $topic_pg_counter) {}
 
 	static function get_msg_how_to_detect_forum_s() {
 		return 'Typically, XenForo forums can be identified by the presence of the text "Forum software by XenForo" in the footer of their forum pages. It is possible, however, that these footer texts have been removed by the administrator of the forum. In this case, the only way to know for sure is to contact your forum administrator.';
