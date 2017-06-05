@@ -123,7 +123,7 @@ class phpBBFUPS extends FUPSBase {
 				),
 				'prosilver.?' => array(
 					'last_search_page'         => '(<li class="active"><span>(\\d+)</span></li>\\s*</ul>\\s*</div>\\s*</div>)',
-					'last_forum_page'          => '(<div class="pagination">[^&]*&bull;\\s*(<a[^>]*>)?[^<]+<strong>(\\d+)</strong>[^<]*<strong>\\2</strong>)Us',
+					'last_forum_page'          => '(<div class="pagination">.*&bull;.*<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)Us',
 				),
 				'prosilver.html' => array(
 					'forum_page_topicids'      => '(<a\\s+href="[^"]+-t(\\d+).html"\\s+class="topictitle">)',
@@ -146,7 +146,7 @@ class phpBBFUPS extends FUPSBase {
 					'next_page'                => '#<strong>\\d+</strong><span class="page-sep">, </span><a href="\\./viewtopic\\.php\\?f=(\\d+)&amp;t=(\\d+)&amp;start=(\\d+?)[^"]*">[^<]*</a>#Us',
 					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><img\\s[^>]*>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
 					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
-					'post_contents_ext'        => '(<div\\s+class="postbody">\\s*<h3[^>]*><a\\s*href="#p(\\d+)">([^<]*)</a></h3>\\s*<p\\s+class="author"><a\\s*href="[^"]*"><img\\s*[^>]*></a>[^<]*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*&raquo;\\s*([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>\\s*(<div class="notice">(.*)</div>)?\\s*(<div\\s+id="[^"]+"\\s+class="signature">.*</div>)?\\s*</div>\\s*<dl\\s*class="postprofile")Us',
+					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*><a\\s*href="#p(\\d+)">([^<]*)</a></h3>\\s*<p\\s+class="author"><a\\s*href="[^"]*"><img\\s*[^>]*></a>[^<]*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*&raquo;\\s*([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>\\s*(<div class="notice">(.*)</div>)?\\s*(<div\\s+id="[^"]+"\\s+class="signature">.*</div>)?\\s*</div>\\s*<dl\\s*class="postprofile")Us',
 					'post_contents_ext_order'  => array(
 						'author'  => 4,
 						'title'   => 2,
