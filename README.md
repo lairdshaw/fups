@@ -1,7 +1,7 @@
 FUPS: Forum user-post scraper
 =============================
 
-FUPS is an extensible PHP framework for scraping and outputting the posts of a specified user from a specified forum/board running supported forum software. Currently supported forum software is phpBB and XenForo. FUPS can be run as either a web app or as a commandline script.
+FUPS is an extensible PHP framework for scraping and outputting either (1) the posts of a specified user or, (2) all posts in specified forums (phpBB-only for now), from a specified forum/board running supported forum software. Currently supported forum software is phpBB and XenForo. FUPS can be run as either a web app or as a commandline script.
 
 Installation-free use
 ---------------------
@@ -49,6 +49,7 @@ Depending on which forum software the forum you wish to scrape from runs, differ
     base_url=http://example.com/phpBB
     extract_user_id=1234
     extract_user=John Smith
+    forum_ids=
     login_user=Mary Jones
     login_password=abc123
     start_from_date=2014-10-17 19:46
@@ -73,7 +74,7 @@ Depending on which forum software the forum you wish to scrape from runs, differ
 
 ### The options ###
 
-First note that logging in to XenForo forums is not yet supported, hence the lack of *login_user* and *login_password* options for forums of that type (nor is *extract_user* supported for XenForo forums).
+First note that both logging in to, and scraping whole forums of, XenForo forums is not yet supported, hence the lack of *login_user*, *login_password* and *forum_ids* options for forums of that type (nor is *extract_user* supported for XenForo forums).
 
 * *forum_type*: Required. One of phpBB or XenForo (case insensitive).
 
@@ -82,6 +83,8 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 * *extract_user_id*: Required. Set this to the user ID of the user whose posts are to be extracted. You can find a user's ID by hovering your cursor over a hyperlink to their name, and taking note of, in the URL in the browser's status bar: for phpBB forums, the number that appears after "&u="; for XenForo forums, everything that appears between "/members/" and the next "/" (i.e. this will be something like "my-member-name.12345").
 
 * *extract_user*: Optional. Applies to phpBB forums only. Set this to the username corresponding to the *extract_user_id* - this saves FUPS from having to look this value up, which it often can only do when you are logged in, so this additionally might save you from having to provide values for *login_user* or *login_password*.
+
+*forum_ids*: Only required if *extract_user_id* is not set. Applies to phpBB forums only. Set this to a comma-separated list of the IDs of (sub)forums to scrape from the board whose *base_url* you specified above. You can find a (phpBB) forum's ID by hovering your cursor over a forum hyperlink and taking note of the integer that appears after "&f=" in the URL in the browser's status bar.
 
 * *login_user*: Optional. Applies to phpBB forums only. Set this to the username of the user whom you wish to log in as (it's fine to set it to the same value as *extract_user*). If unset, FUPS will not log in. If supplied, then the timestamps associated with each post will be according to the timezone specified in this user's preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts.
 
@@ -105,6 +108,8 @@ Limitations
 -----------
 
 * As already noted, FUPS currently doesn't support logging in to XenForo forums.
+
+* As already noted, FUPS currently doesn't support scraping entire forums from XenForo forums.
 
 * FUPS currently doesn't support downloading attachments from XenForo forums.
 
@@ -155,6 +160,6 @@ The steps to add support for a new type of forum software are:
 
 2. In that file, declare a class named [forum_software_name]FUPS which extends the FUPSBase class (in `classes/CFUPSBase.php`). This name (including correct capitalisation) is important because `fups.php` auto-instantiates it.
 
-3. Implement in your new class all abstract methods of FUPSBase. At time of writing, these are: `get_post_url()`, `get_search_url()`, `get_topic_url()` and `get_user_page_url()`. Also implement the static methods `get_qanda_s()`, `get_forum_software_homepage_s()` and `get_msg_how_to_detect_forum_s()`. You will probably also need to override the public `get_settings_array()` method, at least to stipulate a default value and description for the `base_url` setting. If your class is to support logging in, then also override `check_do_login()` and `supports_feature()`. Also, set the `$regexps` properties appropriately. Your biggest task will probably be working out appropriate regexes.
+3. Implement in your new class all abstract methods of FUPSBase. At time of writing, these are: `get_forum_page_url()`, `get_post_url()`, `get_search_url()`, `get_topic_page_url()`, `get_topic_url()` and `get_user_page_url()`. Also implement the static methods `get_qanda_s()`, `get_forum_software_homepage_s()` and `get_msg_how_to_detect_forum_s()`. You will probably also need to override the public `get_settings_array()` method, at least to stipulate a default value and description for the `base_url` setting. If your class is to support logging in, then also override `check_do_login()` and `supports_feature()`. Also, set the `$regexps` properties appropriately. Your biggest task will probably be working out appropriate regexes.
 
-4. If necessary, you can implement overrides of any of the provided hooks. Hook methods at time of writing are: `find_author_posts_via_search_page__ts_raw_hook()`, `find_author_posts_via_search_page__match_hook()`, `find_author_posts_via_search_page__end_hook()`, `get_post_contents__end_hook()`, `hook_after__init_user_post_search()`, `hook_after__user_post_search()`, `hook_after__topic_post_sort()`, `hook_after__posts_retrieval()`, `hook_after__extract_per_thread_info()`, `hook_after__handle_missing_posts()`, `hook_after__download_images()` and `hook_after__write_output()`. Finally, if necessary you can override the `validate_settings()` method.
+4. If necessary, you can implement overrides of any of the provided hooks. Hook methods at time of writing are: `ts_raw_hook()`, `find_author_posts_via_search_page__match_hook()`, `find_author_posts_via_search_page__end_hook()`, `get_post_contents__end_hook()`, `hook_after__init_user_post_search()`, `hook_after__user_post_search()`, `hook_after__topic_post_sort()`, `hook_after__posts_retrieval()`, `hook_after__extract_per_thread_info()`, `hook_after__handle_missing_posts()`, `hook_after__download_images()`, `hook_after__write_output()`, `scrape_forum_pg__end_hook()` and `scrape_topic_page__end_hook(`. Finally, if necessary you can override the `validate_settings()` method.

@@ -75,7 +75,20 @@ fups_output_page_start($page, 'FUPS: Forum user-post scraper', 'Scrape posts mad
 
 			<h3>What is FUPS?</h3>
 
-			<p>FUPS is a web app that "scrapes" (downloads) the posts of a specified user from a specified forum/board running either the <?php echo $forums_str_linked; ?> forum software. FUPS will download from your specified forum all of the posts made to that forum under a particular username - it does this by accessing the forum in the same way your web browser does when you browse the forum manually, only it does so automatically. It then sorts posts alphabetically by thread, and within each thread in ascending date+time order, and produces a table of contents for all threads the user was involved in, followed by the sorted posts themselves, with headings, and separated by horizontal lines. It returns this output as an HTML page, which you can then save to disk via your browser, e.g. in Firefox click the "File" menu option and under that click "Save Page As". You can then, if you like, open up this saved HTML file in your word processor and save it in any other format you desire, e.g. ODF, Microsoft Word.</p>
+			<p>FUPS is a web app that "scrapes" (downloads) either:</p>
+
+			<ul>
+				<li>The posts of a specified user from a specified forum/board running either the <?php echo $forums_str_linked; ?> forum software.</li>
+				<li>All posts in a (sub)forum in a phpBB board.</li>
+			</ul>
+
+			<p>FUPS will download from your specified board all of the relevant posts made to that board satisfying either of the above two conditions - it does this by accessing the forum in the same way your web browser does when you browse the forum manually, only it does so automatically.</p>
+
+			<p>When scraping a user's posts, FUPS then sorts those posts by various means, and for each means, produces a file containing a table of contents for all threads the user was involved in, followed by the sorted posts themselves, with headings, and separated by horizontal lines. It returns an HTML page for each of these sorts. If images or files were downloaded, they are made available in the output too. FUPS also provides a JSON data structure for the scraped posts of the user.</p>
+
+			<p>When scraping an entire (sub)forum, FUPS outputs the scraped data (threads and posts) in a JSON data structure.</p>
+
+			<p>The output files are presented when FUPS finishes scraping, and you can then save these files to disk via your browser, e.g. in Firefox click the "File" menu option and under that click "Save Page As". You can then, if you like, open up HTML files in your word processor and save them in any other format you desire, e.g. ODF, Microsoft Word.</p>
 
 			<p>If you're asking, "How can I download all of my posts from a remote <?php echo $forums_str; ?> forum to my local hard drive?", then this might be the script for you.</p>
 
@@ -90,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2017-05-06
+					<ul>
+						<li>Added support (phpBB-only for now) for scraping entire forums.</li>
+						<li>Prepended required fields on the options entry page with asterisks.</li>
+					</ul>
+				</li>
 				<li>2016-07-03
 					<ul>
 						<li>Fixed a bug in the detection of the old version of phpBB.</li>
