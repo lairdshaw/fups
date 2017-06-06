@@ -57,6 +57,7 @@ if (!isset($argv[1])) {
 	$settings_filename = false;
 	$output_dirname = false;
 	$quiet = false;
+	$skip_topic = false;
 	static $errmsg_mixed_cmdline_args = 'Fatal error: web-initiated (-t) and commandline (-i, -o and -q) arguments specified simultaneously.';
 	$i = 1;
 	while ($i < $argc) {
@@ -107,6 +108,10 @@ if (!isset($argv[1])) {
 			$relogin = true;
 			$i++;
 			break;
+		case '-s':
+			$skip_topic = true;
+			$i++;
+			break;
 		default:
 			FUPSBase::exit_err_s('Fatal error: unknown commandline argument specified: "'.$argv[$i].'".', __FILE__, __METHOD__, __LINE__);
 			break;
@@ -133,6 +138,9 @@ require_once __DIR__.'/classes/C'.$forum_type_caps.'.php';
 if ($chained) {
 	$token_or_settings_filename = $web_initiated ? $token : $settings_filename;
 	$FUPS = unserialize(file_get_contents(make_serialize_filename($token_or_settings_filename)));
+	if ($skip_topic) {
+		$FUPS->skip_current_topic();
+	}
 } else {
 	if ($web_initiated) {
 		$params = array('token' => $token);

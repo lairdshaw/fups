@@ -2410,6 +2410,17 @@ scrape_topic_page__next_topic:
 			static::write_err_s($ferr, $contents);
 		}
 	}
+
+	public function skip_current_topic() {
+		if (!is_null($this->forum_idx2)) {
+			$id = $this->settings['forum_ids_arr'][$this->forum_idx2];
+			$forum =& $this->forum_data[$id];
+			$t_keys = array_keys($forum['topics']);
+			if ($this->topic_idx < count($t_keys)) {
+				unset($forum['topics'][$t_keys[$this->topic_idx]]);
+			}
+		}
+	}
 }
 
 function cmp_posts_date($p1, $p2) {

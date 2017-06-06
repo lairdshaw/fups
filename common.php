@@ -273,6 +273,10 @@ function make_php_exec_cmd($params) {
 		if ($args) $args .= ' ';
 		$args .= '-r';
 	}
+	if (isset($params['skip_topic']) && $params['skip_topic'] == true) {
+		if ($args) $args .= ' ';
+		$args .= '-s';
+	}
 
 	$fups_path = realpath(__DIR__.'/fups.php');
 	if ($fups_path === false) {
@@ -286,10 +290,10 @@ function make_resumability_filename($token) {
 	return FUPS_DATADIR.$token.'.resumable.txt';
 }
 
-function make_resume_url_encoded($ajax, $token) {
+function make_resume_url_encoded($ajax, $token, $skip_topic = false) {
 	global $fups_url_run;
 
-	return $fups_url_run.'?'.($ajax ? 'ajax=yes&amp;' : '').'action=resume&amp;token='.urlencode($token);
+	return $fups_url_run.'?'.($ajax ? 'ajax=yes&amp;' : '').'action=resume&amp;token='.urlencode($token).($skip_topic ? '&amp;skip_topic=yes' : '');
 }
 
 function make_serialize_filename($token_or_settings_filename) {
@@ -371,7 +375,7 @@ function output_update_html($token, $status, $done, $cancelled, $failed, $resuma
 		show_delete($token, false);
 	} else if ($failed || $resumable_failure) {
 ?>
-			<p>The script appears to have exited due to an error; the error message is shown below. <?php if ($resumable_failure) echo '<b>Note that this is a resumable error - the progress FUPS has made on your job up to this point has been saved, and you are free to try by clicking on this link to <a href="'.make_resume_url_encoded($ajax, $token).'">resume the script</a> from the point at which it left off if you so wish. '.(FUPS_ROUTINE_DELETION_POLICY != '' ? '<i>Also note, however, that the script will be resumable for at least '.FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS.' day(s) and no more than '.(FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS + FUPS_SCHEDULED_DELETION_TASK_INTERVAL_IN_DAYS).' day(s). After that period you will have to restart it from scratch. ' : '').'</i></b>' ?>I have been notified of this error by email; if you would like me to get back to you if/when I have fixed the error, then please enter your email address into the following box and press the button to notify me of it.</p>
+			<p>The script appears to have exited due to an error; the error message is shown below. <?php if ($resumable_failure) echo '<b>Note that this is a resumable error - the progress FUPS has made on your job up to this point has been saved, and you are free to try by clicking on this link to <a href="'.make_resume_url_encoded($ajax, $token).'">resume the script</a> from the point at which it left off if you so wish. If the error recurs, you can elect to <a href="'.make_resume_url_encoded($ajax, $token, true).'">resume and skip the current topic</a>. '.(FUPS_ROUTINE_DELETION_POLICY != '' ? '<i>Also note, however, that the script will be resumable for at least '.FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS.' day(s) and no more than '.(FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS + FUPS_SCHEDULED_DELETION_TASK_INTERVAL_IN_DAYS).' day(s). After that period you will have to restart it from scratch. ' : '').'</i></b>' ?>I have been notified of this error by email; if you would like me to get back to you if/when I have fixed the error, then please enter your email address into the following box and press the button to notify me of it.</p>
 
 <?php		echo make_error_contact_form($token); ?>
 

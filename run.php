@@ -103,7 +103,11 @@ if (!isset($_GET['token'])) {
 			if (!file_exists($resumability_filename)) {
 				$err = 'You have specified an action of "resume", however your task is not resumable (resumability file not found). This might be because you have already resumed it and it is currently running.';
 			} else {
-				$cmd = make_php_exec_cmd(array('token' => $token, 'chained' => true, 'relogin' => true));
+				$params = array('token' => $token, 'chained' => true, 'relogin' => true);
+				if (isset($_GET['skip_topic']) && $_GET['skip_topic'] == 'yes') {
+					$params['skip_topic'] = true;
+				}
+				$cmd = make_php_exec_cmd($params);
 				if (!try_run_bg_proc($cmd)) {
 					$err = 'Apologies, the server encountered a technical error: it was unable to resume the background process to perform the task of scraping, sorting and finally presenting your posts. The command used was:<br />'.PHP_EOL.'<br />'.PHP_EOL.$cmd.'<br />'.PHP_EOL.'<br />'.PHP_EOL.'You might like to <a href="'.make_resume_url_encoded($ajax, $token).'">try again or contact me about this error using the form below.'.PHP_EOL.PHP_EOL.make_error_contact_form($token);
 				} else	unlink($resumability_filename);
