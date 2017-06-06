@@ -103,7 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
-				<li>2017-05-06
+				<li>2017-06-06
+					<ul>
+						<li>Added "skip current topic on resume" functionality.</li>
+					</ul>
+				</li>
+				<li>2017-06-05
 					<ul>
 						<li>Added support (phpBB-only for now) for scraping entire forums.</li>
 						<li>Prepended required fields on the options entry page with asterisks.</li>
