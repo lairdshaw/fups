@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2016 Laird Shaw.
+ * Copyright (C) 2013-2017 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -566,6 +566,17 @@ class phpBBFUPS extends FUPSBase {
 		} else if (!$this->settings['forum_ids_arr']) {
 				$this->exit_err('Neither the "Extract User ID" setting nor the "Forum IDs" setting were specified: at least one of these must be set.', __FILE__, __METHOD__, __LINE__);
 		}
+	}
+
+	protected function get_topic_id_from_topic_url($url) {
+		$needle = '&t=';
+		$pos = strpos($url, $needle);
+		$pos2 = strpos($url, '&', $pos+strlen($needle));
+		if ($pos2 !== false) {
+			$topicid = substr($url, $pos+strlen($needle), $pos2 - ($pos+strlen($needle)));
+		} else	$topicid = substr($url, $pos+strlen($needle));
+
+		return $topicid;
 	}
 }
 

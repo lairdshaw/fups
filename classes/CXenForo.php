@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2014 Laird Shaw.
+ * Copyright (C) 2013-2017 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -68,7 +68,21 @@ class XenForoFUPS extends FUPSBase {
 			'post_contents'            => '#<li id="post-(\\d+)".*<article>\\s*<blockquote class="messageText [^"]*">(.*)\\s*?</blockquote>\\s*</article>#Us',
 			// a regexp to match the thread id in a thread page
 			'thread_id'                => '[THIS REGEX IS SET WITHIN __construct()]',
-			'older_content'            => '#<div class="secondaryContent olderMessages">\\s*<a href="search/member\\?user_id=\\d*&amp;before=(\\d+)">#'
+			'older_content'            => '#<div class="secondaryContent olderMessages">\\s*<a href="search/member\\?user_id=\\d*&amp;before=(\\d+)">#',
+			'last_forum_page'           => '((^(?!.*<a\\s*href="[^"]*"\\s*class="currentPage\\s*")|<div\\s*class="PageNav".*data-last="(\\d+)".*<a\\s*href="[^"]+"\\s*class="currentPage\\s*">\\2</a>))Us',
+			'forum_page_topicids'       => '(<h3\\s+class="title">.*<a href="threads/([^/]+)/")Us',
+			'post_contents_ext'         => '(<li\\s+id="post-(\\d+)"[^>]*>.*<h3\\s+class="userText">\\s*<a[^>]*>([^<]+)</a>.*<div\\s+class="messageContent"[^>]*>\\s*<article>\\s*<blockquote[^>]*>(.*)<div\\s*class="messageTextEndMarker">&nbsp;</div>\\s*</blockquote>\\s*</article>.*class="DateTime"[^>]*title="([^"]+)">())Us',
+			'post_contents_ext_order'   =>
+				array(
+					'author'  => 2,
+					'title'   => 5,
+					'ts'      => 4,
+					'postid'  => 1,
+					'contents'=> 3,
+				),
+			'forum_title'               => '(<meta\\s+property="og:title"\\s+content="([^"]+)"\\s+/>)',
+			'last_topic_page'           => '((^(?!.*<a\\s*href="[^"]*"\\s*class="currentPage\\s*")|<div\\s*class="PageNav".*data-last="(\\d+)".*<a\\s*href="[^"]+"\\s*class="currentPage\\s*">\\2</a>))Us',
+			'topic'                     => '(<meta\\s+property="og:title"\\s+content="([^"]+)")',
 		),
 		'cwt_default2' => array(
 			'user_name'                => '#<h1 itemprop="name" class="username">([^<]*)</h1>#', // Sometimes the inner span is missing.
@@ -76,6 +90,15 @@ class XenForoFUPS extends FUPSBase {
 			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<abbr class="DateTime"[^>]*>([^<]*)</abbr>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
 			'search_results_page_data_order' => array('topic' => 4, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
 			'thread_author'            => '#data-author="([^"]*)"#',
+			'post_contents_ext'         => '(<li\\s+id="post-(\\d+)"[^>]*>.*<h3\\s+class="userText">\\s*<a[^>]*>([^<]+)</a>.*<div\\s+class="messageContent"[^>]*>\\s*<article>\\s*<blockquote[^>]*>(.*)<div\\s*class="messageTextEndMarker">&nbsp;</div>\\s*</blockquote>\\s*</article>.*class="DateTime"[^>]*>([^"]+)<())Us',
+			'post_contents_ext_order'   =>
+				array(
+					'author'  => 2,
+					'title'   => 5,
+					'ts'      => 4,
+					'postid'  => 1,
+					'contents'=> 3,
+				),
 		),
 	);
 
@@ -111,15 +134,25 @@ class XenForoFUPS extends FUPSBase {
 		} else	$this->post_search_counter++;
 	}
 
-	// Unimplemented for now
-	protected function get_forum_page_url($id, $pg) {}
+	protected function get_forum_page_url($id, $pg) {
+		return $this->settings['base_url'].'/forums/'.$id.'/page-'.$pg;
+	}
 
 	static function get_forum_software_homepage_s() {
 		return 'http://xenforo.com/';
 	}
 
-	// Unimplemented for now
-	protected function get_topic_page_url($forum_id, $topic_id, $topic_pg_counter) {}
+	protected function init_topic_pg_counter() {
+		$this->topic_pg_counter = 1;
+	}
+
+	protected function scrape_topic_page__end_hook($html, $matches) {
+		$this->topic_pg_counter++;
+	}
+
+	protected function get_topic_page_url($forum_id, $topic_id, $topic_pg_counter) {
+		return $this->settings['base_url'].'/threads/'.$topic_id.'/page-'.$topic_pg_counter;
+	}
 
 	static function get_msg_how_to_detect_forum_s() {
 		return 'Typically, XenForo forums can be identified by the presence of the text "Forum software by XenForo" in the footer of their forum pages. It is possible, however, that these footer texts have been removed by the administrator of the forum. In this case, the only way to know for sure is to contact your forum administrator.';
@@ -214,6 +247,20 @@ class XenForoFUPS extends FUPSBase {
 
 	public function get_settings_array() {
 		$settings_arr = parent::get_settings_array();
+		$new_settings_arr = array();
+
+		foreach ($settings_arr as $key => $setting) {
+			$new_settings_arr[$key] = $setting;
+			if ($key == 'extract_user_id') {
+				$new_settings_arr['extract_user'] = array(
+					'label'       => 'Extract User Username',
+					'default'     => ''                     ,
+					'description' => 'Set this to the username corresponding to the above ID. Note that it does not and cannot replace the need for the above ID; that ID is required. In contrast, this setting is not required (i.e. it can be left blank) if the script has permission to view member information on the specified phpBB board, in which case the script will extract it automatically from the member information page associated with the above ID: this will fail if the forum requires users to be logged in to view member information, in which case you need to specify this setting.',
+					'required'    => false,
+				);
+			}
+		}
+		$settings_arr = $new_settings_arr;
 
 		$settings_arr['base_url']['default'] = 'http://civilwartalk.com';
 		$settings_arr['base_url']['description'] .= ' This is the URL that appears in your browser\'s address bar when you access the forum, only with everything onwards from (and including) the path of whichever script is being accessed (e.g. /threads or /forums) stripped off. The default URL provided is for the particular XenForo board known as "CivilWarTalk".';
@@ -225,6 +272,7 @@ class XenForoFUPS extends FUPSBase {
 			'description' => 'Set this to that part of the URL for forum thread (topic) pages between the beginning part of the URL, that which was entered above beside "Base forum URL" but followed by a forward slash, and the end part of the URL, the thread id optionally followed by forward slash and page number. By default, this setting should be "threads/", but the XenForo forum software supports changing this default through <a href="https://xenforo.com/help/route-filters/">route filters</a>, and some XenForo forums have been configured in this way such that this setting ("Thread URL prefix") needs to be empty. An example of how to discern this value (it is emboldened) in a typical thread URL with "Base forum URL" set to "http://civilwartalk.com" is: "http://civilwartalk.com/<b>threads/</b>traveller.84936/page-2". Here, the initial base URL plus forward slash is obvious, the thread id part is "traveller.84936" and the optional-forward-slash-followed-by-page-number part is "/page-2". If route filtering were set up on the CivilWarTalk forum such that this setting should be empty, then that same thread URL would have looked like this: "http://civilwartalk.com/traveller.84936/page-2". If, hypothetically, this "Thread URL prefix" setting were to correctly be "topic/here/", then that same thread URL would have looked like this: "http://civilwartalk.com/topic/here/traveller.84936/page-2".',
 			'required' => true,
 		);
+		$settings_arr['forum_ids']['description'] .= ' You can find a forum\'s ID by hovering your cursor over a forum hyperlink and taking note of the text between "forums/" and the final "/" in the URL in the browser\'s status bar.';
 
 		return $settings_arr;
 	}
@@ -325,10 +373,45 @@ class XenForoFUPS extends FUPSBase {
 
 	public static function supports_feature_s($feature) {
 		static $features = array(
-			'login' => false
+			'login' => false,
+			'forums_dl' => true,
 		);
 
 		return isset($features[$feature]) ? $features[$feature] : parent::supports_feature_s($feature);
+	}
+
+	protected function validate_settings() {
+		$forum_ids1 = explode(',', $this->settings['forum_ids']);
+		if ($forum_ids1) {
+			foreach ($forum_ids1 as &$id) {
+				$id = trim($id);
+			}
+			if ($forum_ids1) {
+				$this->settings['forum_ids_arr'] = $forum_ids1;
+				if ($this->dbg) $this->write_err('$this->settings[\'forum_ids_arr\'] == '.var_export($this->settings['forum_ids_arr'], true));
+			}
+		}
+		if (!$this->settings['extract_user_id'] && empty($this->settings['forum_ids_arr'])) {
+			$this->exit_err('Neither the "Extract User ID" setting nor the "Forum IDs" setting were specified: at least one of these must be set.', __FILE__, __METHOD__, __LINE__);
+		}
+	}
+
+	protected function init_forum_page_counter() {
+		$this->forum_page_counter = 1;
+	}
+
+	protected function scrape_forum_pg__end_hook($html, $num_topics_found, $last_forum_page) {
+		if ($num_topics_found > 0 && !$last_forum_page) $this->forum_page_counter++;
+	}
+
+	protected function get_topic_id_from_topic_url($url) {
+		$prefix = $this->settings['base_url'].'/'.$this->settings['thread_url_prefix'];
+		$postfix = substr($url, strlen($prefix));
+		if (($pos = strpos($postfix, '/')) !== false) {
+			$topicid = substr($postfix, 0, $pos);
+		} else	$topicid = $postfix;
+
+		return $topicid;
 	}
 }
 

@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2015 Laird Shaw.
+ * Copyright (C) 2013-2017 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -512,7 +512,7 @@ abstract class FUPSBase {
 						$tmp = explode('#', $url, 2);
 						$url = $tmp[0];
 						$redirect = $url;
-						if ($redirect !== false) {
+						if ($redirect === false) {
 							return '';
 						}
 						$this->validate_url($url, 'the redirected-to location', true);
@@ -1400,6 +1400,8 @@ abstract class FUPSBase {
 	public function run($login_if_available = true) {
 		$valid_protocols = (CURLPROTO_HTTP | CURLPROTO_HTTPS);
 
+		$this->output_dirname    = make_output_dirname   ($this->token);
+
 		$this->cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
 
 		if ($this->dbg) $this->write_err('Set cookie_filename to "'.$this->cookie_filename.'".');
@@ -1825,7 +1827,16 @@ abstract class FUPSBase {
 
 		$this->write_status('Attempting to scrape page '.($this->topic_pg+1).' of topic with ID '.$t_keys[$this->topic_idx].' in forum with ID '.$id.'.');
 
-		$html = $this->do_send();
+		$redirect_url = false;
+		$html = $this->do_send($redirect_url);
+		if ($redirect_url) {
+			$redirect_topic_id = $this->get_topic_id_from_topic_url($redirect_url);
+			$original_topic_id = $t_keys[$this->topic_idx];
+			if ($redirect_topic_id != $original_topic_id) {
+				if ($this->dbg) $this->write_err("Topic page was redirected from topic with ID '$original_topic_id' to topic with ID '$redirect_topic_id'. Skipping to next topic.", __FILE__, __METHOD__, __LINE__);
+				goto scrape_topic_page__next_topic;
+			}
+		}
 
 		if (!isset($topic['title'])) {
 			if (!$this->skins_preg_match('topic', $html, $matches)) {
@@ -2421,6 +2432,8 @@ scrape_topic_page__next_topic:
 			}
 		}
 	}
+
+	abstract protected function get_topic_id_from_topic_url($url);
 }
 
 function cmp_posts_date($p1, $p2) {

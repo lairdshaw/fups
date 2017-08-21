@@ -103,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2017-08-21
+					<ul>
+						<li>Added support for scraping entire XenForo forums.</li>
+						<li>Added support for the "Extract User Username" setting for XenForo forums.</li>
+					</ul>
+				</li>
 				<li>2017-06-06
 					<ul>
 						<li>Added "skip current topic on resume" functionality.</li>
