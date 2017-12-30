@@ -1,7 +1,7 @@
 FUPS: Forum user-post scraper
 =============================
 
-FUPS is an extensible PHP framework for scraping and outputting either (1) the posts of a specified user or, (2) all posts in specified forums (phpBB-only for now), from a specified forum/board running supported forum software. Currently supported forum software is phpBB and XenForo. FUPS can be run as either a web app or as a commandline script.
+FUPS is an extensible PHP framework for scraping and outputting either (1) the posts of a specified user or, (2) all posts in specified forums, from a specified forum/board running supported forum software. Currently supported forum software is phpBB and XenForo. FUPS can be run as either a web app or as a commandline script.
 
 Installation-free use
 ---------------------
@@ -75,7 +75,7 @@ Depending on which forum software the forum you wish to scrape from runs, differ
 
 ### The options ###
 
-First note that both logging in to, and scraping whole forums of, XenForo forums is not yet supported, hence the lack of *login_user*, *login_password* and *forum_ids* options for forums of that type (nor is *extract_user* supported for XenForo forums).
+First note that logging in to XenForo forums is not yet supported, hence the lack of *login_user* and *login_password* options for forums of that type.
 
 * *forum_type*: Required. One of phpBB or XenForo (case insensitive).
 
@@ -85,7 +85,7 @@ First note that both logging in to, and scraping whole forums of, XenForo forums
 
 * *extract_user*: Optional. Applies to phpBB forums only. Set this to the username corresponding to the *extract_user_id* - this saves FUPS from having to look this value up, which it often can only do when you are logged in, so this additionally might save you from having to provide values for *login_user* or *login_password*.
 
-*forum_ids*: Only required if *extract_user_id* is not set. Set this to a comma-separated list of the IDs of (sub)forums to scrape from the board whose *base_url* you specified above. You can find a phpBB forum's ID by hovering your cursor over a forum hyperlink and taking note of the integer that appears after "&f=" in the URL in the browser's status bar. You can find a XenForo forum's ID by hovering your cursor over a forum hyperlink and taking note of the text between "forums/" and the final "/" in the URL in the browser's status bar
+* *forum_ids*: Only required if *extract_user_id* is not set. Set this to a comma-separated list of the IDs of (sub)forums to scrape from the board whose *base_url* you specified above. You can find a phpBB forum's ID by hovering your cursor over a forum hyperlink and taking note of the integer that appears after "&f=" in the URL in the browser's status bar. You can find a XenForo forum's ID by hovering your cursor over a forum hyperlink and taking note of the text between "forums/" and the final "/" in the URL in the browser's status bar
 
 * *login_user*: Optional. Applies to phpBB forums only. Set this to the username of the user whom you wish to log in as (it's fine to set it to the same value as *extract_user*). If unset, FUPS will not log in. If supplied, then the timestamps associated with each post will be according to the timezone specified in this user's preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts.
 
