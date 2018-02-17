@@ -1052,11 +1052,11 @@ abstract class FUPSBase {
 			),
 			'q_images_supported' => array(
 				'q' => 'Are images supported?',
-				'a' => 'Yes. If you check "Scrape images" (checked by default), then images are downloaded along with the posts. If not, then all relative image URLs are converted to absolute URLs, so images will display in the HTML output files so long as you are online at the time of viewing those files.',
+				'a' => 'Yes when scraping based on "Extract User ID"; no when scraping based on "Forum IDs". In the case of the former: if you check "Scrape images" (checked by default), then images are downloaded along with the posts. If not, then all relative image URLs are converted to absolute URLs, so images will display in the HTML output files so long as you are online at the time of viewing those files.',
 			),
 			'q_attachments_supported' => array(
 				'q' => 'Is the downloading of attachments supported?',
-				'a' => static::supports_feature_s('attachments') ? 'Yes. If you check "Scrape attachments" (checked by default), then attachments are downloaded along with the posts.' : 'In general, yes, but not yet for '.static::get_forum_type_s().' forums.',
+				'a' => static::supports_feature_s('attachments') ? 'Yes when scraping based on "Extract User ID"; no when scraping based on "Forum IDs". In the case of the former: if you check "Scrape attachments" (checked by default), then attachments are downloaded along with the posts.' : 'In general, yes, but not yet for '.static::get_forum_type_s().' forums.',
 			),
 			'q_why_slow' => array(
 				'q' => 'Why is this script so slow?',
@@ -1399,8 +1399,6 @@ abstract class FUPSBase {
 
 	public function run($login_if_available = true) {
 		$valid_protocols = (CURLPROTO_HTTP | CURLPROTO_HTTPS);
-
-		$this->output_dirname    = make_output_dirname   ($this->token);
 
 		$this->cookie_filename = make_cookie_filename($this->web_initiated ? $this->token : $this->settings_filename);
 
@@ -1840,7 +1838,7 @@ abstract class FUPSBase {
 
 		if (!isset($topic['title'])) {
 			if (!$this->skins_preg_match('topic', $html, $matches)) {
-				$this->write_err('Failed to match the "topic" regex - could not determine the title of the topic with ID "'.$t_keys[$this->topic_idx].'" is. The URL of the topic page is: <'.$this->last_url.'>.', __FILE__, __METHOD__, __LINE__);
+				$this->write_err('Failed to match the "topic" regex - could not determine the title of the topic with ID "'.$t_keys[$this->topic_idx].'". The URL of the topic page is: <'.$this->last_url.'>.', __FILE__, __METHOD__, __LINE__);
 			} else	$topic['title'] = $matches[1];
 		}
 
@@ -2119,7 +2117,7 @@ scrape_topic_page__next_topic:
 
 		foreach ($this->get_output_variants() as $opv) {
 			$op_filename =  make_output_filename($this->output_dirname, $opv['filename_appendix']);
-			if ($this->$opv['method']($op_filename)) {
+			if ($this->{$opv['method']}($op_filename)) {
 				$opts = array(
 					'filename'    => make_output_filename('', $opv['filename_appendix']),
 					'description' => ($wanted_downld_files ? 'The post output listing as: ' : '').$opv['description'],
@@ -2129,7 +2127,8 @@ scrape_topic_page__next_topic:
 					$opts['url'] = make_output_filename($this->output_dirname_web, $opv['filename_appendix']);
 				}
 				$output_info[] = $opts;
-			}
+				if ($this->dbg) $this->write_err('Successfully wrote to the output file: "'.$op_filename.'".');
+			} else	$this->write_err('Method '.__CLASS__.'->'.$opv['method'].'('.$op_filename.') returned false.', __FILE__, __METHOD__, __LINE__);
 		}
 
 		if ($this->web_initiated) {
