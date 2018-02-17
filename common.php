@@ -54,8 +54,18 @@ require_once __DIR__.'/settings.php';
 // error message which causes a hang until PHP timeout.
 // If not Windows, assume a UNIX-like "which" command is present, otherwise use
 // a custom batch file.
-$cmd = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ?  __DIR__.'\\would_run.bat' : 'which').' '.escapeshellarg(FUPS_CMDLINE_PHP_PATH);
-exec($cmd, $dummy, $res);
+$arg = escapeshellarg(FUPS_CMDLINE_PHP_PATH);
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+	$cmd = __DIR__.'\\would_run.bat '.$arg;
+	exec($cmd, $dummy, $res);
+} else {
+	$cmd = '/usr/bin/test -f '.$arg;
+	exec($cmd, $dummy, $res);
+	if ($res === 0) {
+		$cmd = '/usr/bin/test -x '.$arg;
+		exec($cmd, $dummy, $res);
+	}
+}
 if ($res !== 0) {
 	exit('Fatal error: The value defined in settings.php for FUPS_CMDLINE_PHP_PATH, "'.FUPS_CMDLINE_PHP_PATH.'", does not appear to be runnable given the current working directory and your path. Exiting.');
 }
