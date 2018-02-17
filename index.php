@@ -103,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2018-02-17
+					<ul>
+						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/1">issue #1</a>.</li>
+						<li>Improved support for downloading full forums from phpBB forums.</li>
+					</ul>
+				</li>
 				<li>2017-08-21
 					<ul>
 						<li>Added support for scraping entire XenForo forums.</li>

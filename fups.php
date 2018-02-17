@@ -28,7 +28,7 @@
  *              the web app (run.php) or manually e.g. via the commandline.
  *              Manual initiation should be as follows:
  *
- *              php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/outputfile.html
+ *              php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/output_dir/
  *
  *              The optionsfile.txt file should contain a series of lines of
  *              supported options, each option followed by an equals sign

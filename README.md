@@ -112,6 +112,8 @@ Limitations
 
 * FUPS currently doesn't support downloading attachments from XenForo forums.
 
+* FUPS currently doesn't support downloading attachments or images at all when downloading by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting *forum_ids* via the commandline interface.
+
 * The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway.
 
 The code
