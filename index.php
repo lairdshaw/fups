@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2018-03-05
+					<ul>
+						<li>Amended a regex to better match posts under the prosilver skin on phpBB 3.1.6 forums (it had been failing in some instances).</li>
+					</ul>
+				</li>
 				<li>2018-02-17
 					<ul>
 						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/1">issue #1</a>.</li>

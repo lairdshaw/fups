@@ -167,7 +167,7 @@ class phpBBFUPS extends FUPSBase {
 				),
 				'prosilver_3.1.6' => array(
 					'last_search_page'         => '(&bull;\\s[^<\\s]+\\s<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)',
-					'post_contents'            => '#<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">((?:(?!<dl\\sclass="attachbox">)(?!<div\\sclass="back2top">).)*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="file">.*</dl>)+\\s*</dd>\\s*</dl>)?\\s*</div>\\s*</div>\\s*<div\\sclass="back2top">#Us',
+					'post_contents'            => '#<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">(.*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="file">.*</dl>)+\\s*</dd>\\s*</dl>)?\\s*</div>\\s*</div>\\s*<div\\sclass="back2top">#Us',
 					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><span[^<]*</span>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
 					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
 					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*><a\\s*href="#p(\\d+)">([^<]*)</a></h3>.*<p\\s+class="author"><a\\s*href="[^"]*">.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*&raquo;\\s*</span>([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>)Us',
