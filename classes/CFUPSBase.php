@@ -922,6 +922,7 @@ abstract class FUPSBase {
 		if (!$this->skins_preg_match_all('post_contents', $html, $matches)) {
 			$err = true;
 			$this->write_and_record_err_admin('Error: Did not find any post IDs or contents on the thread page for post ID '.$postid.'. The URL of the page is "'.$this->last_url.'"', __FILE__, __METHOD__, __LINE__, $html);
+			$postids = array();
 		} else {
 			list($root_rel_url_base, $path_rel_url_base, $current_protocol) = static::get_base_urls_s($this->last_url, $html);
 			list($found, $postids) = $this->get_post_contents_from_matches($matches, $postid, $topicid, $root_rel_url_base, $path_rel_url_base, $current_protocol, $this->last_url);
