@@ -122,15 +122,15 @@ function delete_files_in_dir_older_than_r($dir, $min_delete_age, $delete_dir_too
 						$dir_is_empty = false;
 					} else	$num_files_del++;
 				} else	$dir_is_empty = false;
-			} else if (is_dir($filepath) && !delete_files_in_dir_older_than_r($filepath, $min_delete_age, true, array(), $num_files_del, $num_dirs_del, $errs)) {
+			} else if (is_dir($filepath) && !delete_files_in_dir_older_than_r($filepath, $min_delete_age, true, array(), $num_files_del, $num_dirs_del)) {
 				$dir_is_empty = false;
 			}
 		}
+		closedir($dh);
 	} else {
 		$dir_is_empty = false;
 		$errs .= ($errs ? ' ' : '').'Non-fatal error: failed to open directory "'.$dir."\".\n";
 	}
-	closedir($dh);
 
 	if ($delete_dir_too && $dir_is_empty && time() - $dir_m_time > $min_delete_age) {
 		if (!rmdir($dir)) {
