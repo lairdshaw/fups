@@ -93,8 +93,13 @@ function arrays_combos($arrays) {
  * $num_files_del and $num_dirs_del are not initialised to zero within the function,
  * so existing values can be passed in, which are incremented.
  */
-function delete_files_in_dir_older_than_r($dir, $min_delete_age, $delete_dir_too = false, $excluded_files = array(), &$num_files_del = 0, &$num_dirs_del = 0) {
+function delete_files_in_dir_older_than_r($dir, $min_delete_age, $delete_dir_too = false, $excluded_files = array(), &$num_files_del = 0, &$num_dirs_del = 0, &$errs = '') {
 	static $excluded_dirs = array('.', '..');
+
+	if (!is_dir($dir)) {
+		$errs .= ($errs ? ' ' : '').'Error: directory does not exist: "'.$dir.'"'."\n";
+		return false;
+	}
 
 	$dir_is_empty = true;
 	// Stat before making changes.
@@ -113,20 +118,23 @@ function delete_files_in_dir_older_than_r($dir, $min_delete_age, $delete_dir_too
 			if (is_file($filepath)) {
 				if (time() - stat($filepath)['mtime'] > $min_delete_age) {
 					if (!unlink($filepath)) {
-						fwrite(STDERR, 'Non-fatal error: failed to unlink file "'.$filepath."\"\n");
+						$errs .= ($errs ? ' ' : '').'Non-fatal error: failed to unlink file "'.$filepath."\"\n";
 						$dir_is_empty = false;
 					} else	$num_files_del++;
 				} else	$dir_is_empty = false;
-			} else if (is_dir($filepath) && !delete_files_in_dir_older_than_r($filepath, $min_delete_age, true, array(), $num_files_del, $num_dirs_del)) {
+			} else if (is_dir($filepath) && !delete_files_in_dir_older_than_r($filepath, $min_delete_age, true, array(), $num_files_del, $num_dirs_del, $errs)) {
 				$dir_is_empty = false;
 			}
 		}
-	} else	fwrite(STDERR, 'Non-fatal error: failed to open directory "'.$dir."\".\n");
+	} else {
+		$dir_is_empty = false;
+		$errs .= ($errs ? ' ' : '').'Non-fatal error: failed to open directory "'.$dir."\".\n";
+	}
 	closedir($dh);
 
 	if ($delete_dir_too && $dir_is_empty && time() - $dir_m_time > $min_delete_age) {
 		if (!rmdir($dir)) {
-			fwrite(STDERR, 'Non-fatal error: failed to remove directory "'.$dir."\"\n");
+			$errs .= ($errs ? ' ' : '').'Non-fatal error: failed to remove directory "'.$dir."\"\n";
 			$dir_is_empty = false;
 		} else	$num_dirs_del++;
 	}

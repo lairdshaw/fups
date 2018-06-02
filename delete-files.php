@@ -36,10 +36,10 @@ $num_dirs_deleted = 0;
 if (!isset($_GET['token'])) $err = 'Fatal error: I did not detect a URL query parameter "token".';
 else {
 	$token = $_GET['token'];
-	if (!delete_files_in_dir_older_than_r(make_output_dirname($token), -1, true, array(), $num_files_deleted, $num_dirs_deleted)) {
-		$err = 'An error occurred: failed to delete all files in the output directory.';
-	}
 	if (validate_token($token, $err)) {
+		if (!delete_files_in_dir_older_than_r(make_output_dirname($token), -1, true, array(), $num_files_deleted, $num_dirs_deleted, $errs)) {
+			$err = 'An error occurred: failed to delete all files in the output directory.'.($errs ? ' Error message from the deletion function: '.$errs : '');
+		}
 		try_delete_file(make_settings_filename    ($token), 'settings'      , true , $err, $num_files_deleted);
 		try_delete_file(make_status_filename      ($token), 'status'        , false, $err, $num_files_deleted);
 		try_delete_file(make_errs_filename        ($token), 'error'         , false, $err, $num_files_deleted);

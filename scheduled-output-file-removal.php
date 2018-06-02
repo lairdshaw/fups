@@ -46,7 +46,12 @@ require_once __DIR__.'/common.php';
 
 $min_delete_age = FUPS_SCHEDULED_DELETION_MIN_AGE_IN_DAYS * 24 * 60 * 60; // in seconds
 
-delete_files_in_dir_older_than_r(FUPS_DATADIR, $min_delete_age, false, array());
-delete_files_in_dir_older_than_r(FUPS_OUTPUTDIR, $min_delete_age, false, array('.htaccess'));
+$errs = '';
+delete_files_in_dir_older_than_r(FUPS_DATADIR, $min_delete_age, false, array(), $num_files_del, $num_dirs_del, $errs);
+delete_files_in_dir_older_than_r(FUPS_OUTPUTDIR, $min_delete_age, false, array('.htaccess'), $num_files_del, $num_dirs_del, $errs);
+if ($errs) {
+	$ferr = fopen('php://stderr', 'a');
+	fwrite($ferr, $errs);
+}
 
 ?>
