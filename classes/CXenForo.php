@@ -386,7 +386,7 @@ class XenForoFUPS extends FUPSBase {
 			foreach ($forum_ids1 as &$id) {
 				$id = trim($id);
 			}
-			if ($forum_ids1) {
+			if ($forum_ids1 && $forum_ids1 != array('')) {
 				$this->settings['forum_ids_arr'] = $forum_ids1;
 				if ($this->dbg) $this->write_err('$this->settings[\'forum_ids_arr\'] == '.var_export($this->settings['forum_ids_arr'], true));
 			}
