@@ -103,6 +103,19 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2018-09-16
+					<ul>
+						<li>Amended a phpBB prosilver regex search page regex to handle empty post subjects.</li>
+						<li>Fixed detection of both "Forum IDs" and "Extract User ID" settings being empty for XenForo forums.</li>
+					</ul>
+				</li>
+				<li>2018-06-02
+					<ul>
+						<li>Fixed error reporting when deleting files.</li>
+						<li>Fixed a potential security hole by validating the token supplied by the user before deleting files in the output directory.</li>
+						<li>Fixed a couple of small errors: a missing parameter to a call to the delete_files_in_dir_older_than_r() function and a misplaced call to closedir().</li>
+					</ul>
+				</li>
 				<li>2018-03-05
 					<ul>
 						<li>Amended a regex to better match posts under the prosilver skin on phpBB 3.1.6 forums (it had been failing in some instances).</li>
