@@ -162,7 +162,7 @@ class phpBBFUPS extends FUPSBase {
 				),
 				'prosilver.2' => array(
 					'login_success'            => '(<li class="icon-logout"><a href="\\./ucp\\.php\\?mode=logout)', # Sometimes boards are set up to redirect to the index page, in which case the above won't work and this will
-					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^<]+)</a>#Us',
+					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^<]*)</a>#Us',
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
 				),
 				'prosilver_3.1.6' => array(
