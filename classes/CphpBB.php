@@ -180,6 +180,9 @@ class phpBBFUPS extends FUPSBase {
 					),
 					'topic'                    => '(<div\\sid="page-body"[^>]*>.*<h2[^>]*><a\\s+href="[^"]*">([^<]*)</a></h2>)s',
 				),
+				'prosilver_3.unknown' => array(
+					'post_contents'            => '(<div id="post_content(\d+)"(?:(?!<div id="post_content(?:\d+)").)*<div\\sclass="content">(.*)</div>)Us',
+				),
 				'subsilver2_3.1.6' => array(
 					'login_success'            => '(<a href="\\./ucp\\.php\\?mode=logout)',
 					'user_name'                => '(<td align="center"><b class="gen" style="color: [^"]*">([^<]*)</b>)',

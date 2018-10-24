@@ -103,9 +103,14 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2018-10-25
+					<ul>
+						<li>Added a phpBB prosilver thread page regex ('post_contents') which matches on some forums where none of the existing regexes did.</li>
+					</ul>
+				</li>
 				<li>2018-09-16
 					<ul>
-						<li>Amended a phpBB prosilver regex search page regex to handle empty post subjects.</li>
+						<li>Amended a phpBB prosilver search page regex to handle empty post subjects.</li>
 						<li>Fixed detection of both "Forum IDs" and "Extract User ID" settings being empty for XenForo forums.</li>
 					</ul>
 				</li>
