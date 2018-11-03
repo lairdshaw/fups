@@ -155,7 +155,7 @@ class phpBBFUPS extends FUPSBase {
 						'postid'  => 1,
 						'contents'=> 7,
 					),
-					'forum_page_topicids'      => '(<a\\s+href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+)"\\s+class="topictitle">)',
+					'forum_page_topicids'      => '(\\s+href="\\./viewtopic\\.php\\?f=\\d+&amp;t=(\\d+)"\\s+class="topictitle">)',
 					'forum_title'              => '(<h2><a\\s*[^>]+>([^<]+)</a></h2>)',
 					'last_topic_page'          => '(<div class="pagination">[^&]*&bull;\\s*(<a[^>]*>)?[^<]+<strong>(\\d+)</strong>[^<]*<strong>\\2</strong>)Us',
 					'topic'                    => '(<h2><a\\s+href="\\./viewtopic\\.php\\?f=\\d+&amp;t=\\d+">([^<]*)</a></h2>)',
