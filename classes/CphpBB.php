@@ -183,6 +183,18 @@ class phpBBFUPS extends FUPSBase {
 				'prosilver_3.unknown' => array(
 					'post_contents'            => '(<div id="post_content(\d+)"(?:(?!<div id="post_content(?:\d+)").)*<div\\sclass="content">(.*)</div>)Us',
 				),
+				'prosilver_3.2.x' => array(
+					'last_forum_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
+					'last_topic_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
+					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*>(?:<img\\s+[^>]+>\\s+)?<a\\s*href="#p(\\d+)">([^<]*)</a></h3>.*<p\\s+class="author">\\s*<a\\s*[^>]*href="[^"]*"[^>]*>.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*(?:&raquo;|»)\\s*</span>([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>\\s*(?:<div\\s+class="notice">.*</div>\\s*)?(?:<div\\s+[^>]*class="signature">(.*)</div>\\s*)?</div>\\s*</div>\\s*<div\\s+class="back2top")Us',
+					'post_contents_ext_order'  => array(
+						'author'  => 4,
+						'title'   => 2,
+						'ts'      => 6,
+						'postid'  => 1,
+						'contents'=> 7,
+					),
+				),
 				'subsilver2_3.1.6' => array(
 					'login_success'            => '(<a href="\\./ucp\\.php\\?mode=logout)',
 					'user_name'                => '(<td align="center"><b class="gen" style="color: [^"]*">([^<]*)</b>)',
