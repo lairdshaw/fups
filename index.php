@@ -103,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2018-11-03
+					<ul>
+						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/5">issue #5</a>: <em>end not detected</em>. Also added a few related regexes to support the prosilver skin on phpBB 3.2.x..</li>
+						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/4">issue #4</a>: <em>regex issue with forum_page_topicids</em>.</li>
+					</ul>
+				</li>
 				<li>2018-10-25
 					<ul>
 						<li>Added a phpBB prosilver thread page regex ('post_contents') which matches on some forums where none of the existing regexes did.</li>
@@ -128,7 +134,7 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 				</li>
 				<li>2018-02-17
 					<ul>
-						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/1">issue #1</a>.</li>
+						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/1">issue #1</a>: <em>Php error</em>.</li>
 						<li>Improved support for downloading full forums from phpBB forums.</li>
 					</ul>
 				</li>
