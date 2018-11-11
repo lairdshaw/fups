@@ -6,7 +6,7 @@ FUPS is an extensible PHP framework for scraping and outputting either (1) the p
 Installation-free use
 ---------------------
 
-FUPS can be used pre-installed as a web app here: [http://creativeandcritical.net/fups/](http://creativeandcritical.net/fups/).
+FUPS can be used pre-installed as a web app here: [https://creativeandcritical.net/fups/](https://creativeandcritical.net/fups/).
 
 Installing and using
 --------------------
@@ -31,9 +31,9 @@ If you are setting FUPS up on a publicly accessible web server, then you might w
 
 ### Using from the commandline ###
 
-Create an options file. Type:
+Create an options file. Then type:
 
-    php path/to/fups.php -i path/to/existing/optionsfile.txt -o path/to/desired/output-directory
+    php path/to/fups.php -i path/to/optionsfile.txt -o path/to/output-directory
 
 If the output directory already exists and is not empty, then FUPS will append ".1" to the directory name that you supply. If that directory exists too, then FUPS will try instead appending ".2", etc.
 
@@ -81,11 +81,11 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 
 * *base_url*: Required. The URL that appears in your browser's address bar when you access the forum, with everything onwards from (and including) the filename/path of whichever script is being accessed stripped off - for phpBB forums the start of the stripped-off part will be e.g. /index.php or /viewtopic.php, and for XenForo forums, it will be e.g. /threads or /forums. Ideally, you would remove any trailing forward slash from the final URL, but scraping will almost certainly still work even if you don't.
 
-* *extract_user_id*: Required. Set this to the user ID of the user whose posts are to be extracted. You can find a user's ID by hovering your cursor over a hyperlink to their name, and taking note of, in the URL in the browser's status bar: for phpBB forums, the number that appears after "&u="; for XenForo forums, everything that appears between "/members/" and the next "/" (i.e. this will be something like "my-member-name.12345").
+* *extract_user_id*: Only required if *forum_ids* is not set. Set this to the user ID of the user whose posts are to be extracted. You can find a user's ID by hovering your cursor over a hyperlink to their name, and taking note of, in the URL in the browser's status bar: for phpBB forums, the number that appears after "&u="; for XenForo forums, everything that appears between "/members/" and the next "/" (i.e. this will be something like "my-member-name.12345").
 
-* *extract_user*: Optional. Applies to phpBB forums only. Set this to the username corresponding to the *extract_user_id* - this saves FUPS from having to look this value up, which it often can only do when you are logged in, so this additionally might save you from having to provide values for *login_user* or *login_password*.
+* *extract_user*: Optional. Set this to the username corresponding to the *extract_user_id* - this saves FUPS from having to look this value up, which it often can only do when you are logged in, so this additionally might save you from having to provide values for *login_user* or *login_password*.
 
-* *forum_ids*: Only required if *extract_user_id* is not set. Set this to a comma-separated list of the IDs of (sub)forums to scrape from the board whose *base_url* you specified above. You can find a phpBB forum's ID by hovering your cursor over a forum hyperlink and taking note of the integer that appears after "&f=" in the URL in the browser's status bar. You can find a XenForo forum's ID by hovering your cursor over a forum hyperlink and taking note of the text between "forums/" and the final "/" in the URL in the browser's status bar
+* *forum_ids*: Only required if *extract_user_id* is not set. Set this to a comma-separated list of the IDs of (sub)forums to scrape from the board whose *base_url* you specified above. You can find a phpBB forum's ID by hovering your cursor over a forum hyperlink and taking note of the integer that appears after "&f=" in the URL in the browser's status bar. You can find a XenForo forum's ID by hovering your cursor over a forum hyperlink and taking note of the text between "forums/" and the final "/" in the URL in the browser's status bar.
 
 * *login_user*: Optional. Applies to phpBB forums only. Set this to the username of the user whom you wish to log in as (it's fine to set it to the same value as *extract_user*). If unset, FUPS will not log in. If supplied, then the timestamps associated with each post will be according to the timezone specified in this user's preferences, rather than the board default. Also, some boards require you to be logged in so that you can view posts.
 
@@ -108,13 +108,15 @@ First note that logging in to XenForo forums is not yet supported, hence the lac
 Limitations
 -----------
 
-* As already noted, FUPS currently doesn't support logging in to XenForo forums.
+* As already noted, FUPS currently does not support logging in to XenForo forums.
 
-* FUPS currently doesn't support downloading attachments from XenForo forums.
+* FUPS currently supports downloading attachments only from (1) phpBB forums (2) when scraping an individual user's posts, i.e., when filling in the "Extract User ID" setting via the web interface or when setting *extract_user_id* via the commandline interface. **However**, even this support might for some skins be incomplete or entirely non-functional. To be clear about the remainder of the limitations:
 
-* FUPS currently doesn't support downloading attachments or images at all when downloading by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting *forum_ids* via the commandline interface.
+  * FUPS currently does **not** support downloading attachments from XenForo forums, even when scraping an individual user's posts.
 
-* The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway.
+  * FUPS currently does **not** support downloading attachments or images at all (i.e. for neither phpBB nor XenForo forums) when downloading by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting *forum_ids* via the commandline interface.
+
+* The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway. (Although, since documenting this, it has become clear that some XenForo forums do not even display the "Click to expand..." text in the first place).
 
 The code
 --------
