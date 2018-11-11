@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2015 Laird Shaw.
+ * Copyright (C) 2013-2018 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -103,6 +103,18 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2018-11-11
+					<ul>
+						<li>Improved a couple of phpBB prosilver_3.1.6 regexes:
+							<ul>
+								<li>'post_contents_ext' to allow for detection of posts with attachment boxes (though this does not resolve the limitation by which attachments are not downloaded when scraping by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting "forum_ids" via the commandline interface).</li>
+								<li>'post_contents' to allow for attachments with a class of "file" on top of "thumbnail", and to allow for posts with signatures or that have been edited.</li>
+							</ul>
+						</li>
+						<li>Removed the 'post_contents' regex added on 2018-10-25, which is not only unnecessary given these changes but incomplete and thus sometimes gives incorrect results.</li>
+						<li>Reordered the phpBB prosilver regexes so that the most recent are topmost.</li>
+					</ul>
+				</li>
 				<li>2018-11-03
 					<ul>
 						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/5">issue #5</a>: <em>end not detected</em>. Also added a few related regexes to support the prosilver skin on phpBB 3.2.x..</li>

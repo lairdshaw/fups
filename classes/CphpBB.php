@@ -6,7 +6,7 @@
  * running supported forum software. Can be run as either a web app or a
  * commandline script.
  *
- * Copyright (C) 2013-2017 Laird Shaw.
+ * Copyright (C) 2013-2018 Laird Shaw.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -131,6 +131,33 @@ class phpBBFUPS extends FUPSBase {
 					'topic'                    => '(<div\\sid="page-body">.*<h2><a\\s+href="[^"]+-t\\d+\\.html">([^<]*)</a></h2>)s',
 					'forum_title'              => '(<div\\sid="page-body"[^>]*>.*<h2[^>]*><a\\s*[^>]+>([^<]+)</a></h2>)s',
 				),
+				'prosilver_3.2.x' => array(
+					'last_forum_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
+					'last_topic_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
+					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*>(?:<img\\s+[^>]+>\\s+)?<a\\s*href="#p(\\d+)">([^<]*)</a></h3>.*<p\\s+class="author">\\s*<a\\s*[^>]*href="[^"]*"[^>]*>.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*(?:&raquo;|»)\\s*</span>([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>\\s*(?:<dl\\sclass="attachbox">.*</dl>\\s*)?(?:<div\\s+class="notice">.*</div>\\s*)?(?:<div\\s+[^>]*class="signature">(.*)</div>\\s*)?</div>\\s*</div>\\s*<div\\s+class="back2top")Us',
+					'post_contents_ext_order'  => array(
+						'author'  => 4,
+						'title'   => 2,
+						'ts'      => 6,
+						'postid'  => 1,
+						'contents'=> 7,
+					),
+				),
+				'prosilver_3.1.6' => array(
+					'last_search_page'         => '(&bull;\\s[^<\\s]+\\s<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)',
+					'post_contents'            => '(<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">(.*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="(?:file|thumbnail)">.*</dl>)+\\s*</dd>\\s*</dl>\\s*)?(?:<div\\s+class="notice">.*</div>\\s*)?(?:<div\\s+[^>]*class="signature">(.*)</div>\\s*)?</div>\\s*</div>\\s*<div\\sclass="back2top">)Us',
+					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><span[^<]*</span>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
+					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
+					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*><a\\s*href="#p(\\d+)">([^<]*)</a></h3>.*<p\\s+class="author"><a\\s*href="[^"]*">.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*&raquo;\\s*</span>([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>)Us',
+					'post_contents_ext_order'  => array(
+						'author'  => 4,
+						'title'   => 2,
+						'ts'      => 6,
+						'postid'  => 1,
+						'contents'=> 7,
+					),
+					'topic'                    => '(<div\\sid="page-body"[^>]*>.*<h2[^>]*><a\\s+href="[^"]*">([^<]*)</a></h2>)s',
+				),
 				'prosilver.1' => array(
 					'sid'                      => '/name="sid" value="([^"]*)"/',
 					'board_title'              => '#<h1>(.*)</h1>#',
@@ -164,36 +191,6 @@ class phpBBFUPS extends FUPSBase {
 					'login_success'            => '(<li class="icon-logout"><a href="\\./ucp\\.php\\?mode=logout)', # Sometimes boards are set up to redirect to the index page, in which case the above won't work and this will
 					'search_results_page_data' => '#<dl class="postprofile">.*<dd[^>]*>([^<]+)</dd>.*<dd>[^:]*: .*>(.+)</a>.*<dd>[^:]*: .*>(.+)</a>.*<h3>.*viewtopic\.php\?f=(\d+?)&amp;t=(\d+?)&amp;p=(\d+?)[^>]*>([^<]*)</a>#Us',
 					'search_results_page_data_order' => array('title' => 7, 'ts' => 1, 'forum' => 2, 'topic' => 3, 'forumid' => 4, 'topicid' => 5, 'postid' => 6),
-				),
-				'prosilver_3.1.6' => array(
-					'last_search_page'         => '(&bull;\\s[^<\\s]+\\s<strong>(\\d+)</strong>[^<]*<strong>\\1</strong>)',
-					'post_contents'            => '#<div id="p(\d+)"(?:(?!<div id="p(?:\d+)").)*<div\\sclass="content">(.*)</div>\\s*(<dl\\sclass="attachbox">(?:.*<dl\\sclass="file">.*</dl>)+\\s*</dd>\\s*</dl>)?\\s*</div>\\s*</div>\\s*<div\\sclass="back2top">#Us',
-					'attachments'              => '(<dl\\sclass="file">\\s*(?:<dt><span[^<]*</span>\\s*<a\\s[^>]*href="([^"]*)"[^>]*>([^<]*)</a>|<dt[^>]*><img\\s[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>)</dt>\\s*<dd>(?:<em>((?:(?!</em>).)*)</em>|(?:(?!<em>).)*)</dd>)Us',
-					'attachments_order'        => array('comment' => 5, 'file_url' => 1, 'file_name' => 2, 'img_url' => 3, 'img_name' => 4),
-					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*><a\\s*href="#p(\\d+)">([^<]*)</a></h3>.*<p\\s+class="author"><a\\s*href="[^"]*">.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*&raquo;\\s*</span>([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>)Us',
-					'post_contents_ext_order'  => array(
-						'author'  => 4,
-						'title'   => 2,
-						'ts'      => 6,
-						'postid'  => 1,
-						'contents'=> 7,
-					),
-					'topic'                    => '(<div\\sid="page-body"[^>]*>.*<h2[^>]*><a\\s+href="[^"]*">([^<]*)</a></h2>)s',
-				),
-				'prosilver_3.unknown' => array(
-					'post_contents'            => '(<div id="post_content(\d+)"(?:(?!<div id="post_content(?:\d+)").)*<div\\sclass="content">(.*)</div>)Us',
-				),
-				'prosilver_3.2.x' => array(
-					'last_forum_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
-					'last_topic_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
-					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*>(?:<img\\s+[^>]+>\\s+)?<a\\s*href="#p(\\d+)">([^<]*)</a></h3>.*<p\\s+class="author">\\s*<a\\s*[^>]*href="[^"]*"[^>]*>.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*(?:&raquo;|»)\\s*</span>([^<]*)</p>\\s*<div\\s+class="content">(.*)</div>\\s*(?:<div\\s+class="notice">.*</div>\\s*)?(?:<div\\s+[^>]*class="signature">(.*)</div>\\s*)?</div>\\s*</div>\\s*<div\\s+class="back2top")Us',
-					'post_contents_ext_order'  => array(
-						'author'  => 4,
-						'title'   => 2,
-						'ts'      => 6,
-						'postid'  => 1,
-						'contents'=> 7,
-					),
 				),
 				'subsilver2_3.1.6' => array(
 					'login_success'            => '(<a href="\\./ucp\\.php\\?mode=logout)',
