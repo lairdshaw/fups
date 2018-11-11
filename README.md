@@ -110,11 +110,13 @@ Limitations
 
 * As already noted, FUPS currently does not support logging in to XenForo forums.
 
-* FUPS currently supports downloading attachments only from (1) phpBB forums (2) when scraping an individual user's posts, i.e., when filling in the "Extract User ID" setting via the web interface or when setting *extract_user_id* via the commandline interface. **However**, even this support might for some skins be incomplete or entirely non-functional. To be clear about the remainder of the limitations:
+* FUPS currently does not support downloading **images** (or attachments, as reiterated below) at all (i.e. for neither phpBB nor XenForo forums) when downloading by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting *forum_ids* via the commandline interface.
+
+* FUPS currently supports downloading **attachments** only from (1) phpBB forums (2) when scraping an individual user's posts, i.e., when filling in the "Extract User ID" setting via the web interface or when setting *extract_user_id* via the commandline interface. **However**, even this support might for some skins be incomplete or entirely non-functional. To be clear about the remainder of the limitations:
 
   * FUPS currently does **not** support downloading attachments from XenForo forums, even when scraping an individual user's posts.
 
-  * FUPS currently does **not** support downloading attachments or images at all (i.e. for neither phpBB nor XenForo forums) when downloading by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting *forum_ids* via the commandline interface.
+  * FUPS currently does **not** support downloading attachments (or images, as already listed above) at all (i.e. for neither phpBB nor XenForo forums) when downloading by forums, i.e., when filling in the "Forum IDs" setting via the web interface or when setting *forum_ids* via the commandline interface.
 
 * The "Click to expand..." text is not removed from XenForo forum output, even though it is unclickable and quotes are not truncated in FUPS output anyway. (Although, since documenting this, it has become clear that some XenForo forums do not even display the "Click to expand..." text in the first place).
 
