@@ -276,14 +276,57 @@ class phpBBFUPS extends FUPSBase {
 
 		# Do this first bit so that we set old_version if necessary regardless of whether or not the user supplied credentials.
 
+		$url = $this->settings['base_url'].'/ucp.php?mode=login';
 		# Discover the SID
-		$this->set_url($this->settings['base_url'].'/ucp.php?mode=login');
+		$this->set_url($url);
 		$redirect = false;
 		$html = $this->do_send($redirect, /*$quit_on_error*/false, $err);
 		
 		if ($err || $redirect) {
-			# Earlier versions of phpBB need a different URL
-			$this->old_version = true;
+			$is_old = false;
+			if (!$err && $redirect) {
+				$empty_url = array(
+					'scheme' => '',
+					'host'   => '',
+					'port'   => '',
+					'user'   => '',
+					'pass'   => '',
+					'path'   => '',
+					'query'  => '',
+				);
+				$u1 = array_merge($empty_url, parse_url($url));
+				$u2 = array_merge($empty_url, parse_url($redirect));
+				# Only count redirects which aren't simply diverting from http to https (or vice versa)
+				# and/or to or from the www-prefixed version of the domain,
+				# and/or from a path which begins with an extra "/" due to the user ignoring
+				# the request to strip the trailing slash off the base forum URL when entering options.
+				# Lazily not splitting this out into a separate function as it is used nowhere else.
+				$is_old = !(
+				  ($u1['scheme'] == $u2['scheme'] || $u1['scheme'].'s'  == $u2['scheme'] || $u1['scheme'] == $u2['scheme'].'s' )
+				  &&
+				  ($u1['host'  ] == $u2['host'  ] || 'www.'.$u1['host'] == $u2['host'  ] || $u1['host'  ] == 'www.'.$u2['host'])
+				  &&
+				   $u1['port'  ] == $u2['port'  ]
+				  &&
+				   $u1['user'  ] == $u2['user'  ]
+				  &&
+				   $u1['pass'  ] == $u2['pass'  ]
+				  &&
+				  ($u1['path'  ] == $u2['path'  ] || '/'.$u1['path'   ] == $u2['path'  ] || $u1['path'  ] == '/'.$u2['path'   ])
+				  &&
+				   $u1['query' ] == $u2['query' ]
+				);
+				$this->write_err('$is_old: '.var_export($is_old, true));
+				$this->write_err('$u1: '.var_export($u1, true));
+				$this->write_err('$u2: '.var_export($u2, true));
+			} else {
+				$this->write_err('Setting $is_old true');
+				$is_old = true;
+			}
+			if ($is_old) {
+				# Earlier versions of phpBB need a different URL
+				$this->old_version = true;
+			}
 		}
 
 		# Do the rest conditionally on the user having supplied credentials.

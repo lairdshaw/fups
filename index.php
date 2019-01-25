@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2019-01-25
+					<ul>
+						<li>Improved code to detect the older phpBB version by not coming up with a false positive merely due to redirects diverting from http to https (or vice versa) and/or to or from the www-prefixed version of the domain, and/or from a path which begins with an extra "/" due to the user ignoring the request to strip the trailing slash off the base forum URL when entering options.</li>
+					</ul>
+				</li>
 				<li>2018-11-11
 					<ul>
 						<li>Improved a couple of phpBB prosilver_3.1.6 regexes:
