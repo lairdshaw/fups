@@ -316,13 +316,7 @@ class phpBBFUPS extends FUPSBase {
 				  &&
 				   $u1['query' ] == $u2['query' ]
 				);
-				$this->write_err('$is_old: '.var_export($is_old, true));
-				$this->write_err('$u1: '.var_export($u1, true));
-				$this->write_err('$u2: '.var_export($u2, true));
-			} else {
-				$this->write_err('Setting $is_old true');
-				$is_old = true;
-			}
+			} else	$is_old = true;
 			if ($is_old) {
 				# Earlier versions of phpBB need a different URL
 				$this->old_version = true;
