@@ -50,7 +50,7 @@ class XenForoFUPS extends FUPSBase {
 			// $matches ends up with the following matches in the order specified in
 			// search_results_page_data_order.
 			// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
-			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<span class="DateTime" title="([^"]+)">[^<]*</span>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
+			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*(?:<span[^>]*>[^<]*</span>)?\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<span class="DateTime" title="([^"]+)">[^<]*</span>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
 			// an array specifying the order in which the following matches occur
 			// in the matches returned by the previous array.
 			// = array(
@@ -87,7 +87,8 @@ class XenForoFUPS extends FUPSBase {
 		'cwt_default2' => array(
 			'user_name'                => '#<h1 itemprop="name" class="username">([^<]*)</h1>#', // Sometimes the inner span is missing.
 			// Sometimes the DateTime <span> is actually an <abbr>.
-			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<abbr class="DateTime"[^>]*>([^<]*)</abbr>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
+			// N.B. Must not match any results matched by any other search_results_page_data regex - the results of all are combined!
+			'search_results_page_data' => '#<div class="listBlock main">\\s*<div class="titleText">\\s*<span class="contentType">[^<]*</span>\\s*(?:<span[^>]*>[^<]*</span>)?\\s*<h3 class="title"><a href="([^/]*)/([^/]+)/">(<span[^>]*>[^<]*</span> )?([^<]*)</a></h3>\\s*</div>\\s*<blockquote class="snippet">\\s*<a href="[^/]*/[^/]+/">[^<]*</a>\\s*</blockquote>\\s*<div class="meta">\\s*[^<]*<a href="members/[^/]*/"\\s*class="username"[^>]*>[^<]*</a>,\\s*<abbr class="DateTime"[^>]*>([^<]*)</abbr>[^<]*<a href="forums/([^/]*)/">([^<]*)</a>#Us',
 			'search_results_page_data_order' => array('topic' => 4, 'ts' => 5, 'forum' => 7, 'forumid' => 6, 'postid' => 2, 'postsorthreads' => 1),
 			'thread_author'            => '#data-author="([^"]*)"#',
 			'post_contents_ext'         => '(<li\\s+id="post-(\\d+)"[^>]*>.*<h3\\s+class="userText">\\s*<a[^>]*>([^<]+)</a>.*<div\\s+class="messageContent"[^>]*>\\s*<article>\\s*<blockquote[^>]*>(.*)<div\\s*class="messageTextEndMarker">&nbsp;</div>\\s*</blockquote>\\s*</article>.*class="DateTime"[^>]*>([^"]+)<())Us',
@@ -121,6 +122,8 @@ class XenForoFUPS extends FUPSBase {
 	protected function ts_raw_hook(&$ts_raw) {
 		if ($this->dbg) $this->write_err('Deleting any "at " in time string "'.$ts_raw.'".');
 		$ts_new = preg_replace('/\\bat /', '', $ts_raw);
+		if ($this->dbg) $this->write_err('Deleting any "lúc " in time string "'.$ts_raw.'".');
+		$ts_new = preg_replace('/\\blúc /', '', $ts_raw);
 		if (!is_null($ts_new)) $ts_raw = $ts_new;
 	}
 
