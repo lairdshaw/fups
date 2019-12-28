@@ -75,20 +75,20 @@ fups_output_page_start($page, 'FUPS: Forum user-post scraper', 'Scrape posts mad
 
 			<h3>What is FUPS?</h3>
 
-			<p>FUPS is a web app that "scrapes" (downloads) either:</p>
+			<p>FUPS is a web app that "scrapes" (downloads) from a specified board running either the <?php echo $forums_str_linked; ?> forum software either:</p>
 
 			<ul>
-				<li>The posts of a specified user from a specified forum/board running either the <?php echo $forums_str_linked; ?> forum software.</li>
-				<li>All posts in a (sub)forum in a phpBB board.</li>
+				<li>All posts of a specified user, or,</li>
+				<li>All posts in a (set of) (sub)forums of the board.</li>
 			</ul>
 
 			<p>FUPS will download from your specified board all of the relevant posts made to that board satisfying either of the above two conditions - it does this by accessing the forum in the same way your web browser does when you browse the forum manually, only it does so automatically.</p>
 
 			<p>When scraping a user's posts, FUPS then sorts those posts by various means, and for each means, produces a file containing a table of contents for all threads the user was involved in, followed by the sorted posts themselves, with headings, and separated by horizontal lines. It returns an HTML page for each of these sorts. If images or files were downloaded, they are made available in the output too. FUPS also provides a JSON data structure for the scraped posts of the user.</p>
 
-			<p>When scraping an entire (sub)forum, FUPS outputs the scraped data (threads and posts) in a JSON data structure.</p>
+			<p>When scraping an entire (set of) (sub)forum(s), FUPS outputs the scraped data (threads and posts) in a JSON data structure.</p>
 
-			<p>The output files are presented when FUPS finishes scraping, and you can then save these files to disk via your browser, e.g. in Firefox click the "File" menu option and under that click "Save Page As". You can then, if you like, open up HTML files in your word processor and save them in any other format you desire, e.g. ODF, Microsoft Word.</p>
+			<p>The output files are presented when FUPS finishes scraping, and you can then save these files to disk via your browser, e.g., in Firefox right-click on the file you want to save and choose "Save Link As...", or left-click on the file to open it and then click the "File" main menu option and then click "Save Page As". You can then, if you like, open up HTML files in your word processor and save them in any other format you desire, e.g. ODF, Microsoft Word.</p>
 
 			<p>If you're asking, "How can I download all of my posts from a remote <?php echo $forums_str; ?> forum to my local hard drive?", then this might be the script for you.</p>
 
