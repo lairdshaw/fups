@@ -1075,6 +1075,7 @@ abstract class FUPSBase {
 				'default'     => static::classname_to_forum_type_s(get_class($this)),
 				'description' => 'Specifies the forum type (e.g. "phpBB" or "XenForo").',
 				'required'    => true                                    ,
+				'one_of_required' => false                               ,
 				'hidden'      => false                                   ,
 				'readonly'    => true                                    ,
 			),
@@ -1084,12 +1085,14 @@ abstract class FUPSBase {
 				'description' => 'Set this to the base URL of the forum.',
 				'style'       => 'min-width: 300px;'                     ,
 				'required'    => true                                    ,
+				'one_of_required' => false                               ,
 			),
 			'extract_user_id' => array(
 				'label'       => 'Extract User ID'                       ,
 				'default'     => ''                                      ,
 				'description' => 'Set this to the user ID of the user whose posts are to be extracted.',
-				'required'    => !static::supports_feature_s('forums_dl')                                    ,
+				'required'    => !static::supports_feature_s('forums_dl'),
+				'one_of_required' => static::supports_feature_s('forums_dl'),
 			)
 		);
 		if (static::supports_feature_s('forums_dl')) {
@@ -1099,6 +1102,7 @@ abstract class FUPSBase {
 					'default' => '',
 					'description' => 'Set this to a comma-separated list of IDs of any forums that you wish for FUPS to scrape.',
 					'required'    => false,
+					'one_of_required' => true,
 				),
 			));
 		}
@@ -1109,6 +1113,7 @@ abstract class FUPSBase {
 					'default' => '',
 					'description' => 'Set this to the username of the user whom you wish to log in as, or leave it blank if you do not wish FUPS to log in.',
 					'required'    => false,
+					'one_of_required' => false,
 				),
 				'login_password' => array(
 					'label' => 'Login User Password',
@@ -1116,6 +1121,7 @@ abstract class FUPSBase {
 					'description' => 'Set this to the password associated with the Login User Username (or leave it blank if you do not require login).',
 					'type' => 'password',
 					'required'    => false,
+					'one_of_required' => false,
 				),
 			));
 		}
@@ -1126,12 +1132,14 @@ abstract class FUPSBase {
 				'default' => '',
 				'description' => 'Set this to the datetime of the earliest post to be extracted i.e. only posts of this datetime and later will be extracted. If you do not set this (i.e. if you leave it blank) then all posts will be extracted. This value is parsed with PHP\'s <a href="http://www.php.net/strtotime">strtotime()</a> function, so check that link for details on what it should look like. An example of something that will work is: 2013-04-30 15:30.',
 				'required' => false,
+				'one_of_required' => false,
 			),
 			'php_timezone' => array(
 				'label' => 'PHP Timezone',
 				'default' => 'Australia/Hobart',
 				'description' => 'Set this to the time zone in which the user\'s posts were made. Valid time zone values are listed starting <a href="http://php.net/manual/en/timezones.php">here</a>. This only applies when "Start From Date+Time" is set above, in which case the value that you supply for "Start From Date+Time" will be assumed to be in the time zone you supply here, as will the date+times for posts retrieved from the forum. It is safe to leave this value set to the default if you are not supplying a value for the "Start From Date+Time" setting.',
 				'required' => false,
+				'one_of_required' => false,
 			),
 			'download_images' => array(
 				'label' => 'Scrape images',
@@ -1139,6 +1147,7 @@ abstract class FUPSBase {
 				'description' => 'Check this box if you want FUPS to scrape all images in posts too, and to adjust image URLs to refer the local, downloaded images. Note that images which are attached to posts, but which are not included inline in the post itself, will not be scraped'.(static::supports_feature_s('attachments') ? ' unless you also check "Scrape attachments" below.' : ' (because FUPS does not yet support the scraping of attachments for '.static::get_forum_type_s().' forums).'),
 				'type' => 'checkbox',
 				'required' => false,
+				'one_of_required' => false,
 			),
 		));
 
@@ -1150,6 +1159,7 @@ abstract class FUPSBase {
 					'description' => 'Check this box if you want FUPS to scrape all attachments to posts too.',
 					'type' => 'checkbox',
 					'required'    => false,
+					'one_of_required' => false,
 				),
 			));
 		}
@@ -1161,6 +1171,7 @@ abstract class FUPSBase {
 				'description' => 'Check this box if the forum from which you\'re scraping outputs dates in the non-US ordering dd/mm rather than the US ordering mm/dd. Applies only if day and month are specified by digits and separated by forward slashes.',
 				'type' => 'checkbox',
 				'required' => false,
+				'one_of_required' => false,
 			),
 			'debug' => array(
 				'label' => 'Output debug messages',
@@ -1169,6 +1180,7 @@ abstract class FUPSBase {
 				'type' => 'checkbox',
 				'hidden' => true,
 				'required' => false,
+				'one_of_required' => false,
 			),
 			'delay' => array(
 				'label' => 'Consecutive request delay (seconds)',
@@ -1176,6 +1188,7 @@ abstract class FUPSBase {
 				'min'     => 5,
 				'description' => 'Enter the number of seconds you wish for FUPS to delay between consecutive requests to the same web host (the minimum is five). This is required so as to avoid hammering other people\'s web servers.',
 				'required' => false,
+				'one_of_required' => false,
 			)
 		));
 

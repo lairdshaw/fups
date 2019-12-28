@@ -260,6 +260,7 @@ class XenForoFUPS extends FUPSBase {
 					'default'     => ''                     ,
 					'description' => 'Set this to the username corresponding to the above ID. Note that it does not and cannot replace the need for the above ID; that ID is required. In contrast, this setting is not required (i.e. it can be left blank) if the script has permission to view member information on the specified phpBB board, in which case the script will extract it automatically from the member information page associated with the above ID: this will fail if the forum requires users to be logged in to view member information, in which case you need to specify this setting.',
 					'required'    => false,
+					'one_of_required' => false,
 				);
 			}
 		}
