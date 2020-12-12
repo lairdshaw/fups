@@ -339,12 +339,16 @@ class phpBBFUPS extends FUPSBase {
 				# Earlier versions of phpBB need a different URL
 				$this->old_version = true;
 			}
-		} else {
+		}
+		if (!$is_old) {
 			if ($this->skins_preg_match('form_token', $html, $matches)) {
 				$form_token = $matches[1];
 			}
 			if ($this->skins_preg_match('creation_time', $html, $matches)) {
 				$creation_time = $matches[1];
+			}
+			if ($form_token && $creation_time) {
+				if ($this->dbg) $this->write_err('form_token: "'.$form_token.'"; creation_time: "'.$creation_time.'".');
 			}
 		}
 
