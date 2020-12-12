@@ -133,6 +133,16 @@ class phpBBFUPS extends FUPSBase {
 					'topic'                    => '(<div\\sid="page-body">.*<h2><a\\s+href="[^"]+-t\\d+\\.html">([^<]*)</a></h2>)s',
 					'forum_title'              => '(<div\\sid="page-body"[^>]*>.*<h2[^>]*><a\\s*[^>]+>([^<]+)</a></h2>)s',
 				),
+				'prosilver_3.3.2' => array(
+					'post_contents_ext'        => '(<div\\s+class="postbody">.*<h3[^>]*>\\s*(?:<img\\s+[^>]+>\\s+)?<a\\s*href="[^#]*#p(\\d+)">([^<]*)</a>\\s*</h3>.*<p\\s+class="author">\\s*<a\\s*[^>]*href="[^"]*"[^>]*>.*<strong>(<a[^>]*>)?([^><]*)(</a>)?</strong>\\s*(?:&raquo;|»)\\s*</span><time\\sdatetime="[^"]+">([^<]+)</time>\\s*</p>\\s*<div\\s+class="content">(.*)</div>\\s*(?:<dl\\sclass="attachbox">.*</dl>\\s*)?(?:<div\\s+class="notice">.*</div>\\s*)?(?:<div\\s+[^>]*class="signature">(.*)</div>\\s*)?</div>\\s*</div>\\s*<div\\s+class="back2top")Us',
+					'post_contents_ext_order'  => array(
+						'author'  => 4,
+						'title'   => 2,
+						'ts'      => 6,
+						'postid'  => 1,
+						'contents'=> 7,
+					),
+				),
 				'prosilver_3.2.x' => array(
 					'last_forum_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',
 					'last_topic_page'          => '(<li\\s+class="active"><span>\\d+</span></li>\\s*</ul>)',

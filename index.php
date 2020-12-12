@@ -105,6 +105,7 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<ul>
 				<li>2020-12-12
 					<ul>
+						<li>Added an updated 'post_contents_ext' regular expression to support the scraping of forum threads for phpBB 3.3.2.</li>
 						<li>Added support for new phpBB login form fields, namely 'form_token' and 'creation_time'.</li>
 					</ul>
 				</li>
