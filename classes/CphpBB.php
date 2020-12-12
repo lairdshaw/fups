@@ -41,6 +41,8 @@ class phpBBFUPS extends FUPSBase {
 			$this->regexps = array(
 				/* 'template_skin' => array(
 					'sid'                      => a regexp to extract the SID value from the login page <ucp.php?mode=login>
+					'form_token'               => a regexp to extract the form_token value from the login page <ucp.php?mode=login>
+					'creation_time'            => a regexp to extract the creation_time value from the login page <ucp.php?mode=login>
 					'board_title'              => a regexp to extract the board's title from the login page
 								<ucp.php?mode=login>
 					'login_success'            => a regexp to match the html of a successful-login page
@@ -262,6 +264,10 @@ class phpBBFUPS extends FUPSBase {
 					'prev_page'                => '#()<span class="gensmall"><b>.*?<a href="viewtopic\\.php\\?t=(\\d+?).*start=(\\d+?)[^>]*>[^<]*</a>, <b>#U',
 					'next_page'                => '#()<span class="gensmall"><b>[^<]+<a href="viewtopic\\.php\\?t=(\\d+).*start=(\\d+)[^"]*">#',
 				),
+				'generic_new' => array(
+					'form_token'               => '#<input type="hidden" name="form_token" value="([^"]*)"#',
+					'creation_time'            => '#<input type="hidden" name="creation_time" value="([^"]*)"#',
+				),
 				'forexfactory' => array(
 					'sid'                      => '#SSIONURL = \'?(s\=)(.*&)|(.*)\';#',
 					'board_title'              => '#<title>(.*)</title>#',
@@ -273,6 +279,8 @@ class phpBBFUPS extends FUPSBase {
 	protected function check_do_login() {
 		# We don't want any existing authentication token to mess with the process below. This does matter (tested).
 		if ($this->was_chained) @unlink($this->cookie_filename);
+
+		$creation_time = $form_token = $sid = '';
 
 		# Do this first bit so that we set old_version if necessary regardless of whether or not the user supplied credentials.
 
@@ -321,6 +329,13 @@ class phpBBFUPS extends FUPSBase {
 				# Earlier versions of phpBB need a different URL
 				$this->old_version = true;
 			}
+		} else {
+			if ($this->skins_preg_match('form_token', $html, $matches)) {
+				$form_token = $matches[1];
+			}
+			if ($this->skins_preg_match('creation_time', $html, $matches)) {
+				$creation_time = $matches[1];
+			}
 		}
 
 		# Do the rest conditionally on the user having supplied credentials.
@@ -345,6 +360,8 @@ class phpBBFUPS extends FUPSBase {
 				'viewonline' => '',
 				'redirect' => 'index.php',
 				'sid' => $sid,
+				'form_token' => $form_token,
+				'creation_time' => $creation_time,
 				'login' => 'true',
 			);
 			$opts = array(
