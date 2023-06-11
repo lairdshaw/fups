@@ -386,6 +386,9 @@ abstract class FUPSBase {
 
 	protected function check_do_chain() {
 		if (time() - $this->start_time > $this->FUPS_CHAIN_DURATION) {
+			curl_close($this->ch); // So we save the cookie file to disk for the chained process.
+			$this->ch = null; // So an exception isn't raised for trying to serialise a resource.
+
 			$serialize_filename = make_serialize_filename($this->web_initiated ? $this->token : $this->settings_filename);
 
 			if ($this->dbg) $this->write_err('Set $serialize_filename to "'.$serialize_filename.'".');
@@ -404,8 +407,6 @@ abstract class FUPSBase {
 				$args['output_dirname'] = $this->output_dirname;
 				$args['quiet'] = $this->quiet;
 			}
-
-			curl_close($this->ch); // So we save the cookie file to disk for the chained process.
 
 			$cmd = make_php_exec_cmd($args);
 			$this->write_status('Chaining next process.');

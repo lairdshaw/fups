@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2023-06-12
+					<ul>
+						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/7">issue #7</a>: <em>Serialization of 'CurlHandle' is not allowed</em>.</li>
+					</ul>
+				</li>
 				<li>2020-12-12
 					<ul>
 						<li>Added an updated 'post_contents_ext' regular expression to support the scraping of forum threads for phpBB 3.3.2.</li>
