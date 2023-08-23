@@ -300,8 +300,8 @@ class phpBBFUPS extends FUPSBase {
 		$redirect = false;
 		$html = $this->do_send($redirect, /*$quit_on_error*/false, $err);
 		
+		$is_old = false;
 		if ($err || $redirect) {
-			$is_old = false;
 			if (!$err && $redirect) {
 				$empty_url = array(
 					'scheme' => '',
