@@ -103,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2023-08-23
+					<ul>
+						<li>Fixed a PHP 8 warning re an uninitialised variable.</li>
+						<li>Initialised the debug status earlier, so that debugging can be output during the first call to strtotime_intl() when parsing the "Start From Date+Time" setting.</li>
+					</ul>
+				</li>
 				<li>2023-06-12
 					<ul>
 						<li>Fixed GitHub <a href="https://github.com/lairdshaw/fups/issues/7">issue #7</a>: <em>Serialization of 'CurlHandle' is not allowed</em>.</li>
