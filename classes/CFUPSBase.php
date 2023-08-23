@@ -200,13 +200,14 @@ abstract class FUPSBase {
 			if ($missing) {
 				$this->exit_err("The following settings were missing: ".implode(', ', $missing).'.', __FILE__, __METHOD__, __LINE__);
 			}
+
+			$this->dbg = $this->settings['debug'];
+
 			date_default_timezone_set($this->settings['php_timezone']); // This timezone only matters when converting the earliest time setting.
 			if (!empty($this->settings['start_from_date'])) {
 				$this->settings['earliest'] = $this->strtotime_intl($this->settings['start_from_date']);
 				if ($this->settings['earliest'] === false) $this->write_err("Error: failed to convert 'start_from_date' ({$this->settings['start_from_date']}) into a UNIX timestamp.");
 			}
-
-			$this->dbg = $this->settings['debug'];
 
 			if ($this->dbg) {
 				$this->write_err('SETTINGS:');
