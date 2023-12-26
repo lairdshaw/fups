@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2023-12-26
+					<ul>
+						<li>Fixed another PHP 8 warning re a potentially uninitialised array member when scraping a XenForo member's posts.</li>
+					</ul>
+				</li>
 				<li>2023-08-23
 					<ul>
 						<li>Fixed a PHP 8 warning re an uninitialised variable.</li>

@@ -290,27 +290,29 @@ class XenForoFUPS extends FUPSBase {
 	}
 
 	protected function hook_after__posts_retrieval() {
-		foreach ($this->posts_data[0]['posts'] as $pid => $post) {
-			if (isset($post['topicid'])) {
-				$topicid = $post['topicid'];
-				if (!isset($this->posts_data[$topicid])) {
-					$this->posts_data[$topicid] = array(
-						'forum'   => $post['forum'],
-						'topic'   => $post['topic'],
-						'forumid' => $post['forumid'],
-						'posts'   => array(),
-					);
+		if (isset($this->posts_data[0]['posts'])) {
+			foreach ($this->posts_data[0]['posts'] as $pid => $post) {
+				if (isset($post['topicid'])) {
+					$topicid = $post['topicid'];
+					if (!isset($this->posts_data[$topicid])) {
+						$this->posts_data[$topicid] = array(
+							'forum'   => $post['forum'],
+							'topic'   => $post['topic'],
+							'forumid' => $post['forumid'],
+							'posts'   => array(),
+						);
+					}
+					unset($post['forum']);
+					unset($post['forumid']);
+					unset($post['topic']);
+					unset($post['topicid']);
+					$this->posts_data[$topicid]['posts'][$pid] = $post;
+				} else {
+					$this->write_err('Error: $post[\'topicid\'] is unset.', __FILE__, __METHOD__, __LINE__);
 				}
-				unset($post['forum']);
-				unset($post['forumid']);
-				unset($post['topic']);
-				unset($post['topicid']);
-				$this->posts_data[$topicid]['posts'][$pid] = $post;
-			} else {
-				$this->write_err('Error: $post[\'topicid\'] is unset.', __FILE__, __METHOD__, __LINE__);
 			}
+			unset($this->posts_data[0]);
 		}
-		unset($this->posts_data[0]);
 	}
 
 	protected function hook_after__user_post_search() {
