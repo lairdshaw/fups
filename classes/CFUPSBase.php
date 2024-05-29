@@ -557,6 +557,9 @@ abstract class FUPSBase {
 
 			if ($this->dbg) $this->write_err('Set $serialize_filename to "'.$serialize_filename.'".');
 
+			curl_close($this->ch); // So we save the cookie file to disk for the chained process.
+			$this->ch = null; // So an exception isn't raised for trying to serialise a resource.
+
 			if (!file_put_contents($serialize_filename, serialize($this))) {
 				$this->write_err('Error: unable to serialise session data to disk. Resumability may not be possible, or, if it is, FUPS may resume from an earlier point.');
 			}
@@ -567,8 +570,6 @@ abstract class FUPSBase {
 					$this->write_err('Error: unable to create the resumability file on disk. Resumability may not be possible.');
 				}
 			}
-
-			curl_close($this->ch); // So we save the cookie file to disk for the resumed process.
 		}
 
 		static::exit_err_common_s($msg, $file, $method, $line, $this->have_written_to_admin_err_file, $existing_errs, get_class($this), $html, $settings_str, $send_mail && $this->web_initiated /*don't send mail for commandline runs*/, $token, $dbg, $resumable, $resumable && !$this->web_initiated);
