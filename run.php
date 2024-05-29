@@ -122,7 +122,7 @@ if (!$err) {
 	}
 	$status     = @file_get_contents($status_filename);
 	$errs       = @file_get_contents($errs_filename  );
-	$errs_admin = @file_get_contents($errs_admin_filename);
+	$errs_admin = !empty($errs_admin_filename) ? @file_get_contents($errs_admin_filename) : '';
 }
 
 $head_extra = '';
