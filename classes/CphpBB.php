@@ -654,7 +654,7 @@ class phpBBFUPS extends FUPSBase {
 			if (filter_var($this->settings['extract_user_id'], FILTER_VALIDATE_INT) === false) {
 				$this->exit_err('The value supplied for the "Extract User ID" setting, "'.$this->settings['extract_user_id'].'", is not an integer, which it is required to be for phpBB boards.', __FILE__, __METHOD__, __LINE__);
 			}
-		} else if (!$this->settings['forum_ids_arr']) {
+		} else if (empty($this->settings['forum_ids_arr'])) {
 				$this->exit_err('Neither the "Extract User ID" setting nor the "Forum IDs" setting were specified: at least one of these must be set.', __FILE__, __METHOD__, __LINE__);
 		}
 	}

@@ -434,12 +434,12 @@ abstract class FUPSBase {
 			# Try to discover the board's title
 			if (!$this->skins_preg_match('board_title', $html, $matches)) {
 				if ($this->dbg) $this->write_and_record_err_admin("Warning: couldn't find the site title. The URL of the searched page is ".$this->last_url, __FILE__, __METHOD__, __LINE__, $html);
+			} else {
+				$this->settings['board_title'] = $matches[1];
+				if ($this->dbg) $this->write_err("Site title: {$this->settings['board_title']}");
 			}
-			$this->settings['board_title'] = $matches[1];
-			if ($this->dbg) $this->write_err("Site title: {$this->settings['board_title']}");
 		}
 	}
-
 
 	protected function check_get_charset($html) {
 		if ($this->charset === null && preg_match('#\\<meta\\s+http-equiv\\s*=\\s*"Content-Type"\\s+content\\s*=\\s*"text/html;\\s+charset=([^"]+)">#', $html, $matches)) {

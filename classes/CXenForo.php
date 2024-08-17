@@ -397,7 +397,7 @@ class XenForoFUPS extends FUPSBase {
 				if ($this->dbg) $this->write_err('$this->settings[\'forum_ids_arr\'] == '.var_export($this->settings['forum_ids_arr'], true));
 			}
 		}
-		if (!$this->settings['extract_user_id'] && empty($this->settings['forum_ids_arr'])) {
+		if (empty($this->settings['extract_user_id']) && empty($this->settings['forum_ids_arr'])) {
 			$this->exit_err('Neither the "Extract User ID" setting nor the "Forum IDs" setting were specified: at least one of these must be set.', __FILE__, __METHOD__, __LINE__);
 		}
 	}

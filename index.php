@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2024-08-17
+					<ul>
+						<li>Fixed another few PHP 8 warnings re potentially uninitialised array members.</li>
+					</ul>
+				</li>
 				<li>2024-05-29
 					<ul>
 						<li>Fixed another instance of the <em>Serialization of 'CurlHandle' is not allowed</em> error.</li>
