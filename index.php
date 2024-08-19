@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2024-08-19
+					<ul>
+						<li>Improved phpBB support by adjusting a couple of 'search_results_page_data' regexes to allow for the case in which the <code>f=[integer]</code> query parameter in the 'viewtopic.php' URL does not exist.</li>
+					</ul>
+				</li>
 				<li>2024-08-17
 					<ul>
 						<li>Fixed another few PHP 8 warnings re potentially uninitialised array members.</li>
