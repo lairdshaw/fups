@@ -795,7 +795,7 @@ abstract class FUPSBase {
 				}
 			}
 			$ret = array(
-				'board_title'       => $this->settings['board_title'],
+				'board_title'       => isset($this->settings['board_title']) ? $this->settings['board_title'] : '[Title of board unknown]',
 				'user_name'         => $this->settings['extract_user'],
 				'board_base_url'    => $this->settings['base_url'],
 				'start_from_date'   => $this->settings['start_from_date'],
