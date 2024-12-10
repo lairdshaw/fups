@@ -103,6 +103,12 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2024-12-10
+					<ul>
+						<li>Averted a PHP warning when validating URLs without an explicit scheme.</li>
+						<li>Removed the &lt;sup&gt; tag on the index page; assume footnotes styled by the "footnote" class.</li>
+					</ul>
+				</li>
 				<li>2024-10-08
 					<ul>
 						<li>Averted a PHP warning when the board title is unset.</li>
