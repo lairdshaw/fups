@@ -65,7 +65,7 @@ fups_output_page_start($page, 'FUPS: Forum user-post scraper', 'Scrape posts mad
 			<br />
 			<br />
 
-			<h3 style="text-align: center;">Select forum software <sup><a class="footnote" href="#footnote1">[1]</a></sup> to continue</h3>
+			<h3 style="text-align: center;">Select forum software <a class="footnote" href="#footnote1">[1]</a> to continue</h3>
 
 			<p style="width: 100%; text-align: center;"><?php echo $enter_options_links_str; ?></p>
 
