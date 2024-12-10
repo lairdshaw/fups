@@ -61,17 +61,17 @@ fups_output_page_start($page, 'FUPS: Forum user-post scraper', 'Scrape posts mad
 ?>
 			<h2>FUPS: Forum user-post scraper</h2>
 
-			<br />
-			<br />
-			<br />
+			<br>
+			<br>
+			<br>
 
 			<h3 style="text-align: center;">Select forum software <a class="footnote" href="#footnote1">[1]</a> to continue</h3>
 
 			<p style="width: 100%; text-align: center;"><?php echo $enter_options_links_str; ?></p>
 
-			<br />
-			<br />
-			<br />
+			<br>
+			<br>
+			<br>
 
 			<h3>What is FUPS?</h3>
 
@@ -107,6 +107,7 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 					<ul>
 						<li>Averted a PHP warning when validating URLs without an explicit scheme.</li>
 						<li>Removed the &lt;sup&gt; tag on the index page; assume footnotes styled by the "footnote" class.</li>
+						<li>Converted &lt;br /&gt; tags to &lt;br&gt;s on the index page.</li>
 					</ul>
 				</li>
 				<li>2024-10-08
