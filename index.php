@@ -106,8 +106,8 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 				<li>2024-12-10
 					<ul>
 						<li>Averted a PHP warning when validating URLs without an explicit scheme.</li>
-						<li>Removed the &lt;sup&gt; tag on the index page; assume footnotes styled by the "footnote" class.</li>
-						<li>Converted &lt;br /&gt; tags to &lt;br&gt;s on the index page.</li>
+						<li>Removed the <code>&lt;sup&gt;</code> tag on the index page; assume footnotes styled by the "footnote" class.</li>
+						<li>Converted <code>&lt;br /&gt;</code> tags to <code>&lt;br&gt;</code>s on the index page.</li>
 					</ul>
 				</li>
 				<li>2024-10-08
