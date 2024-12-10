@@ -2058,6 +2058,9 @@ scrape_topic_page__next_topic:
 			$err = ucfirst($url_label).' ("'.$url.'") was invalid according to PHP\'s parse_url() function, which returned false for it.';
 			if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
 		} else {
+			if (!isset($parsed['scheme'])) {
+				$parsed['scheme'] = '';
+			}
 			if (!in_array($parsed['scheme'], $valid_schemes)) {
 				$err = 'The URL scheme ("'.$parsed['scheme'].'") of '.$url_label.' ("'.$url.'") is invalid; it should be one of: '.implode(', ', $valid_schemes).'.';
 				if ($exit_on_err) $this->exit_err($err, __FILE__, __METHOD__, __LINE__);
