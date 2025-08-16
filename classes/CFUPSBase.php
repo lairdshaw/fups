@@ -1673,7 +1673,9 @@ abstract class FUPSBase {
 
 					foreach ($this->posts_data as $topicid => &$topic_data) {
 						foreach ($topic_data['posts'] as $postid => &$post_data) {
-							$post_data['content'] = static::replace_downld_file_urls_s($post_data['content'], $this->downld_file_urls);
+							if (!empty($post_data['content'])) {
+								$post_data['content'] = static::replace_downld_file_urls_s($post_data['content'], $this->downld_file_urls);
+							}
 						}
 					}
 				}
