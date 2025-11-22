@@ -1932,10 +1932,12 @@ scrape_topic_page__next_topic:
 		}
 		$body .= ' occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
 		$body .= $full_admin_msg;
+		$body = quoted_printable_encode($body);
 		if ($token) $subject .= ' '.$token;
 		$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
 				"MIME-Version: 1.0\r\n" .
-				"Content-type: text/plain; charset=UTF-8\r\n";
+				"Content-type: text/plain; charset=UTF-8\r\n".
+				"Content-Transfer-Encoding: quoted-printable\r\n";
 		mail(FUPS_EMAIL_RECIPIENT, $subject, $body, $headers);
 	}
 

@@ -105,6 +105,7 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<ul>
 				<li>2025-11-23
 					<ul>
+						<li>Ensured that lines in the bodies of sent emails are wrapped in accordance with RFCs by encoding them as quoted-printable.</li>
 						<li>Averted a PHP deprecation warning: "Creation of dynamic property".</li>
 					</ul>
 				</li>
