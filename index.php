@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2025-11-23
+					<ul>
+						<li>Averted a PHP deprecation warning: "Creation of dynamic property".</li>
+					</ul>
+				</li>
 				<li>2025-08-16
 					<ul>
 						<li>Averted a PHP warning when replacing downloadable file URLs in null HTML post content.</li>

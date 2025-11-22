@@ -43,6 +43,9 @@ abstract class FUPSBase {
 	protected $charset             =  null;
 	protected $forum_idx           =  null;
 	protected $forum_idx2          =  null;
+	protected $topic_idx           =  null;
+	protected $topic_pg            =  null;
+	protected $topic_pg_counter    =  null;
 	protected $have_written_to_admin_err_file = false;
 	protected $private_settings  = array('login_user', 'login_password');
 	/* Different skins sometimes output html different enough that
