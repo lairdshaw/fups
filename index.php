@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2025-11-29
+					<ul>
+						<li>Switched email body encoding from quoted-printable to base64 to avoid an edge case when lines start with double dots.</li>
+					</ul>
+				</li>
 				<li>2025-11-23
 					<ul>
 						<li>Ensured that lines in the bodies of sent emails are wrapped in accordance with RFCs by encoding them as quoted-printable.</li>

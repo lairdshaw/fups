@@ -1932,12 +1932,19 @@ scrape_topic_page__next_topic:
 		}
 		$body .= ' occurred in the FUPS process with commandline arguments:'.PHP_EOL.var_export($argv, true).PHP_EOL.PHP_EOL;
 		$body .= $full_admin_msg;
-		$body = quoted_printable_encode($body);
+		// The first fix tried for DKIM validation failures due to lines being split on receipt (after having
+		// been signed) at 1,000 characters was encoding $body with quoted_printable_encode(). That mostly
+		// worked, except for encoded lines that began with double dots: those were reduced to single dots on
+		// receipt, again modifying signed content. Replacing with chunk_split() and base64_encode() was
+		// simpler than diagnosing the exact cause of and solution for this edge case, with the disadvantage
+		// being that it adds about 33% more space, according to
+		// <https://www.php.net/manual/en/function.base64-encode.php>.
+		$body = chunk_split(base64_encode($body));
 		if ($token) $subject .= ' '.$token;
 		$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
 				"MIME-Version: 1.0\r\n" .
 				"Content-type: text/plain; charset=UTF-8\r\n".
-				"Content-Transfer-Encoding: quoted-printable\r\n";
+				"Content-Transfer-Encoding: base64\r\n";
 		mail(FUPS_EMAIL_RECIPIENT, $subject, $body, $headers);
 	}
 
