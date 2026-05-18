@@ -103,6 +103,11 @@ if (defined('FUPS_SHOW_CHANGELOG') && FUPS_SHOW_CHANGELOG) {
 			<h3 id="changelog">Changelog</h3>
 
 			<ul>
+				<li>2026-05-18
+					<ul>
+						<li>Also switched admin notification email body encoding to base64.</li>
+					</ul>
+				</li>
 				<li>2025-11-29
 					<ul>
 						<li>Switched email body encoding from quoted-printable to base64 to avoid an edge case when lines start with double dots.</li>

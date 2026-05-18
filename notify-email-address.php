@@ -43,9 +43,12 @@ if (!$err) {
 		$err = "Fatal error: the email address you supplied, <$email_addr>, is not valid.";
 	}
 	if (!$err) {
-		$msg = 'The contact email address for the FUPS process "'.$_POST['token'].'" is <'.$_POST['email_address'].'>.'."\n\n".'Any message the user included follows:'."\n\n".$_POST['message'];
+		$msg = chunk_split(base64_encode('The contact email address for the FUPS process "'.$_POST['token'].'" is <'.$_POST['email_address'].'>.'."\n\n".'Any message the user included follows:'."\n\n".$_POST['message']));
 		$headers = 'From: '.FUPS_EMAIL_SENDER."\r\n".
-		           'Reply-To: '.$email_addr;
+		           'Reply-To: '.$email_addr."\r\n".
+		           "MIME-Version: 1.0\r\n".
+		           "Content-type: text/plain; charset=UTF-8\r\n".
+		           "Content-Transfer-Encoding: base64\r\n";
 		if (!mail(FUPS_EMAIL_RECIPIENT, 'Contact email address for FUPS process '.$_POST['token'], $msg, $headers)) {
 			$err = fups_notify_email_address_fail_msg($_POST['token']);
 		}
